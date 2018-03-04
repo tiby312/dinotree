@@ -61,8 +61,6 @@ pub mod prelude{
 }
 
 
-///Provides functionality to draw the dividers of a dinotree.
-pub mod graphics;
 ///Contains the different median finding strategies.
 pub mod median;
 
