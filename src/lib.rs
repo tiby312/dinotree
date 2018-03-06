@@ -1,6 +1,5 @@
 #![feature(iterator_step_by)]
 
-
 extern crate axgeom;
 extern crate compt;
 extern crate rayon;
@@ -13,7 +12,7 @@ extern crate smallvec;
 
 mod inner_prelude{
   
-  pub use base_kdtree::TreeCache;
+  //pub use base_kdtree::TreeCache;
   pub use AABBox;
   pub use axgeom::Axis;
   pub use compt::LevelIter;
@@ -43,15 +42,16 @@ mod inner_prelude{
 /// }
 /// ```
 pub mod prelude{
-  pub use base_kdtree::TreeCache;
+  //pub use base_kdtree::TreeCache;
   pub use tree_alloc::NodeDyn;
+  pub use dyntree::NdIter;
   pub use treetimer::*;
   pub use daxis;
   pub use AABBox;
   pub use DepthLevel;
   pub use NumTrait;
   pub use SweepTrait;
-    pub use oned::sweeper_update;
+  pub use oned::sweeper_update;
   pub use median::*;
   pub use median::relax::*;
   pub use median::strict::*;
@@ -87,7 +87,7 @@ mod oned;
 mod tools;
 
 
-  pub use base_kdtree::TreeCache;
+//pub use base_kdtree::TreeCache;
 use compt::LevelDesc;
 use axgeom::Rect;
 use treetimer::*;

@@ -39,7 +39,7 @@ pub struct Bag{
 }
 impl Bag{
     pub fn into_vec(mut self)->Vec<f64>{
-        self.a.reverse();  //TODO whats this?
+        //self.a.reverse();  //TODO whats this?
         self.a
     }
 }

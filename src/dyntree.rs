@@ -119,8 +119,8 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     ///If parallel, also specify the depth at which to switch to sequential.
     ///Also specify the median finding strategy to use.
     ///Also specify whether to use collect timing dat.a
-    pub fn new<JJ:par::Joiner,H:DepthLevel,Z:MedianStrat<Num=T::Num>,K:TreeTimerTrait>(
-        rest:&'a mut [T],tc:&mut TreeCache<A,T::Num>,medianstrat:&Z) -> (DynTree<'a,A,T>,K::Bag) {
+    pub fn new<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(
+        rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
         let num_bots=rest.len();
 
@@ -134,7 +134,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                 pointers.push(Cont{a:k});
             }
             {
-                let (mut tree2,bag)=KdTree::new::<JJ,H,_,K>(&mut pointers,tc,medianstrat);
+                let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut pointers,height);
                 
                 // 12345
                 // 42531     //vector:41302

@@ -1,4 +1,5 @@
 use inner_prelude::*;
+use median::strict::*;
 
 #[derive(Copy,Clone,Debug)]
 pub struct DivNode<Nu:Ord+Copy+std::fmt::Debug>{
@@ -10,6 +11,7 @@ impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
     }
 }
 
+/*
 ///This preserves some state of the medians at each level between kdtree constructions.
 pub struct TreeCache<A:AxisTrait,Nu:NumTrait>{
     height:usize,
@@ -33,6 +35,7 @@ impl<A:AxisTrait,Nu:NumTrait> TreeCache<A,Nu>{
         &self.medtree
     }
 }
+*/
 
 
 ///A KdTree construction
@@ -43,11 +46,11 @@ pub struct KdTree<'a,A:AxisTrait,T:SweepTrait+'a> {
 
 impl<'a,A:AxisTrait,T:SweepTrait+'a> KdTree<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,H:DepthLevel,Z:MedianStrat<Num=T::Num>,K:TreeTimerTrait>(rest:&'a mut [T],tc:&mut TreeCache<A,T::Num>,medianstrat:&Z) -> (KdTree<'a,A,T>,K::Bag) {
-        let height=tc.height;
+    pub fn new<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
+        //TODO replace with an unitialized version of thetree?
+        //to reduce overhead???
         let mut ttree=compt::GenTree::from_bfs(&mut ||{
-            //let rect=axgeom::Rect::new(0.0,0.0,0.0,0.0);
             let rest=&mut [];
             use std;
 
@@ -59,10 +62,10 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> KdTree<'a,A,T>{
         let bag={
 
             let level=ttree.get_level_desc();
-            let m=tc.medtree.create_down_mut();
-            let j=compt::LevelIter::new(m.zip(ttree.create_down_mut()),level);
+            //let m=tc.medtree.create_down_mut();
+            let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
-            self::recurse_rebal::<A,T,H,_,JJ,K>(rest,j,t,medianstrat)
+            self::recurse_rebal::<A,T,H,JJ,K>(rest,j,t)
         };
         (KdTree{tree:ttree,_p:PhantomData},bag)
     }
@@ -89,14 +92,14 @@ pub struct Node2<'a,T:SweepTrait+'a>{
 }
 
 
-fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,Z:MedianStrat<Num=T::Num>,JJ:par::Joiner,K:TreeTimerTrait>(
+fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeTimerTrait>(
     rest:&'b mut [T],
-    down:compt::LevelIter<compt::Zip<compt::DownTMut<DivNode<T::Num>>,compt::DownTMut<Node2<'b,T>>>>,
-    mut timer_log:K,medianstrat:&Z)->K::Bag{
+    down:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>,
+    mut timer_log:K)->K::Bag{
 
     timer_log.start();
     
-    let ((level,(div,nn)),restt)=down.next();
+    let ((level,nn),restt)=down.next();
 
     /*
     let a = std::time::Duration::from_millis(300);
@@ -129,7 +132,49 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,Z:MedianStrat<Num=T::N
         Some((lleft,rright))=>{
 
             let tt0=tools::Timer2::new();
-            let (med,binned)=medianstrat.compute::<JJ,A,_>(level,rest,&mut div.divider);
+            //let (med,binned)=medianstrat.compute::<JJ,A,_>(level,rest,&mut div.divider);
+            
+            let med={
+            
+                
+                let div_axis=A::get();
+                let m = if rest.len() == 0{
+                            std::default::Default::default()
+                            //TODO what to do here?
+                    }
+                    else
+                    {
+                        let closure = |a: &T, b: &T| -> std::cmp::Ordering {
+        
+                            let arr=(a.get().0).0.get_range(div_axis);
+                            let brr=(b.get().0).0.get_range(div_axis);
+                      
+                            if arr.left() > brr.left(){
+                                return std::cmp::Ordering::Greater;
+                            
+                            }
+                            std::cmp::Ordering::Less
+                        };
+
+                        let k={
+                            let mm=rest.len()/2;
+                            pdqselect::select_by(rest, mm, closure);
+                            &rest[mm]
+                        };
+                        (k.get().0).0.get_range(div_axis).start
+                    };
+                //*mmm=m;
+                m
+                
+            };
+
+            let binned=if JJ::is_parallel(){
+                oned::bin_par::<A,_>(&med,rest)
+            }else{
+                oned::bin::<A,_>(&med,rest)
+            };
+
+
             tot_time[0]=tt0.elapsed();
 
             let binned_left=binned.left;
@@ -149,12 +194,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,Z:MedianStrat<Num=T::N
                         let container_box=self::create_container_rect_par::<A,_>(binned_middile);
                         let nj=Node2{divider:med,container_box,range:binned_middile};
                         //let nj=create_node::<A,_,JJ>(med,binned_middile);
-                        let ba=self::recurse_rebal::<A::Next,T,H,Z,par::Parallel,K>(binned_left,lleft,ta,medianstrat);
+                        let ba=self::recurse_rebal::<A::Next,T,H,par::Parallel,K>(binned_left,lleft,ta);
                         (nj,ba)
                     };
 
                     let bf=move || {
-                        self::recurse_rebal::<A::Next,T,H,Z,par::Parallel,K>(binned_right,rright,tb,medianstrat)
+                        self::recurse_rebal::<A::Next,T,H,par::Parallel,K>(binned_right,rright,tb)
                     };
                     rayon::join(af,bf)
                 };
@@ -181,9 +226,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,Z:MedianStrat<Num=T::N
                 let nj=Node2{divider:med,container_box,range:binned_middile};
                 
 
-                //let nj=create_node::<A,_,JJ>(med,binned_middile);
-                let ba=self::recurse_rebal::<A::Next,T,H,Z,par::Sequential,K>(binned_left,lleft,ta,medianstrat);
-                let bb=self::recurse_rebal::<A::Next,T,H,Z,par::Sequential,K>(binned_right,rright,tb,medianstrat);
+                let ba=self::recurse_rebal::<A::Next,T,H,par::Sequential,K>(binned_left,lleft,ta);
+                let bb=self::recurse_rebal::<A::Next,T,H,par::Sequential,K>(binned_right,rright,tb);
                 (nj,ba,bb)
             };
 

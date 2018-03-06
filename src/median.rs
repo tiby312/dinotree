@@ -217,6 +217,8 @@ impl<N:NumTrait> MedianStrat for MedianRelax2<N>{
  
 ///This median finding strategy revolves around using quickselect to find the median without use of the previous state.
 pub mod strict{
+    use pdqselect;
+    
     use super::*;
 
     pub struct MedianStrict<N:NumTrait>{
@@ -248,7 +250,7 @@ pub mod strict{
                     }
                     else
                     {
-                         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
+                        let closure = |a: &T, b: &T| -> std::cmp::Ordering {
         
                             let arr=(a.get().0).0.get_range(div_axis);
                             let brr=(b.get().0).0.get_range(div_axis);
@@ -260,12 +262,11 @@ pub mod strict{
                             std::cmp::Ordering::Less
                         };
 
-
-                        let mm=rest.len()/2;
-                        use pdqselect;
-                        pdqselect::select_by(rest, mm, closure);
-                        
-                        let k=&rest[mm];
+                        let k={
+                            let mm=rest.len()/2;
+                            pdqselect::select_by(rest, mm, closure);
+                            &rest[mm]
+                        };
                         (k.get().0).0.get_range(div_axis).start
                     };
                 *mmm=m;
