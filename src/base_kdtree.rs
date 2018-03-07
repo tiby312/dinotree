@@ -125,8 +125,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
             let container_box=self::create_container_rect::<A,_>(rest);
             let divider=std::default::Default::default();
             *nn=Node2{divider,container_box,range:rest};
-            //*nn=create_node::<A,_,JJ>(std::default::Default::default(),rest);
-            
             timer_log.leaf_finish()
         },
         Some((lleft,rright))=>{
@@ -167,12 +165,14 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                 m
                 
             };
-
+            /*
             let binned=if JJ::is_parallel(){
                 oned::bin_par::<A,_>(&med,rest)
             }else{
                 oned::bin::<A,_>(&med,rest)
             };
+            */
+            let binned=oned::bin::<A,_>(&med,rest);
 
 
             tot_time[0]=tt0.elapsed();
@@ -193,7 +193,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                         sweeper_update::<_,A::Next,JJ>(binned_middile);
                         let container_box=self::create_container_rect_par::<A,_>(binned_middile);
                         let nj=Node2{divider:med,container_box,range:binned_middile};
-                        //let nj=create_node::<A,_,JJ>(med,binned_middile);
                         let ba=self::recurse_rebal::<A::Next,T,H,par::Parallel,K>(binned_left,lleft,ta);
                         (nj,ba)
                     };
@@ -244,6 +243,58 @@ use self::bla::create_container_rect;
 use self::bla::create_container_rect_par;
 mod bla{
     use super::*;
+
+    #[cfg(test)]
+    mod test{
+        use super::*;
+        use test_support::*;
+        use test_support;
+        use support::*;
+        use test::black_box;
+        use test::Bencher;
+        use oned::*;
+        use axgeom;
+        struct Bot{
+            id:usize
+        }
+
+        #[bench]
+        fn bench_rect_par(b:&mut Bencher){
+
+            let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+            let mut bots=Vec::new();
+            for id in 0..100000{
+                let ppp=p.random_point();
+                let k=test_support::create_rect_from_point(ppp);
+                bots.push(BBox::new(Bot{id},k)); 
+            }
+            
+            b.iter(||{
+                black_box(create_container_rect_par::<axgeom::XAXIS_S,_>(&mut bots));
+            });
+            
+        }
+
+        #[bench]
+        fn bench_rect(b:&mut Bencher){
+
+            let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+            let mut bots=Vec::new();
+            for id in 0..100000{
+                let ppp=p.random_point();
+                let k=test_support::create_rect_from_point(ppp);
+                bots.push(BBox::new(Bot{id},k)); 
+            }
+            
+            b.iter(||{
+                black_box(create_container_rect::<axgeom::XAXIS_S,_>(&mut bots));
+            });
+            
+        }
+    }
+
     pub fn create_container_rect<A:AxisTrait,T:SweepTrait>(middile:&[T])->axgeom::Range<T::Num>{
         
         {

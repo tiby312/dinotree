@@ -1,5 +1,7 @@
 #![feature(iterator_step_by)]
 
+#![feature(test)]
+
 extern crate axgeom;
 extern crate compt;
 extern crate rayon;
@@ -7,6 +9,10 @@ extern crate pdqselect;
 extern crate ordered_float;
 #[cfg(test)]
 extern crate rand;
+
+#[cfg(test)]
+extern crate test;
+
 extern crate smallvec;
 
 
@@ -32,15 +38,7 @@ mod inner_prelude{
   pub use tree_alloc::NodeDyn;
 }
 
-/// Conveniently include commonly used symbols in this crate.
-/// Use like this:
-/// ```
-/// extern crate dinotree;
-/// use dinotree::prelude::*;
-/// fn main(){
-///    //...
-/// }
-/// ```
+
 pub mod prelude{
   //pub use base_kdtree::TreeCache;
   pub use tree_alloc::NodeDyn;
@@ -90,10 +88,51 @@ mod tools;
 //pub use base_kdtree::TreeCache;
 use compt::LevelDesc;
 use axgeom::Rect;
-use treetimer::*;
+pub use treetimer::*;
+
 use axgeom::XAXIS_S;
 use axgeom::YAXIS_S;
 pub use base_kdtree::DivNode;
+
+/*
+//Note this doesnt check all invariants.
+//e.g. doesnt check that every bot is in the tree only once.
+fn assert_invariant<T:SweepTrait>(d:&DinoTree2<T>){
+    
+    let level=d.0.get_level_desc();
+    let ll=compt::LevelIter::new(d.0.get_iter(),level);
+    use compt::CTreeIterator;
+    for (level,node) in ll.dfs_preorder_iter(){
+       
+       //println!("level={:?}",level.get_depth());
+       if level.get_depth()%2==0{
+          oned::is_sorted::<A::Next,_>(&node.range);
+
+
+          let kk=node.container_box;
+          for a in node.range.iter(){
+             let (p1,p2)=(
+                  a.get().0.get().get_range2::<A>().left(),
+                  a.get().0.get().get_range2::<A>().right());
+              assert!(kk.left()<=p1);
+              assert!(p2<=kk.right());
+          }
+       }else{
+          oned::is_sorted::<A,_>(&node.range);
+          
+          let kk=node.container_box;
+          for a in node.range.iter(){
+             let (p1,p2)=(
+                  a.get().0.get().get_range2::<A::Next>().left(),
+                  a.get().0.get().get_range2::<A::Next>().right());
+              assert!(kk.left()<=p1);
+              assert!(p2<=kk.right());
+          }
+       }
+    }       
+    
+}
+*/
 
 
 ///Returns the level at which a parallel divide and conqur algorithm will switch to sequential
@@ -107,6 +146,8 @@ pub trait DepthLevel{
 pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug+Default{}
 
 
+///A bounding box made up of x and y ordered pairs.
+///The left must be less than the right. //TODO or equal to?
 #[derive(Copy,Clone)]
 pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);
 impl<N:NumTrait> AABBox<N>{
@@ -202,5 +243,3 @@ pub mod par{
 #[cfg(test)]
 mod test_support;
 
-#[cfg(test)]
-mod dinotree_test;

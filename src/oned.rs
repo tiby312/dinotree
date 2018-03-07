@@ -61,12 +61,100 @@ pub struct Binned<'a,T:'a>{
 }
 
 
+#[cfg(test)]
+mod test{
+    use test_support::*;
+    use test_support;
+    use support::*;
+    use test::black_box;
+    use test::Bencher;
+    use oned::*;
+    use axgeom;
+    struct Bot{
+        id:usize
+    }
+
+    #[bench]
+    fn bench_pdqselect_par(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id},k)); 
+        }
+        
+        b.iter(||{
+            let div_axis=axgeom::XAXIS;
+            let closure = |a: &BBox<Numisize,Bot>, b: &BBox<Numisize,Bot>| -> std::cmp::Ordering {
+
+                let arr=(a.get().0).0.get_range(div_axis);
+                let brr=(b.get().0).0.get_range(div_axis);
+          
+                if arr.left() > brr.left(){
+                    return std::cmp::Ordering::Greater;
+                
+                }
+                std::cmp::Ordering::Less
+            };
+
+            let k={
+                let mm=bots.len()/2;
+                pdqselect::select_by(&mut bots, mm, closure);
+                &bots[mm]
+            };
+
+            black_box(k);
+        });
+        
+    }
+
+
+    #[bench]
+    fn bench_bin_par(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id},k)); 
+        }
+        
+        b.iter(||{
+            black_box(bin_par::<axgeom::XAXIS_S,_>(&Numisize(500),&mut bots));
+        });
+        
+    }
+
+    #[bench]
+    fn bench_bin(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id},k)); 
+        }
+        
+        b.iter(||{
+            black_box(bin::<axgeom::XAXIS_S,_>(&Numisize(500),&mut bots));
+        });
+        
+    }
+}
+
 pub fn bin_par<'a,'b,A:AxisTrait,X:SweepTrait+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let ff1=tools::create_empty_slice_at_start_mut(bots);
     let ff2=tools::create_empty_slice_at_start_mut(bots);
     let ff3=tools::create_empty_slice_at_start_mut(bots);
     
-    let chunks:Vec<&'b mut [X]>=bots.chunks_mut(2000).collect();
+    let chunks:Vec<&'b mut [X]>=bots.chunks_mut(4000).collect();
     
     let bins:Vec<Binned<'b,X>>=chunks.into_par_iter().map(|a:&'b mut [X]|bin::<A,_>(med,a)).collect();
     

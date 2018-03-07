@@ -1,6 +1,16 @@
 use inner_prelude::*;
 use ordered_float::NotNaN;
 
+///A default depth level from which to switch to sequential.
+pub struct DefaultDepthLevel;
+
+impl DepthLevel for DefaultDepthLevel{
+    fn switch_to_sequential(a:LevelDesc)->bool{
+        a.get_depth()>=5
+    }
+}
+
+
 
 ///A convenience wrapper that implements the NumTrait around any number that implements the 
 ///required traits for a NumTrait.
@@ -12,6 +22,12 @@ impl<T:Ord+Copy+Send+Sync+std::fmt::Debug+Default> NumTrait for NumWrapper<T>{}
 #[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
 pub struct Numf32(pub NotNaN<f32>);
 impl NumTrait for Numf32{}
+
+impl Numf32{
+    pub fn from_f32(a:f32)->Numf32{
+        Numf32(NotNaN::new(a).unwrap())
+    }
+}
 
 ///A premade f64 wrapper that implements NumTrait
 #[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
@@ -66,15 +82,4 @@ impl<Nu:NumTrait,T:Send+Sync> BBox<Nu,T>{
         BBox{rect:r,val:val}
     }
 }
-
-
-///A default depth level from which to switch to sequential.
-pub struct DefaultDepthLevel;
-
-impl DepthLevel for DefaultDepthLevel{
-    fn switch_to_sequential(a:LevelDesc)->bool{
-        a.get_depth()>=5
-    }
-}
-
 

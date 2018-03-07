@@ -3,6 +3,11 @@ name = "dinotree_inner"
 version = "0.1.0"
 authors = ["Ken Reed <kenakioreed@gmail.com>"]
 
+
+[dev-dependencies]
+rand = "0.3"
+rustc-test = "0.3.0"
+
 [dependencies]
 ordered-float = "0.5.0"
 rayon = "0.9.*"
