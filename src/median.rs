@@ -1,10 +1,10 @@
 use inner_prelude::*;
-
+use base_kdtree::RebalTrait;
 ///Defines what divider-placement strategy to use.
 pub trait MedianStrat:Sync{
     type Num:NumTrait;
     ///updates median and bins.
-    fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:SweepTrait<Num=Self::Num>>(
+    fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:RebalTrait<Num=Self::Num>>(
         &self,
         level:LevelDesc,
         rest:&'a mut [T],
@@ -35,7 +35,7 @@ pub mod relax{
         fn move_divider(&self,divider:&mut Self::N,total:usize,mag:f32);
     }
 
-
+    /*
     pub struct MedianRelax<N:NumTrait,D:DivMoveStrat<N=N>>{
         a:D,
         _p:PhantomData<N>
@@ -50,7 +50,7 @@ pub mod relax{
 
     impl<N:NumTrait,D:DivMoveStrat<N=N>> MedianStrat for MedianRelax<N,D>{
         type Num=N;
-        fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:SweepTrait<Num=N>>(
+        fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:RebalTrait<Num=N>>(
             &self,
             _level:LevelDesc,
             rest:&'a mut [T],
@@ -63,11 +63,9 @@ pub mod relax{
             let tt0=tools::Timer2::new();
 
             //TODO only do this at upper levels??
-            let binned=if JJ::is_parallel(){
-                oned::bin_par::<A,_>(&med,rest)
-            }else{
-                oned::bin::<A,_>(&med,rest)
-            };
+            
+            let binned=oned::bin::<A,_>(&med,rest);
+            
             
             times[0]=tt0.elapsed();
 
@@ -121,6 +119,7 @@ pub mod relax{
             (med,binned)
         }  
      }
+     */
 }
 
 use std::cmp::Ordering;
@@ -214,7 +213,7 @@ impl<N:NumTrait> MedianStrat for MedianRelax2<N>{
     }  
  }
 */
- 
+ /*
 ///This median finding strategy revolves around using quickselect to find the median without use of the previous state.
 pub mod strict{
     use pdqselect;
@@ -233,7 +232,7 @@ pub mod strict{
     impl<N:NumTrait> MedianStrat for MedianStrict<N>{
         type Num=N;
         
-        fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:SweepTrait<Num=N>>(
+        fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:RebalTrait<Num=N>>(
             &self,
             _level:LevelDesc,
             rest:&'a mut [T],
@@ -252,8 +251,8 @@ pub mod strict{
                     {
                         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
         
-                            let arr=(a.get().0).0.get_range(div_axis);
-                            let brr=(b.get().0).0.get_range(div_axis);
+                            let arr=a.get().get_range(div_axis);
+                            let brr=b.get().get_range(div_axis);
                       
                             if arr.left() > brr.left(){
                                 return std::cmp::Ordering::Greater;
@@ -267,7 +266,7 @@ pub mod strict{
                             pdqselect::select_by(rest, mm, closure);
                             &rest[mm]
                         };
-                        (k.get().0).0.get_range(div_axis).start
+                        k.get().get_range(div_axis).start
                     };
                 *mmm=m;
                 m
@@ -284,3 +283,4 @@ pub mod strict{
         }
     } 
 }
+*/

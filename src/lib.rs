@@ -50,9 +50,9 @@ pub mod prelude{
   pub use NumTrait;
   pub use SweepTrait;
   pub use oned::sweeper_update;
-  pub use median::*;
-  pub use median::relax::*;
-  pub use median::strict::*;
+  //pub use median::*;
+  //pub use median::relax::*;
+  //pub use median::strict::*;
   pub use par;
   pub use treetimer;
   pub use support::*;
@@ -69,7 +69,7 @@ pub mod support;
 pub mod treetimer;
 
 ///Contains rebalancing code.
-mod base_kdtree;
+pub mod base_kdtree;
 ///Provides low level functionality to construct a dyntree.
 mod tree_alloc;
 

@@ -1,6 +1,6 @@
 use inner_prelude::*;
 use rayon::prelude::*;
-
+use base_kdtree::RebalTrait;
 
 /*
 ///Provides contains that support converting a closure to a struct that implements Bleek.
@@ -71,11 +71,32 @@ mod test{
     use oned::*;
     use axgeom;
     struct Bot{
-        id:usize
+        id:usize,
+        //_stuff:[f32;8]
+    }
+
+
+    pub struct Cont<'b,T:'b>{
+        pub a:&'b mut T
+    }
+
+    impl<'b,T:'b+SweepTrait+Send> SweepTrait for Cont<'b,T>{
+        type Inner=T::Inner;
+        type Num=T::Num;
+
+        ///Destructure into the bounding box and mutable parts.
+        fn get_mut<'a>(&'a mut self)->(&'a AABBox<T::Num>,&'a mut Self::Inner){
+            self.a.get_mut()
+        }
+
+        ///Destructue into the bounding box and inner part.
+        fn get<'a>(&'a self)->(&'a AABBox<T::Num>,&'a Self::Inner){
+            self.a.get()
+        }
     }
 
     #[bench]
-    fn bench_pdqselect_par(b:&mut Bencher){
+    fn bench_pdqselect(b:&mut Bencher){
 
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
@@ -85,6 +106,51 @@ mod test{
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id},k)); 
         }
+
+        let mut pointers:Vec<Cont<BBox<Numisize,Bot>>>=Vec::with_capacity(bots.len());
+        for k in bots.iter_mut(){
+            pointers.push(Cont{a:k});
+        }
+        
+
+        
+        b.iter(||{
+            let div_axis=axgeom::XAXIS;
+            let closure = |a: &Cont<BBox<Numisize,Bot>>, b: &Cont<BBox<Numisize,Bot>>| -> std::cmp::Ordering {
+
+                let arr=(a.get().0).0.get_range(div_axis);
+                let brr=(b.get().0).0.get_range(div_axis);
+          
+                if arr.left() > brr.left(){
+                    return std::cmp::Ordering::Greater;
+                
+                }
+                std::cmp::Ordering::Less
+            };
+
+            let k={
+                let mm=pointers.len()/2;
+                pdqselect::select_by(&mut pointers, mm, closure);
+                &pointers[mm]
+            };
+
+            black_box(k);
+        });
+        
+    }
+
+    #[bench]
+    fn bench_pdqselect_no_ind(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id},k)); 
+        }
+
         
         b.iter(||{
             let div_axis=axgeom::XAXIS;
@@ -111,9 +177,30 @@ mod test{
         
     }
 
-
+    /*
     #[bench]
     fn bench_bin_par(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id,_stuff:[0.0;8]},k)); 
+        }
+
+
+        
+        b.iter(||{
+            black_box(bin_par::<axgeom::XAXIS_S,_>(&Numisize(500),&mut bots));
+        });
+        
+    }
+    */
+
+    #[bench]
+    fn bench_sort_no_ind(b:&mut Bencher){
 
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
@@ -124,8 +211,90 @@ mod test{
             bots.push(BBox::new(Bot{id},k)); 
         }
         
+
         b.iter(||{
-            black_box(bin_par::<axgeom::XAXIS_S,_>(&Numisize(500),&mut bots));
+            let div_axis=axgeom::XAXIS;
+            let closure = |a: &BBox<Numisize,Bot>, b: &BBox<Numisize,Bot>| -> std::cmp::Ordering {
+
+                let arr=(a.get().0).0.get_range(div_axis);
+                let brr=(b.get().0).0.get_range(div_axis);
+          
+                if arr.left() > brr.left(){
+                    return std::cmp::Ordering::Greater;
+                
+                }
+                std::cmp::Ordering::Less
+            };
+
+            bots.sort_unstable_by(closure);
+            /*
+            let k={
+                let mm=bots.len()/2;
+                pdqselect::select_by(&mut bots, mm, closure);
+                &bots[mm]
+            };
+            */
+            black_box(&bots);
+        });
+        
+    }
+
+
+    #[bench]
+    fn bench_sort(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id},k)); 
+        }
+
+        let mut pointers:Vec<Cont<BBox<Numisize,Bot>>>=Vec::with_capacity(bots.len());
+        for k in bots.iter_mut(){
+            pointers.push(Cont{a:k});
+        }
+        
+
+        
+        b.iter(||{
+            let div_axis=axgeom::XAXIS;
+            let closure = |a: &Cont<BBox<Numisize,Bot>>, b: &Cont<BBox<Numisize,Bot>>| -> std::cmp::Ordering {
+
+                let arr=(a.get().0).0.get_range(div_axis);
+                let brr=(b.get().0).0.get_range(div_axis);
+          
+                if arr.left() > brr.left(){
+                    return std::cmp::Ordering::Greater;
+                
+                }
+                std::cmp::Ordering::Less
+            };
+
+            pointers.sort_unstable_by(closure);
+
+            black_box(&pointers);
+        });
+        
+    }
+
+    #[bench]
+    fn bench_bin_no_ind(b:&mut Bencher){
+
+        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+        let mut bots=Vec::new();
+        for id in 0..100000{
+            let ppp=p.random_point();
+            let k=test_support::create_rect_from_point(ppp);
+            bots.push(BBox::new(Bot{id},k)); 
+        }
+        
+
+        b.iter(||{
+            black_box(bin::<axgeom::XAXIS_S,_>(&Numisize(500),&mut bots));
         });
         
     }
@@ -141,15 +310,21 @@ mod test{
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id},k)); 
         }
+
+        let mut pointers:Vec<Cont<BBox<Numisize,Bot>>>=Vec::with_capacity(bots.len());
+        for k in bots.iter_mut(){
+            pointers.push(Cont{a:k});
+        }
         
+
         b.iter(||{
-            black_box(bin::<axgeom::XAXIS_S,_>(&Numisize(500),&mut bots));
+            black_box(bin::<axgeom::XAXIS_S,_>(&Numisize(500),&mut pointers));
         });
         
     }
 }
 
-pub fn bin_par<'a,'b,A:AxisTrait,X:SweepTrait+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_par<'a,'b,A:AxisTrait,X:RebalTrait+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let ff1=tools::create_empty_slice_at_start_mut(bots);
     let ff2=tools::create_empty_slice_at_start_mut(bots);
     let ff3=tools::create_empty_slice_at_start_mut(bots);
@@ -167,7 +342,7 @@ pub fn bin_par<'a,'b,A:AxisTrait,X:SweepTrait+'b>(med:&X::Num,bots:&'b mut [X])-
 }
 
 
-fn merge<'a,A:AxisTrait,X:SweepTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<'a,X>{
+fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<'a,X>{
     //assert!(tools::slice_adjacent(a.right,b.middile));
 
     let amed_len=a.middile.len();
@@ -246,7 +421,7 @@ fn merge<'a,A:AxisTrait,X:SweepTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<
 }
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-pub fn bin<'a,'b,A:AxisTrait,X:SweepTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
@@ -260,7 +435,7 @@ pub fn bin<'a,'b,A:AxisTrait,X:SweepTrait>(med:&X::Num,bots:&'b mut [X])->Binned
     for index_at in 0..bot_len{
         unsafe{
             
-            match Accessor::<A>::get(&(bots.get_unchecked(index_at).get().0).0 ).left_or_right_or_contain(med){
+            match Accessor::<A>::get(bots.get_unchecked(index_at).get()).left_or_right_or_contain(med){
                 
                 //If the divider is less than the bot
                 std::cmp::Ordering::Equal=>{
@@ -314,10 +489,10 @@ pub fn is_sorted<A:AxisTrait,I:SweepTrait>(collision_botids:&[I]){
 
 
 ///Sorts the bots.
-pub fn sweeper_update<I:SweepTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids: &mut [I]) {
+pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids: &mut [I]) {
 
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
-        let (p1,p2)=(Accessor::<A>::get(&(a.get().0).0).left(),Accessor::<A>::get(&(b.get().0).0).left());
+        let (p1,p2)=(Accessor::<A>::get(a.get()).left(),Accessor::<A>::get(b.get()).left());
         if p1 > p2 {
             return std::cmp::Ordering::Greater;
         }
@@ -327,9 +502,9 @@ pub fn sweeper_update<I:SweepTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids:
     if JJ::is_parallel(){
         //let p=collision_botids.par_iter_mut();
         //p.par_sort_unstable_by(sclosure);
-        struct Bo<'a,I:SweepTrait+'a>(&'a mut [I]);
+        struct Bo<'a,I:RebalTrait+'a>(&'a mut [I]);
 
-        impl<'a,I:SweepTrait+'a> ParallelSliceMut<I> for Bo<'a,I>{
+        impl<'a,I:RebalTrait+'a> ParallelSliceMut<I> for Bo<'a,I>{
             fn as_parallel_slice_mut(&mut self) -> &mut [I]{
                 self.0
             }

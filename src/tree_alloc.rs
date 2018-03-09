@@ -1,7 +1,7 @@
 use super::*;
 use std::marker::PhantomData;
-use dyntree::Cont;
-
+//use dyntree::Cont;
+use dyntree::Cont2;
 
 #[repr(C)]
 struct ReprMut<T>{
@@ -59,13 +59,22 @@ impl<T:SweepTrait> NodeDyn<T>{
     }
 }
 
+
+pub struct NodeDynBuilder2<'b,N:NumTrait+'b>{
+    pub divider:N,
+    pub container_box:axgeom::Range<N>,
+    pub num_bots:usize,
+    pub range:&'b [Cont2<N>]
+}
+
+/*
 pub struct NodeDynBuilder<'a,'b:'a,T:SweepTrait+'b>{
     pub divider:T::Num,
     pub container_box:axgeom::Range<T::Num>,
     pub num_bots:usize,
     pub range:&'a [Cont<'b,T>]
 }
-
+*/
 
 pub struct TreeAllocDst<'a,T:SweepTrait+'a>{
     _vec:Vec<u8>,
@@ -128,6 +137,35 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
     pub fn is_full(&self)->bool{
         self.counter as *const u8== self.max_counter
     }
+
+
+    pub fn add<'b,'c:'b>(&mut self,n:NodeDynBuilder2<T::Num>,all_bots:&mut [T])->&'a mut NodeDstDyn<'a,T>{
+
+        assert!((self.counter as *const u8) < self.max_counter);
+    
+        let ll=self.counter;
+
+
+        let dst={
+            let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:ll,size:n.num_bots})};    
+            dst.c=None;
+            dst.n.divider=n.divider;
+            dst.n.container_box=n.container_box;
+
+            for (a,b) in dst.n.range.iter_mut().zip(n.range){
+                let k=&mut all_bots[b.index];
+                //we cant just move it into here.
+                //then rust will try and call the destructor of the uninitialized object
+                unsafe{std::ptr::copy(k,a,1)};
+            }
+            dst
+        };
+
+        self.counter=unsafe{self.counter.offset(std::mem::size_of_val(dst) as isize)};
+       
+        dst
+    }
+    /*
     pub fn add<'b,'c:'b>(&mut self,n:NodeDynBuilder<'b,'c,T>)->&'a mut NodeDstDyn<'a,T>{
         
         assert!((self.counter as *const u8) < self.max_counter);
@@ -153,5 +191,5 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
         self.counter=unsafe{self.counter.offset(std::mem::size_of_val(dst) as isize)};
        
         dst
-    }
+    }*/
 }

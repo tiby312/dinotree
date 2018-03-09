@@ -1,5 +1,5 @@
 use inner_prelude::*;
-use median::strict::*;
+//use median::strict::*;
 
 #[derive(Copy,Clone,Debug)]
 pub struct DivNode<Nu:Ord+Copy+std::fmt::Debug>{
@@ -36,15 +36,19 @@ impl<A:AxisTrait,Nu:NumTrait> TreeCache<A,Nu>{
     }
 }
 */
+pub trait RebalTrait:Send+Sync{
+    type Num:NumTrait;
+    fn get(&self)->&axgeom::Rect<Self::Num>;
+}
 
 
 ///A KdTree construction
-pub struct KdTree<'a,A:AxisTrait,T:SweepTrait+'a> {
+pub struct KdTree<'a,A:AxisTrait,T:RebalTrait+'a> {
     tree: compt::GenTree<Node2<'a,T>>,
     _p:PhantomData<A>
 }
 
-impl<'a,A:AxisTrait,T:SweepTrait+'a> KdTree<'a,A,T>{
+impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
@@ -81,7 +85,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> KdTree<'a,A,T>{
 }
 
 
-pub struct Node2<'a,T:SweepTrait+'a>{ 
+pub struct Node2<'a,T:RebalTrait+'a>{ 
 
     pub divider:T::Num,
 
@@ -92,7 +96,7 @@ pub struct Node2<'a,T:SweepTrait+'a>{
 }
 
 
-fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeTimerTrait>(
+fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeTimerTrait>(
     rest:&'b mut [T],
     down:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>,
     mut timer_log:K)->K::Bag{
@@ -118,7 +122,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
         Node2{divider,container_box,range}
     }
     */
-    let mut tot_time=[0.0f64;3];
+    let mut tot_time=[0.0f64;4];
     match restt{
         None=>{
             sweeper_update::<_,A::Next,JJ>(rest);
@@ -144,8 +148,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                     {
                         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
         
-                            let arr=(a.get().0).0.get_range(div_axis);
-                            let brr=(b.get().0).0.get_range(div_axis);
+                            let arr=a.get().get_range(div_axis);
+                            let brr=b.get().get_range(div_axis);
                       
                             if arr.left() > brr.left(){
                                 return std::cmp::Ordering::Greater;
@@ -159,12 +163,15 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                             pdqselect::select_by(rest, mm, closure);
                             &rest[mm]
                         };
-                        (k.get().0).0.get_range(div_axis).start
+                        k.get().get_range(div_axis).start
                     };
                 //*mmm=m;
                 m
                 
             };
+
+            tot_time[0]=tt0.elapsed();
+
             /*
             let binned=if JJ::is_parallel(){
                 oned::bin_par::<A,_>(&med,rest)
@@ -172,10 +179,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                 oned::bin::<A,_>(&med,rest)
             };
             */
+            let tt0=tools::Timer2::new();
+
             let binned=oned::bin::<A,_>(&med,rest);
 
 
-            tot_time[0]=tt0.elapsed();
+            tot_time[1]=tt0.elapsed();
 
             let binned_left=binned.left;
             let binned_middile=binned.middile;
@@ -206,17 +215,17 @@ fn recurse_rebal<'b,A:AxisTrait,T:SweepTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                 (nj,ba,bb)
             }else{
 
-                let tt=tools::Timer2::new();
-                
+                let tt0=tools::Timer2::new();
+
                 sweeper_update::<_,A::Next,JJ>(binned_middile);
-                tot_time[1]=tt.elapsed();
+                tot_time[2]=tt0.elapsed();
 
 
                 //let ll=binned_middile.len();
-                let tt2=tools::Timer2::new();
+                let tt0=tools::Timer2::new();
 
                 let container_box=self::create_container_rect::<A,_>(binned_middile);
-                tot_time[2]=tt2.elapsed();
+                tot_time[3]=tt0.elapsed();
 
                 if level.get_depth()==0{
                     println!("container box={:?}",container_box);
@@ -295,7 +304,7 @@ mod bla{
         }
     }
 
-    pub fn create_container_rect<A:AxisTrait,T:SweepTrait>(middile:&[T])->axgeom::Range<T::Num>{
+    pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
         
         {
             let res=middile.split_first();
@@ -303,7 +312,7 @@ mod bla{
             match res{
                 Some((first,rest))=>{
 
-                    let first_ra=(first.get().0).0.get_range2::<A>().clone();
+                    let first_ra=first.get().get_range2::<A>().clone();
                     
                     create_container::<A,T>(rest,first_ra)
                 },
@@ -316,7 +325,7 @@ mod bla{
             }
         }
     }
-    pub fn create_container_rect_par<A:AxisTrait,T:SweepTrait>(middile:&[T])->axgeom::Range<T::Num>{
+    pub fn create_container_rect_par<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
         use rayon::prelude::*;
 
         {
@@ -325,7 +334,7 @@ mod bla{
             match res{
                 Some((first,rest))=>{
 
-                    let first_ra=(first.get().0).0.get_range2::<A>().clone();
+                    let first_ra=first.get().get_range2::<A>().clone();
                     
                     use smallvec::SmallVec;
                     let mut vecs:SmallVec<[&[T];16]> =rest.chunks(2000).collect();
@@ -349,10 +358,10 @@ mod bla{
         a.grow_to_fit(&b);
         a
     }
-    fn create_container<A:AxisTrait,T:SweepTrait>(rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
+    fn create_container<A:AxisTrait,T:RebalTrait>(rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
         
         for i in rest{
-            container_rect.grow_to_fit((i.get().0).0.get_range2::<A>());
+            container_rect.grow_to_fit(i.get().get_range2::<A>());
         }
         container_rect
    

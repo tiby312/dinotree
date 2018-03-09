@@ -5,7 +5,7 @@ use tree_alloc::NodeDyn;
 use base_kdtree::Node2;
 use compt::GenTree;
 use base_kdtree::KdTree;
-
+use base_kdtree::RebalTrait;
 
 pub struct NdIterMut<'a:'b,'b,T:SweepTrait+'a>{
     c:&'b mut NodeDstDynCont<'a,T>
@@ -46,62 +46,34 @@ impl<'a:'b,'b,T:SweepTrait+'a> CTreeIterator for NdIter<'a,'b,T>{
         (i,o)
     }
 }
+
+
+pub struct Cont2<N:NumTrait>{
+    rect:Rect<N>,
+    pub index:usize
+}
+impl<N:NumTrait> RebalTrait for Cont2<N>{
+    type Num=N;
+    fn get(& self)->&Rect<N>{
+        &self.rect
+    }
+}
+
 /*
-///Allows to traverse down from a visitor twice by creating a new visitor that borrows the other.
-pub struct Wrap<'a:'b,'b,T:SweepTrait+'a>{
-    a:LevelIter<NdIterMut<'a,'b,T>>
-}
-impl<'a:'b,'b,T:SweepTrait+'a> Wrap<'a,'b,T>{
-    #[inline(always)]
-    pub fn new(a:&'a mut LevelIter<NdIterMut<'a,'b,T>>)->Wrap<'a,'b,T>{
-        let ff=unsafe{
-            let mut ff=std::mem::uninitialized();
-            std::ptr::copy(a, &mut ff, 1);
-            ff
-        };
-        Wrap{a:ff}
-    }
-}
-
-impl<'a:'b,'b,T:SweepTrait+'a> CTreeIterator for Wrap<'a,'b,T>{
-    type Item=(LevelDesc,&'b mut NodeDyn<T>);
-    fn next(self)->(Self::Item,Option<(Self,Self)>){
-        let Wrap{a}=self;
-
-        let (item,mm)=a.next();
-
-        match mm{
-            Some((left,right))=>{
-                let left=Wrap{a:left};
-                let right=Wrap{a:right};
-                return (item,Some((left,right)));
-            },
-            None=>{
-                return (item,None);
-            }
-        }
-    }
-}
-*/
-
 pub struct Cont<'b,T:'b>{
     pub a:&'b mut T
 }
 
-impl<'b,T:'b+SweepTrait+Send> SweepTrait for Cont<'b,T>{
-    type Inner=T::Inner;
+impl<'b,T:'b+SweepTrait+Send> RebalTrait for Cont<'b,T>{
+    //type Inner=T::Inner;
     type Num=T::Num;
 
     ///Destructure into the bounding box and mutable parts.
-    fn get_mut<'a>(&'a mut self)->(&'a AABBox<T::Num>,&'a mut Self::Inner){
-        self.a.get_mut()
-    }
-
-    ///Destructue into the bounding box and inner part.
-    fn get<'a>(&'a self)->(&'a AABBox<T::Num>,&'a Self::Inner){
-        self.a.get()
+    fn get<'a>(&'a self)->&'a Rect<T::Num>{
+        &(self.a.get().0).0
     }
 }
+*/
 
 
 pub struct DynTree<'b,A:AxisTrait,T:SweepTrait+Send+'b>{
@@ -126,15 +98,22 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
 
         //Pointer to the bot. Used to calculate offsets
-        let start_pointer=mover::get_start_pointer(rest);
+        //
+        //let start_pointer=mover::get_start_pointer(rest);
 
         let (fb,mover,bag)={
+            let mut conts:Vec<Cont2<T::Num>>=Vec::with_capacity(rest.len());
+            for (index,k) in rest.iter().enumerate(){
+                conts.push(Cont2{rect:(k.get().0).0,index});
+            }
+            /*
             let mut pointers:Vec<Cont<T>>=Vec::with_capacity(rest.len());
             for k in rest.iter_mut(){
                 pointers.push(Cont{a:k});
             }
+            */
             {
-                let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut pointers,height);
+                let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut conts,height);
                 
                 // 12345
                 // 42531     //vector:41302
@@ -142,14 +121,14 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                 let mover={
                     let t=tree2.get_tree().create_down();
 
-                    let k=t.dfs_preorder_iter().flat_map(|a:&Node2<Cont<T>>|{
+                    let k=t.dfs_preorder_iter().flat_map(|a:&Node2<Cont2<T::Num>>|{
                         a.range.iter()
                     });
 
-                    Mover::new(num_bots,start_pointer,k)
+                    Mover::new(num_bots,k)
                 };
                 
-                let fb=DynTreeRaw::new(tree2.into_tree(),num_bots);
+                let fb=DynTreeRaw::new(tree2.into_tree(),rest,num_bots);
                 
                 (fb,mover,bag)
             }
@@ -178,12 +157,12 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 use self::mover::Mover;
 mod mover{
     use std;
-    use super::Cont;
-
+    use super::Cont2;
+    use NumTrait;
     pub struct Mover(
         Vec<usize>
     );
-
+    /*
     pub fn get_start_pointer<T>(rest:&[T])->*const T{
         struct Repr<T>{
             ptr:*const T,
@@ -192,10 +171,11 @@ mod mover{
         let j:Repr<T>=unsafe{std::mem::transmute(rest)};
         j.ptr
     }
+    */
     impl Mover{
-        pub fn new<'a:'b,'b,T:'a,I:Iterator<Item=&'b Cont<'a,T>>>(num_bots:usize,start_pointer:*const T,iter:I)->Mover{
+        pub fn new<'b,T:NumTrait+'b,I:Iterator<Item=&'b Cont2<T>>>(num_bots:usize,iter:I)->Mover{
             let mut move_vector=Vec::with_capacity(num_bots);    
-                       
+             /*          
             #[inline]
             pub fn offset_to<T>(s: *const T, other: *const T) -> Option<isize> where T: Sized {
                  let size = std::mem::size_of::<T>();
@@ -210,6 +190,10 @@ mod mover{
             for bot in iter {
                 let target_ind:usize=offset_to(start_pointer,bot.a).unwrap() as usize;
                 move_vector.push(target_ind);
+            }
+            */
+            for bot in iter{
+                move_vector.push(bot.index);
             }
 
             Mover(move_vector)
@@ -248,7 +232,7 @@ mod alloc{
     use super::*;
     use std::mem::ManuallyDrop;
     use tree_alloc::TreeAllocDst;
-    use tree_alloc::NodeDynBuilder; 
+    use tree_alloc::NodeDynBuilder2; 
 
     pub struct DynTreeRaw<'a,T:SweepTrait+Send+'a>{
         height:usize,
@@ -266,12 +250,12 @@ mod alloc{
     }
 
     impl<'a,T:SweepTrait+'a+Send> DynTreeRaw<'a,T>{
-        pub fn new(tree:GenTree<Node2<Cont<T>>>,num_bots:usize)->DynTreeRaw<'a,T>{
+        pub fn new(tree:GenTree<Node2<Cont2<T::Num>>>,all_bots:&mut [T],num_bots:usize)->DynTreeRaw<'a,T>{
             let height=tree.get_height();
             let level=tree.get_level_desc();
             let mut alloc=TreeAllocDst::new(tree.get_nodes().len(),num_bots);
 
-            let root=Self::construct_flat_tree(&mut alloc,tree);    
+            let root=Self::construct_flat_tree(&mut alloc,tree,all_bots);    
 
             DynTreeRaw{height,level,alloc:ManuallyDrop::new(alloc),root:ManuallyDrop::new(root)}
         }
@@ -291,7 +275,8 @@ mod alloc{
 
         fn construct_flat_tree(
             alloc:&mut TreeAllocDst<'a,T>,
-            tree:GenTree<Node2<Cont<T>>>
+            tree:GenTree<Node2<Cont2<T::Num>>>,
+            all_bots:&mut [T],
             )->NodeDstDynCont<'a,T>{
 
             let num_nodes=tree.get_nodes().len();
@@ -302,8 +287,8 @@ mod alloc{
             for node in v.drain(..){
                 let Node2{divider,container_box,range}=node;
                 let num_bots=range.len();
-                let nn=NodeDynBuilder{divider,container_box,num_bots,range};
-                let n=alloc.add(nn);
+                let nn=NodeDynBuilder2{divider,container_box,num_bots,range};
+                let n=alloc.add(nn,all_bots);
                 queue.push(NodeDstDynCont(n));
             }
 
