@@ -61,6 +61,7 @@ pub struct Binned<'a,T:'a>{
 }
 
 
+/*
 #[cfg(test)]
 mod test{
     use test_support::*;
@@ -323,6 +324,7 @@ mod test{
         
     }
 }
+*/
 
 pub fn bin_par<'a,'b,A:AxisTrait,X:RebalTrait+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let ff1=tools::create_empty_slice_at_start_mut(bots);
@@ -513,9 +515,46 @@ pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids:
         Bo(collision_botids).par_sort_unstable_by(sclosure);
 
     }else{
+        /*
+        fn selection_sort<T,B:Ord,F:FnMut(&T)->B>(array: &mut [T],mut func:F) {
+            let len = array.len();
+            for i in 0..len {
+
+                let min = i+array[i..].iter().enumerate().min_by_key(|x| func(x.1))
+                                  .unwrap().0;
+                array.swap(min, i);
+            }
+        }
+
+        //use selection sort to minimize number of swaps since we are sorting
+        //large objects.
+        let ss=|a:&I|->I::Num{
+            let p1=Accessor::<A>::get(a.get()).left();
+            p1
+        };
+        selection_sort(collision_botids,ss);
+        */
+        
         collision_botids.sort_unstable_by(sclosure);
     }
     //debug_assert!(Self::assert_sorted(collision_botids,accessor));
+}
+
+#[test]
+fn selection_sort(){
+        fn selection_sort<T,B:Ord,F:FnMut(&T)->B>(array: &mut [T],mut func:F) {
+            let len = array.len();
+            for i in 0..len {
+
+                let min = i+array[i..].iter().enumerate().min_by_key(|x| func(x.1))
+                                  .unwrap().0;
+                println!("min={:?}",min);
+                array.swap(min, i);
+            }
+        }
+    let mut a=[5,3,2,1,4];
+    selection_sort(&mut a,|a|*a);
+    assert_eq!(a,[1,2,3,4,5]);    
 }
 /*
     #[cfg(test)]

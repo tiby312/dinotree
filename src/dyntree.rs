@@ -50,7 +50,7 @@ impl<'a:'b,'b,T:SweepTrait+'a> CTreeIterator for NdIter<'a,'b,T>{
 
 pub struct Cont2<N:NumTrait>{
     rect:Rect<N>,
-    pub index:usize
+    pub index:u32
 }
 impl<N:NumTrait> RebalTrait for Cont2<N>{
     type Num=N;
@@ -58,23 +58,6 @@ impl<N:NumTrait> RebalTrait for Cont2<N>{
         &self.rect
     }
 }
-
-/*
-pub struct Cont<'b,T:'b>{
-    pub a:&'b mut T
-}
-
-impl<'b,T:'b+SweepTrait+Send> RebalTrait for Cont<'b,T>{
-    //type Inner=T::Inner;
-    type Num=T::Num;
-
-    ///Destructure into the bounding box and mutable parts.
-    fn get<'a>(&'a self)->&'a Rect<T::Num>{
-        &(self.a.get().0).0
-    }
-}
-*/
-
 
 pub struct DynTree<'b,A:AxisTrait,T:SweepTrait+Send+'b>{
     orig:&'b mut [T],
@@ -95,23 +78,13 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
         let num_bots=rest.len();
-
-
-        //Pointer to the bot. Used to calculate offsets
-        //
-        //let start_pointer=mover::get_start_pointer(rest);
-
         let (fb,mover,bag)={
             let mut conts:Vec<Cont2<T::Num>>=Vec::with_capacity(rest.len());
-            for (index,k) in rest.iter().enumerate(){
-                conts.push(Cont2{rect:(k.get().0).0,index});
+            for (index,k) in rest.iter_mut().enumerate(){
+                //TODO check that fits in u32?
+                conts.push(Cont2{rect:(k.get_mut().0).0,index:index as u32});
             }
-            /*
-            let mut pointers:Vec<Cont<T>>=Vec::with_capacity(rest.len());
-            for k in rest.iter_mut(){
-                pointers.push(Cont{a:k});
-            }
-            */
+
             {
                 let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut conts,height);
                 
@@ -160,7 +133,7 @@ mod mover{
     use super::Cont2;
     use NumTrait;
     pub struct Mover(
-        Vec<usize>
+        Vec<u32>
     );
     /*
     pub fn get_start_pointer<T>(rest:&[T])->*const T{
@@ -202,7 +175,7 @@ mod mover{
         pub fn finish<'a,T:'a,I:Iterator<Item=&'a T>>(&mut self,tree_bots:I,orig:&mut [T]){
             for (mov,b) in self.0.iter().zip(tree_bots){
 
-                let cp=unsafe{orig.get_unchecked_mut(*mov)};
+                let cp=unsafe{orig.get_unchecked_mut(*mov as usize)};
 
                 unsafe{std::ptr::copy(b,cp,1)};
                     

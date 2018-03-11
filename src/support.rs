@@ -61,7 +61,7 @@ impl<Nu:NumTrait,T:Send+Sync> SweepTrait for BBox<Nu,T>{
     fn get_mut<'a>(&'a mut self)->(&'a AABBox<Nu>,&'a mut Self::Inner){
         (&self.rect,&mut self.val)
     }
-
+    
     ///Destructue into the bounding box and inner part.
     fn get<'a>(&'a self)->(&'a AABBox<Nu>,&'a Self::Inner){
         (&self.rect,&self.val)

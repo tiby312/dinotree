@@ -156,6 +156,10 @@ impl<N:NumTrait> AABBox<N>{
   pub fn new(xaxis:(N,N),yaxis:(N,N))->AABBox<N>{
     AABBox(axgeom::Rect::new(xaxis.0,xaxis.1,yaxis.0,yaxis.1))
   }
+
+  pub fn from_array(arr:[N;4])->AABBox<N>{
+    AABBox(axgeom::Rect::new(arr[0],arr[1],arr[2],arr[3]))
+  }
   pub fn get(&self)->((N,N),(N,N)){
     let a=self.0.get_range2::<XAXIS_S>();
     let b=self.0.get_range2::<YAXIS_S>();

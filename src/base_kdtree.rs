@@ -252,7 +252,7 @@ use self::bla::create_container_rect;
 use self::bla::create_container_rect_par;
 mod bla{
     use super::*;
-
+    /*
     #[cfg(test)]
     mod test{
         use super::*;
@@ -303,6 +303,7 @@ mod bla{
             
         }
     }
+    */
 
     pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
         

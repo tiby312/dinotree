@@ -1,6 +1,5 @@
 use super::*;
 use std::marker::PhantomData;
-//use dyntree::Cont;
 use dyntree::Cont2;
 
 #[repr(C)]
@@ -16,15 +15,8 @@ struct Repr<T>{
 }
 
 
-
-
-
-
-
 pub struct NodeDyn<T:SweepTrait>{ 
 
-    //pub inner:Option<(T::Num,axgeom::Range<T::Num>)>,
-    
     pub divider:T::Num,
 
     //only valid if the node has bots in it.
@@ -66,15 +58,6 @@ pub struct NodeDynBuilder2<'b,N:NumTrait+'b>{
     pub num_bots:usize,
     pub range:&'b [Cont2<N>]
 }
-
-/*
-pub struct NodeDynBuilder<'a,'b:'a,T:SweepTrait+'b>{
-    pub divider:T::Num,
-    pub container_box:axgeom::Range<T::Num>,
-    pub num_bots:usize,
-    pub range:&'a [Cont<'b,T>]
-}
-*/
 
 pub struct TreeAllocDst<'a,T:SweepTrait+'a>{
     _vec:Vec<u8>,
@@ -124,8 +107,8 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
             //vec.push(0);
             //let x:&[u8]= std::slice::from_raw_parts(&vec[0], 200+std::mem::size_of::<T>()); 
             //TODO safe to do this??????????????
-            let k:*const u8=std::mem::transmute(0x10 as usize);//std::ptr::null::<T>();
-            std::mem::transmute(Repr{ptr:k,size:0})
+                let k:*const u8=std::mem::transmute(0x10 as usize);//std::ptr::null::<T>();
+                std::mem::transmute(Repr{ptr:k,size:0})
             };
             (std::mem::align_of_val(k),std::mem::size_of_val(k))
         };
@@ -145,7 +128,6 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
     
         let ll=self.counter;
 
-
         let dst={
             let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:ll,size:n.num_bots})};    
             dst.c=None;
@@ -153,7 +135,7 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
             dst.n.container_box=n.container_box;
 
             for (a,b) in dst.n.range.iter_mut().zip(n.range){
-                let k=&mut all_bots[b.index];
+                let k=&mut all_bots[b.index as usize];
                 //we cant just move it into here.
                 //then rust will try and call the destructor of the uninitialized object
                 unsafe{std::ptr::copy(k,a,1)};
@@ -165,31 +147,4 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
        
         dst
     }
-    /*
-    pub fn add<'b,'c:'b>(&mut self,n:NodeDynBuilder<'b,'c,T>)->&'a mut NodeDstDyn<'a,T>{
-        
-        assert!((self.counter as *const u8) < self.max_counter);
-    
-        let ll=self.counter;
-
-
-        let dst={
-            let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:ll,size:n.num_bots})};    
-            dst.c=None;
-            dst.n.divider=n.divider;
-            dst.n.container_box=n.container_box;
-
-            for (a,b) in dst.n.range.iter_mut().zip(n.range){
-
-                //we cant just move it into here.
-                //then rust will try and call the destructor of the uninitialized object
-                unsafe{std::ptr::copy(b.a,a,1)};
-            }
-            dst
-        };
-
-        self.counter=unsafe{self.counter.offset(std::mem::size_of_val(dst) as isize)};
-       
-        dst
-    }*/
 }
