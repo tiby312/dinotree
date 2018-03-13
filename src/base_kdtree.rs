@@ -77,6 +77,9 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
     pub fn get_tree(&self)->&compt::GenTree<Node2<'a,T>>{
         &self.tree
     }
+    pub fn get_tree_mut(&mut self)->&mut compt::GenTree<Node2<'a,T>>{
+        &mut self.tree
+    }
 
     pub fn into_tree(self)->compt::GenTree<Node2<'a,T>>{
         let KdTree{tree,_p}=self;

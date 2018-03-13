@@ -42,7 +42,7 @@ mod inner_prelude{
 pub mod prelude{
   //pub use base_kdtree::TreeCache;
   pub use tree_alloc::NodeDyn;
-  pub use dyntree::NdIter;
+  pub use tree_alloc::NdIter;
   pub use treetimer::*;
   pub use daxis;
   pub use AABBox;
@@ -84,6 +84,20 @@ mod oned;
 ///C  ontains misc tools
 mod tools;
 
+
+  pub fn compute_tree_height(num_bots: usize) -> usize {
+      
+      //we want each node to have space for around 300 bots.
+      //there are 2^h nodes.
+      //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+
+      const NUM_PER_NODE: usize = 20;
+      if num_bots <= NUM_PER_NODE {
+          return 1;
+      } else {
+          return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
+      }
+  }
 
 //pub use base_kdtree::TreeCache;
 use compt::LevelDesc;

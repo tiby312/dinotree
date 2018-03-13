@@ -1,7 +1,7 @@
 use super::*;
 use std::marker::PhantomData;
-use dyntree::Cont2;
 
+use compt::CTreeIterator;
 #[repr(C)]
 struct ReprMut<T>{
     ptr:*mut T,
@@ -26,49 +26,91 @@ pub struct NodeDyn<T:SweepTrait>{
 }
 
 
+pub struct NdIterMut<'a,T:SweepTrait+'a>{
+    c:&'a mut NodeDstDyn<T>
+}
 
-pub struct NodeDstDynCont<'a,T:SweepTrait+'a>(
-    pub &'a mut NodeDstDyn<'a,T> 
-    );
+impl<'a,T:SweepTrait+'a> CTreeIterator for NdIterMut<'a,T>{
+    type Item=&'a mut NodeDyn<T>;
+    fn next(self)->(Self::Item,Option<(Self,Self)>){
+        let i=&mut self.c.n;
+        let o=match self.c.c{
+            Some((mut a,mut b))=>{
+                let a=unsafe{&mut *a};
+                let b=unsafe{&mut *b};
+                Some((NdIterMut{c:a},NdIterMut{c:b}))
+            },
+            None=>{
+                None
+            }
+        };
+        (i,o)
+    }
+}
 
-pub struct NodeDstDyn<'a,T:SweepTrait+'a>{
-    pub c:Option<(NodeDstDynCont<'a,T>,NodeDstDynCont<'a,T>)>,
+pub struct NdIter<'a,T:SweepTrait+'a>{
+    c:&'a NodeDstDyn<T>
+}
+
+impl<'a,T:SweepTrait+'a> CTreeIterator for NdIter<'a,T>{
+    type Item=&'a NodeDyn<T>;
+    fn next(self)->(Self::Item,Option<(Self,Self)>){
+        let i=&self.c.n;
+        let o=match self.c.c{
+            Some(( a, b))=>{
+                let a=unsafe{& *a};
+                let b=unsafe{& *b};
+                Some((NdIter{c:a},NdIter{c:b}))
+            },
+            None=>{
+                None
+            }
+        };
+        (i,o)
+    }
+}
+
+
+
+pub struct NodeDstDyn<T:SweepTrait>{
+    c:Option<(*mut NodeDstDyn<T>,*mut NodeDstDyn<T>)>,
     pub n:NodeDyn<T>
 }
-
-impl<T:SweepTrait> NodeDyn<T>{
- 
-    pub fn divider(&self)->&T::Num{
-        &self.divider
-    }
+unsafe impl<T:SweepTrait> Send for NodeDstDyn<T>{}
 
 
-    pub fn get_container(&self)->&axgeom::Range<T::Num>{
-        &self.container_box
-    }
-    pub fn get_bots(&mut self)->&mut [T]{
-        &mut self.range
-    }
-}
-
-
-pub struct NodeDynBuilder2<'b,N:NumTrait+'b>{
-    pub divider:N,
-    pub container_box:axgeom::Range<N>,
+pub struct NodeDynBuilder<I:Iterator<Item=T>,T:SweepTrait>{
+    pub divider:T::Num,
+    pub container_box:axgeom::Range<T::Num>,
     pub num_bots:usize,
-    pub range:&'b [Cont2<N>]
+    pub range:I
 }
 
-pub struct TreeAllocDst<'a,T:SweepTrait+'a>{
+
+//TODO should technically call the destructor of T.
+pub struct TreeAllocDst<T:SweepTrait>{
     _vec:Vec<u8>,
-    counter:*mut u8,
-    max_counter:*const u8,
-    _p:PhantomData<(&'a mut NodeDstDyn<'a,T>)>
+    root:*mut NodeDstDyn<T>
 }
 
-impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{   
+impl<T:SweepTrait> TreeAllocDst<T>{   
 
-    pub fn new(num_nodes:usize,num_bots:usize)->TreeAllocDst<'a,T>{
+    pub fn get_root_mut(&mut self)->&mut NodeDstDyn<T>{
+        unsafe{std::mem::transmute(self.root)}
+    }
+
+    pub fn get_root(&self)->&NodeDstDyn<T>{
+        unsafe{std::mem::transmute(self.root)}
+    }
+
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+        NdIterMut{c:self.get_root_mut()}
+    }
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,T>{
+        NdIter{c:self.get_root()}
+    }
+
+    pub fn new<II:Iterator<Item=T>,I:Iterator<Item=NodeDynBuilder<II,T>>>(num_nodes:usize,num_bots:usize,it:I)->TreeAllocDst<T>{
 
         let (alignment,node_size)=Self::compute_alignment_and_size();
 
@@ -95,7 +137,48 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
 
         let max_counter=unsafe{start_addr.offset(cap as isize)};
 
-        TreeAllocDst{_vec:vec,counter:start_addr,max_counter,_p:PhantomData,}
+       
+
+        let mut queue:Vec<&mut NodeDstDyn<T>>=Vec::with_capacity(num_nodes);
+        
+        let mut counter=start_addr;
+        for builder in it{
+
+            let dst={
+                let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:counter,size:builder.num_bots})};    
+                dst.c=None; //We set the children later
+                dst.n.divider=builder.divider;
+                dst.n.container_box=builder.container_box;
+
+                for (a,b) in dst.n.range.iter_mut().zip(builder.range){
+                    //let k=&mut all_bots[b.index as usize];
+                    //we cant just move it into here.
+                    //then rust will try and call the destructor of the uninitialized object
+                    unsafe{std::ptr::copy(&b,a,1)};
+                    std::mem::forget(b);
+                }
+                dst
+            };
+            counter=unsafe{counter.offset(std::mem::size_of_val(dst) as isize)};
+       
+            queue.push(dst);
+
+        }
+        assert!( counter as *const u8== max_counter);
+        assert_eq!(queue.len(),num_nodes);
+     
+        for i in (1..(num_nodes/2)+1).rev(){
+            let c2=queue.pop().unwrap();
+            let c1=queue.pop().unwrap();
+            let j=2*i;
+            let parent=(j-1)/2;
+            queue[parent].c=Some((c1,c2)); 
+        }
+
+        assert_eq!(queue.len(),1);
+        let root=queue.pop().unwrap();
+        let root=unsafe{std::mem::transmute(root)};
+        TreeAllocDst{_vec:vec,root:root}
     }
 
 
@@ -117,34 +200,5 @@ impl<'a,T:SweepTrait+'a> TreeAllocDst<'a,T>{
 
         (alignment,siz)
     }
-    pub fn is_full(&self)->bool{
-        self.counter as *const u8== self.max_counter
-    }
 
-
-    pub fn add<'b,'c:'b>(&mut self,n:NodeDynBuilder2<T::Num>,all_bots:&mut [T])->&'a mut NodeDstDyn<'a,T>{
-
-        assert!((self.counter as *const u8) < self.max_counter);
-    
-        let ll=self.counter;
-
-        let dst={
-            let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:ll,size:n.num_bots})};    
-            dst.c=None;
-            dst.n.divider=n.divider;
-            dst.n.container_box=n.container_box;
-
-            for (a,b) in dst.n.range.iter_mut().zip(n.range){
-                let k=&mut all_bots[b.index as usize];
-                //we cant just move it into here.
-                //then rust will try and call the destructor of the uninitialized object
-                unsafe{std::ptr::copy(k,a,1)};
-            }
-            dst
-        };
-
-        self.counter=unsafe{self.counter.offset(std::mem::size_of_val(dst) as isize)};
-       
-        dst
-    }
 }
