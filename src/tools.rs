@@ -15,26 +15,7 @@ impl<T> Clone for PhantomSendSync<T>{
 
 
 
-unsafe impl<T:Send> std::marker::Send for PreVec<T>{}
-use smallvec;
-///An vec api to avoid excessive dynamic allocation by reusing a Vec
-pub struct PreVec<T>{
-    vec:smallvec::SmallVec<[*mut T; 32]>
-}
-impl<T> PreVec<T>{
-    #[inline(always)]
-    pub fn new()->PreVec<T>{
-        PreVec{vec:smallvec::SmallVec::new()}
-    }
 
-    ///Clears the vec and returns a mutable reference to a vec.
-    #[inline(always)]
-    pub fn get_empty_vec_mut<'a>(&'a mut self)->&mut smallvec::SmallVec<[&'a mut T;32]>{
-        self.vec.clear();
-        let v:&mut smallvec::SmallVec<[*mut T;32]> = &mut self.vec;
-        unsafe{std::mem::transmute(v)}
-    }
-}
 
 /*
 ///An vec api to avoid excessive dynamic allocation by reusing a Vec
@@ -62,10 +43,11 @@ impl<T> PreVec<T>{
 }
 */
 
-
+/*
 pub fn create_empty_slice_at_start_mut<'a,T:'a>(sl:&mut [T])->&'a mut [T]{
     unsafe{std::slice::from_raw_parts_mut(sl.as_mut_ptr(),0)}
 }
+*/
 
 /*
 pub fn slice_adjacent<'a,T>(first:&'a [T],second:&'a [T])->bool{
@@ -74,6 +56,7 @@ pub fn slice_adjacent<'a,T>(first:&'a [T],second:&'a [T])->bool{
 }
 */
 
+/*
 ///Returns a combined slice given two slices that are next to each other in memory.
 ///Panics if they are not next to each other.
 pub fn join_mut<'a,T>(first: &'a mut [T],second:&'a mut [T])->&'a mut[T]{
@@ -87,6 +70,7 @@ pub fn join_mut<'a,T>(first: &'a mut [T],second:&'a mut [T])->&'a mut[T]{
     }
 
 }
+*/
 /*
 ///Returns a combined slice given two slices that are next to each other in memory.
 ///Panics if they are not next to each other.

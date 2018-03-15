@@ -218,7 +218,6 @@ pub trait SweepTrait:Send+Sync{
 
 pub use dyntree::DynTree;
 pub use median::MedianStrat;
-use support::DefaultDepthLevel;
 
 
 

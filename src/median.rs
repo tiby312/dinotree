@@ -122,6 +122,7 @@ pub mod relax{
      */
 }
 
+/*
 use std::cmp::Ordering;
 fn bin_middile<'a,T,X,F:Fn(&T,&X)->Ordering>(arr:&'a mut [T],func:F,div:&X)->(&'a mut [T],&'a mut [T]){
      //        equal   divider
@@ -151,7 +152,7 @@ fn bin_middile<'a,T,X,F:Fn(&T,&X)->Ordering>(arr:&'a mut [T],func:F,div:&X)->(&'
     let (_eq,rest)=arr.split_at_mut(equal);
     rest.split_at_mut(divider-equal)
 }
-
+*/
 
 /*
 pub struct MedianRelax2<N:NumTrait>{

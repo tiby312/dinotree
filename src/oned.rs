@@ -326,6 +326,7 @@ mod test{
 }
 */
 
+/*
 pub fn bin_par<'a,'b,A:AxisTrait,X:RebalTrait+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let ff1=tools::create_empty_slice_at_start_mut(bots);
     let ff2=tools::create_empty_slice_at_start_mut(bots);
@@ -421,6 +422,8 @@ fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<
     let (middile,left)=rest.split_at_mut(new_med_len);
     Binned{middile,left,right}
 }
+*/
+
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
 pub fn bin<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{

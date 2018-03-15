@@ -1,5 +1,4 @@
 use super::*;
-use std::marker::PhantomData;
 
 use compt::CTreeIterator;
 #[repr(C)]
