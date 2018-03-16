@@ -85,27 +85,28 @@ mod oned;
 mod tools;
 
 
-  pub fn compute_tree_height(num_bots: usize) -> usize {
-      
-      //we want each node to have space for around 300 bots.
-      //there are 2^h nodes.
-      //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+///Returns the height of what is used internally to construct a dinotree.
+pub fn compute_tree_height(num_bots: usize) -> usize {
+    
+    //we want each node to have space for around 300 bots.
+    //there are 2^h nodes.
+    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
 
-      const NUM_PER_NODE: usize = 20;
-      if num_bots <= NUM_PER_NODE {
-          return 1;
-      } else {
-          return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
-      }
-  }
+    const NUM_PER_NODE: usize = 10;
+    if num_bots <= NUM_PER_NODE {
+        return 1;
+    } else {
+        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
+    }
+}
 
 //pub use base_kdtree::TreeCache;
 use compt::LevelDesc;
 use axgeom::Rect;
 pub use treetimer::*;
 
-use axgeom::XAXIS_S;
-use axgeom::YAXIS_S;
+use axgeom::XAXISS;
+use axgeom::YAXISS;
 pub use base_kdtree::DivNode;
 
 /*
@@ -150,9 +151,11 @@ fn assert_invariant<T:SweepTrait>(d:&DinoTree2<T>){
 
 
 ///Returns the level at which a parallel divide and conqur algorithm will switch to sequential
-pub trait DepthLevel{
+
+pub trait DepthLevel:Send+Sync+Copy+Clone{
     ///Switch to sequential at this height.
-    fn switch_to_sequential(a:LevelDesc)->bool;
+    fn switch_to_sequential(&self,a:LevelDesc)->bool;
+    fn new()->Self;
 }
 
 ///The underlying number type used for the bounding boxes,
@@ -175,8 +178,8 @@ impl<N:NumTrait> AABBox<N>{
     AABBox(axgeom::Rect::new(arr[0],arr[1],arr[2],arr[3]))
   }
   pub fn get(&self)->((N,N),(N,N)){
-    let a=self.0.get_range2::<XAXIS_S>();
-    let b=self.0.get_range2::<YAXIS_S>();
+    let a=self.0.get_range2::<XAXISS>();
+    let b=self.0.get_range2::<YAXISS>();
     ((a.start,a.end),(b.start,b.end))
   }
 }
@@ -223,25 +226,42 @@ pub use median::MedianStrat;
 
 pub mod par{
     use rayon;
-    pub trait Joiner{
-
+    pub trait Joiner:Send+Sync+Copy+Clone{
+        fn new()->Self;
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB);
-        fn is_parallel()->bool;
+        fn is_parallel(&self)->bool;
+        fn into_seq(&self)->Sequential;
     }
 
+    #[derive(Copy,Clone)]
     pub struct Parallel;
     impl Joiner for Parallel{
-        fn is_parallel()->bool{
+        fn new()->Self{
+          Parallel
+        }
+        fn is_parallel(&self)->bool{
             return true;
+        }
+        fn into_seq(&self)->Sequential{
+          Sequential
         }
 
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
           rayon::join(oper_a, oper_b)
         }
     }
+
+    #[derive(Copy,Clone)]
     pub struct Sequential;
     impl Joiner for Sequential{
-        fn is_parallel()->bool{
+        fn new()->Self{
+          Sequential
+        }
+        fn into_seq(&self)->Sequential{
+          Sequential
+        }
+
+        fn is_parallel(&self)->bool{
             return false;
         }
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
@@ -260,3 +280,112 @@ pub mod par{
 #[cfg(test)]
 mod test_support;
 
+
+/*
+fn assert_correctness(&self,tree:&KdTree,botman:&BotMan)->bool{
+    for (level,axis) in kd_axis::AxisIter::with_axis(tree.tree.get_level_iter()) {
+        if level.get_depth()!=tree.tree.get_height()-1{
+            for n in level.iter(){
+                let no=tree.tree.get_node(n);
+                let cont_box=&no.container_box;// no.get_divider_box(&botman.prop,axis);
+
+                let arr=&tree.collision_botids[no.container.get_range().as_int_range()];
+                for b in arr{
+                    let bot=botman.cont.get_bot(*b);
+                    let circle=&botman.as_circle(bot);
+                    assert!(cont_box.contains_circle(circle),"{:?}\n{:?}\n{:?}\n{:?}",no,(level,axis),cont_box,circle);
+                }
+            }
+        }
+        
+    }
+     
+
+    let arr=&tree.collision_botids[tree.no_fit.end.0..];
+    let mut cols=0;
+    for (i, el1) in arr.iter().enumerate() {
+        for el2 in arr[i + 1..].iter() {
+            let bb=(*el1,*el2);
+            let bots = botman.cont.get_bbotpair(bb);
+
+            match bot::is_colliding(&botman.prop, bots) {
+                Some(_) => {
+                    cols+=1;
+                }
+                None => {
+                }
+            }
+        }
+    }
+
+    let mut cls=0;
+    for k in self.binner_helps.iter(){
+        cls+=k.cols_found.len();
+    }
+
+    let lookup=|a:(BotIndex, BotIndex)|{
+        for k in self.binner_helps.iter(){
+            for j in k.cols_found.iter(){
+                let aa=( (j.inds.0).0 ,(j.inds.1).0);
+                let bb=((a.0).0,(a.1).0);
+                if aa.0==bb.0 &&aa.1==bb.1{
+                    return true;
+                }
+                if aa.0==bb.1 && aa.1==bb.0{
+                    return true;
+                }
+            }
+        }
+        false            
+    };
+    if cols!=cls{
+        println!("Cols fail! num collision exp:{:?},  calculated:{:?}",cols,cls);
+
+        for (i, el1) in arr.iter().enumerate() {
+            for el2 in arr[i + 1..].iter() {
+                let bb=(*el1,*el2);
+                let bots = botman.cont.get_bbotpair(bb);
+
+                match bot::is_colliding(&botman.prop, bots) {
+                    Some(_) => {
+                        if !lookup(bb){
+                            println!("Couldnt find {:?}",(bb,bots));
+
+                            println!("in node:{:?}",(lookup_in_tree(tree,bb.0),lookup_in_tree(tree,bb.1)));
+                            let n1=lookup_in_tree(tree,bb.0).unwrap();
+                            let n2=lookup_in_tree(tree,bb.1).unwrap();
+                            let no1=tree.tree.get_node(n1);
+                            let no2=tree.tree.get_node(n2);
+                            
+                            println!("INTERSECTS={:?}",no1.cont.border.intersects_rect(&no2.cont.border));
+
+                        }
+                    }
+                    None => {
+                    }
+                }
+            }
+        }
+        assert!(false);
+    }
+    
+    fn lookup_in_tree(tree:&BaseTree,b:BotIndex)->Option<NodeIndex>{
+        for level in tree.tree.get_level_iter(){
+            for nodeid in level.iter().rev() {
+                
+                let n = tree.tree.get_node(nodeid);
+            
+                let k=n.container.get_range().as_int_range();
+
+                let arr=&tree.collision_botids[k];
+                for i in arr{
+                    if b.0==i.0{
+                        return Some(nodeid);
+                    }
+                }
+            }
+        }
+        return None
+    }
+    true
+}*/

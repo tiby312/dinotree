@@ -2,10 +2,14 @@ use inner_prelude::*;
 use ordered_float::NotNaN;
 
 ///A default depth level from which to switch to sequential.
+#[derive(Copy,Clone)]
 pub struct DefaultDepthLevel;
 
 impl DepthLevel for DefaultDepthLevel{
-    fn switch_to_sequential(a:LevelDesc)->bool{
+    fn new()->DefaultDepthLevel{
+        DefaultDepthLevel
+    }
+    fn switch_to_sequential(&self,a:LevelDesc)->bool{
         a.get_depth()>=5
     }
 }

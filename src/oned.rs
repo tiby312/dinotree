@@ -504,7 +504,7 @@ pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids:
         std::cmp::Ordering::Less
     };
 
-    if JJ::is_parallel(){
+    if JJ::new().is_parallel(){
         //let p=collision_botids.par_iter_mut();
         //p.par_sort_unstable_by(sclosure);
         struct Bo<'a,I:RebalTrait+'a>(&'a mut [I]);

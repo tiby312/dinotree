@@ -108,24 +108,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
     
     let ((level,nn),restt)=down.next();
 
-    /*
-    let a = std::time::Duration::from_millis(300);
-    if level.get_depth()==0{
-        println!("sleepin!");
-        std::thread::sleep(a);
-    }
-    */
-
-    //let depth=level.get_depth();
-    /*
-    fn create_node<A:AxisTrait,T:SweepTrait,JJ:par::Joiner>(divider:T::Num,range:&mut [T])->Node2<T>{
-        Sweeper::update::<A::Next,JJ>(range);
-            
-        let container_box=self::create_container_rect::<A,_>(range);
-        Node2{divider,container_box,range}
-    }
-    */
-    let mut tot_time=[0.0f64;4];
     match restt{
         None=>{
             sweeper_update::<_,A::Next,JJ>(rest);
@@ -136,8 +118,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
         },
         Some((lleft,rright))=>{
 
-            let tt0=tools::Timer2::new();
-            //let (med,binned)=medianstrat.compute::<JJ,A,_>(level,rest,&mut div.divider);
             
             let med={
             
@@ -173,7 +153,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                 
             };
 
-            tot_time[0]=tt0.elapsed();
 
             /*
             let binned=if JJ::is_parallel(){
@@ -182,12 +161,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                 oned::bin::<A,_>(&med,rest)
             };
             */
-            let tt0=tools::Timer2::new();
-
             let binned=oned::bin::<A,_>(&med,rest);
 
 
-            tot_time[1]=tt0.elapsed();
 
             let binned_left=binned.left;
             let binned_middile=binned.middile;
@@ -197,7 +173,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
             //timer_log.add_to_depth(depth,elapsed);
             let (ta,tb)=timer_log.next();
 
-            let (nj,ba,bb)=if JJ::is_parallel() && !H::switch_to_sequential(level){
+            let (nj,ba,bb)=if JJ::new().is_parallel() && !H::new().switch_to_sequential(level){
                 //let mut ll2=timer_log.clone_one_less_depth(); 
                 
                 let ((nj,ba),bb)={
@@ -218,22 +194,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                 (nj,ba,bb)
             }else{
 
-                let tt0=tools::Timer2::new();
 
                 sweeper_update::<_,A::Next,JJ>(binned_middile);
-                tot_time[2]=tt0.elapsed();
 
-
-                //let ll=binned_middile.len();
-                let tt0=tools::Timer2::new();
 
                 let container_box=self::create_container_rect::<A,_>(binned_middile);
-                tot_time[3]=tt0.elapsed();
 
-                if level.get_depth()==0{
-                    println!("container box={:?}",container_box);
-                    println!("time dist={:?}",tot_time);
-                }
                 let nj=Node2{divider:med,container_box,range:binned_middile};
                 
 
