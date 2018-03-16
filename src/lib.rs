@@ -46,7 +46,7 @@ pub mod prelude{
   pub use treetimer::*;
   pub use daxis;
   pub use AABBox;
-  pub use DepthLevel;
+  //pub use DepthLevel;
   pub use NumTrait;
   pub use SweepTrait;
   pub use oned::sweeper_update;
@@ -152,11 +152,13 @@ fn assert_invariant<T:SweepTrait>(d:&DinoTree2<T>){
 
 ///Returns the level at which a parallel divide and conqur algorithm will switch to sequential
 
+/*
 pub trait DepthLevel:Send+Sync+Copy+Clone{
     ///Switch to sequential at this height.
     fn switch_to_sequential(&self,a:LevelDesc)->bool;
     fn new()->Self;
 }
+*/
 
 ///The underlying number type used for the bounding boxes,
 ///and for the dividers. 
@@ -226,11 +228,14 @@ pub use median::MedianStrat;
 
 pub mod par{
     use rayon;
+    use compt::LevelDesc;
+
     pub trait Joiner:Send+Sync+Copy+Clone{
         fn new()->Self;
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB);
-        fn is_parallel(&self)->bool;
+        //fn is_parallel(&self)->bool;
         fn into_seq(&self)->Sequential;
+        fn should_switch_to_sequential(&self,a:LevelDesc)->bool;
     }
 
     #[derive(Copy,Clone)]
@@ -239,11 +244,13 @@ pub mod par{
         fn new()->Self{
           Parallel
         }
-        fn is_parallel(&self)->bool{
-            return true;
-        }
+
         fn into_seq(&self)->Sequential{
           Sequential
+        }
+
+        fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
+          a.get_depth()>=3
         }
 
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
@@ -261,9 +268,10 @@ pub mod par{
           Sequential
         }
 
-        fn is_parallel(&self)->bool{
-            return false;
+        fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
+           true
         }
+
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
             let a = oper_a();
             let b = oper_b();

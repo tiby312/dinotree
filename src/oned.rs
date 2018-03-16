@@ -494,7 +494,7 @@ pub fn is_sorted<A:AxisTrait,I:SweepTrait>(collision_botids:&[I]){
 
 
 ///Sorts the bots.
-pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids: &mut [I]) {
+pub fn sweeper_update<I:RebalTrait,A:AxisTrait>(collision_botids: &mut [I]) {
 
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
         let (p1,p2)=(Accessor::<A>::get(a.get()).left(),Accessor::<A>::get(b.get()).left());
@@ -503,7 +503,7 @@ pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids:
         }
         std::cmp::Ordering::Less
     };
-
+    /*
     if JJ::new().is_parallel(){
         //let p=collision_botids.par_iter_mut();
         //p.par_sort_unstable_by(sclosure);
@@ -518,6 +518,7 @@ pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids:
         Bo(collision_botids).par_sort_unstable_by(sclosure);
 
     }else{
+        */
         /*
         fn selection_sort<T,B:Ord,F:FnMut(&T)->B>(array: &mut [T],mut func:F) {
             let len = array.len();
@@ -539,7 +540,7 @@ pub fn sweeper_update<I:RebalTrait,A:AxisTrait,JJ:par::Joiner>(collision_botids:
         */
         
         collision_botids.sort_unstable_by(sclosure);
-    }
+    //}
     //debug_assert!(Self::assert_sorted(collision_botids,accessor));
 }
 

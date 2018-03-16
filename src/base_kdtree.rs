@@ -50,7 +50,7 @@ pub struct KdTree<'a,A:AxisTrait,T:RebalTrait+'a> {
 
 impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
+    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
         //TODO replace with an unitialized version of thetree?
         //to reduce overhead???
@@ -69,7 +69,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             //let m=tc.medtree.create_down_mut();
             let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
-            self::recurse_rebal::<A,T,H,JJ,K>(rest,j,t)
+            self::recurse_rebal::<A,T,JJ,K>(rest,j,t)
         };
         (KdTree{tree:ttree,_p:PhantomData},bag)
     }
@@ -99,7 +99,7 @@ pub struct Node2<'a,T:RebalTrait+'a>{
 }
 
 
-fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeTimerTrait>(
+fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
     rest:&'b mut [T],
     down:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>,
     mut timer_log:K)->K::Bag{
@@ -110,7 +110,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
 
     match restt{
         None=>{
-            sweeper_update::<_,A::Next,JJ>(rest);
+            sweeper_update::<_,A::Next>(rest);
             let container_box=self::create_container_rect::<A,_>(rest);
             let divider=std::default::Default::default();
             *nn=Node2{divider,container_box,range:rest};
@@ -148,19 +148,10 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
                         };
                         k.get().get_range(div_axis).start
                     };
-                //*mmm=m;
                 m
                 
             };
 
-
-            /*
-            let binned=if JJ::is_parallel(){
-                oned::bin_par::<A,_>(&med,rest)
-            }else{
-                oned::bin::<A,_>(&med,rest)
-            };
-            */
             let binned=oned::bin::<A,_>(&med,rest);
 
 
@@ -169,46 +160,34 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,H:DepthLevel,JJ:par::Joiner,K:TreeT
             let binned_middile=binned.middile;
             let binned_right=binned.right;                
 
-            //let elapsed=timer.elapsed();
-            //timer_log.add_to_depth(depth,elapsed);
             let (ta,tb)=timer_log.next();
 
-            let (nj,ba,bb)=if JJ::new().is_parallel() && !H::new().switch_to_sequential(level){
-                //let mut ll2=timer_log.clone_one_less_depth(); 
+            let (nj,ba,bb)=if !JJ::new().should_switch_to_sequential(level){
                 
                 let ((nj,ba),bb)={
                     let af=move || {
-                        sweeper_update::<_,A::Next,JJ>(binned_middile);
-                        let container_box=self::create_container_rect_par::<A,_>(binned_middile);
+                        sweeper_update::<_,A::Next>(binned_middile);
+                        let container_box=self::create_container_rect::<A,_>(binned_middile);
                         let nj=Node2{divider:med,container_box,range:binned_middile};
-                        let ba=self::recurse_rebal::<A::Next,T,H,par::Parallel,K>(binned_left,lleft,ta);
+                        let ba=self::recurse_rebal::<A::Next,T,par::Parallel,K>(binned_left,lleft,ta);
                         (nj,ba)
                     };
 
                     let bf=move || {
-                        self::recurse_rebal::<A::Next,T,H,par::Parallel,K>(binned_right,rright,tb)
+                        self::recurse_rebal::<A::Next,T,par::Parallel,K>(binned_right,rright,tb)
                     };
                     rayon::join(af,bf)
-                };
-                //timer_log.combine_one_less(ll2);  
+                }; 
                 (nj,ba,bb)
             }else{
 
-
-                sweeper_update::<_,A::Next,JJ>(binned_middile);
-
-
+                sweeper_update::<_,A::Next>(binned_middile);
                 let container_box=self::create_container_rect::<A,_>(binned_middile);
-
                 let nj=Node2{divider:med,container_box,range:binned_middile};
-                
-
-                let ba=self::recurse_rebal::<A::Next,T,H,par::Sequential,K>(binned_left,lleft,ta);
-                let bb=self::recurse_rebal::<A::Next,T,H,par::Sequential,K>(binned_right,rright,tb);
+                let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(binned_left,lleft,ta);
+                let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(binned_right,rright,tb);
                 (nj,ba,bb)
             };
-
-                
 
             *nn=nj;
             K::combine(ba,bb)

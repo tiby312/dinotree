@@ -79,7 +79,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
 
 
-    fn method_exp2<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
+    fn method_exp2<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
         #[inline]
         pub fn offset_to<T>(s: *const T, other: *const T) -> Option<isize> where T: Sized {
              let size = std::mem::size_of::<T>();
@@ -112,7 +112,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         
 
         {
-            let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut conts,height);
+            let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,K>(&mut conts,height);
             
             let mover={
                 let t=tree2.get_tree().create_down();
@@ -155,7 +155,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     }
 
 
-    fn method_exp<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
+    fn method_exp<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
         
         pub struct Cont2<N:NumTrait>{
             rect:Rect<N>,
@@ -174,7 +174,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         }).collect();
         
         {
-            let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut conts,height);
+            let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,K>(&mut conts,height);
             
             let mover={
                 let t=tree2.get_tree().create_down();
@@ -209,7 +209,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         }
     }
 
-    fn method1<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
+    fn method1<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
         #[inline]
         pub fn offset_to<T>(s: *const T, other: *const T) -> Option<isize> where T: Sized {
              let size = std::mem::size_of::<T>();
@@ -241,7 +241,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
 
         {
-            let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,H,K>(&mut conts,height);
+            let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,K>(&mut conts,height);
             
             let mover={
                 let t=tree2.get_tree().create_down();
@@ -288,13 +288,13 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     ///If parallel, also specify the depth at which to switch to sequential.
     ///Also specify the median finding strategy to use.
     ///Also specify whether to use collect timing dat.a
-    pub fn new<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(
+    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
         //let num_bots=rest.len();
         let (fb,mover,bag)={
             //This one is the fastest when benching on phone and pc.
-            Self::method_exp::<JJ,H,K>(rest,height)
+            Self::method_exp::<JJ,K>(rest,height)
         };
 
         (DynTree{orig:rest,tree:fb,mover,_p:PhantomData},bag)
@@ -304,33 +304,33 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     ///If parallel, also specify the depth at which to switch to sequential.
     ///Also specify the median finding strategy to use.
     ///Also specify whether to use collect timing dat.a
-    pub fn new_normal<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(
+    pub fn new_normal<JJ:par::Joiner,K:TreeTimerTrait>(
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
         //let num_bots=rest.len();
         let (fb,mover,bag)={
-            Self::method1::<JJ,H,K>(rest,height)
+            Self::method1::<JJ,K>(rest,height)
         };
 
         (DynTree{orig:rest,tree:fb,mover,_p:PhantomData},bag)
     }
-    pub fn from_exp_method<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(
+    pub fn from_exp_method<JJ:par::Joiner,K:TreeTimerTrait>(
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
         //let num_bots=rest.len();
         let (fb,mover,bag)={
-            Self::method_exp::<JJ,H,K>(rest,height)
+            Self::method_exp::<JJ,K>(rest,height)
         };
 
         (DynTree{orig:rest,tree:fb,mover,_p:PhantomData},bag)
     }
    
-    pub fn from_exp2_method<JJ:par::Joiner,H:DepthLevel,K:TreeTimerTrait>(
+    pub fn from_exp2_method<JJ:par::Joiner,K:TreeTimerTrait>(
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
         //let num_bots=rest.len();
         let (fb,mover,bag)={
-            Self::method_exp2::<JJ,H,K>(rest,height)
+            Self::method_exp2::<JJ,K>(rest,height)
         };
 
         (DynTree{orig:rest,tree:fb,mover,_p:PhantomData},bag)

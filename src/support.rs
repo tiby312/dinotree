@@ -1,6 +1,7 @@
 use inner_prelude::*;
 use ordered_float::NotNaN;
 
+/*
 ///A default depth level from which to switch to sequential.
 #[derive(Copy,Clone)]
 pub struct DefaultDepthLevel;
@@ -13,7 +14,7 @@ impl DepthLevel for DefaultDepthLevel{
         a.get_depth()>=5
     }
 }
-
+*/
 
 
 ///A convenience wrapper that implements the NumTrait around any number that implements the 
