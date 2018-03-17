@@ -250,7 +250,7 @@ pub mod par{
         }
 
         fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
-          a.get_depth()>=3
+          a.get_depth()>=6
         }
 
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {

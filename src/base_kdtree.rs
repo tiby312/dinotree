@@ -11,31 +11,7 @@ impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
     }
 }
 
-/*
-///This preserves some state of the medians at each level between kdtree constructions.
-pub struct TreeCache<A:AxisTrait,Nu:NumTrait>{
-    height:usize,
-    medtree:compt::GenTree<DivNode<Nu>>,
-    _p:PhantomData<A>
-}
 
-
-impl<A:AxisTrait,Nu:NumTrait> TreeCache<A,Nu>{
-    ///The tree cache contains within it a tree to keep a persistant state between construction of the kdtree.
-    ///So the height of the kdtree is decided here, before the creation of the tree.
-    pub fn new(height:usize)->TreeCache<A,Nu>{
-        //let num_nodes=compt::compute_num_nodes(height);
-        
-        let t= compt::GenTree::from_bfs(&mut ||{DivNode{divider:std::default::Default::default()}},height);
-
-        TreeCache{medtree:t,height:height,_p:PhantomData}
-    }
-
-    pub fn get_tree(&self)->&compt::GenTree<DivNode<Nu>>{
-        &self.medtree
-    }
-}
-*/
 pub trait RebalTrait:Send+Sync{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
@@ -52,21 +28,16 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
-        //TODO replace with an unitialized version of thetree?
-        //to reduce overhead???
         let mut ttree=compt::GenTree::from_bfs(&mut ||{
-            let rest=&mut [];
-            use std;
-
-            let co=self::create_container_rect::<A,_>(rest);
-            
-            Node2{divider:std::default::Default::default(),container_box:co,range:rest}
+            //let rest=&mut [];
+            //let co=self::create_container_rect::<A,_>(rest);
+            //Node2{divider:std::default::Default::default(),container_box:co,range:rest}
+            let n:Node2<T>=unsafe{std::mem::uninitialized()};
+            n
         },height);
 
         let bag={
-
             let level=ttree.get_level_desc();
-            //let m=tc.medtree.create_down_mut();
             let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
             self::recurse_rebal::<A,T,JJ,K>(rest,j,t)
@@ -110,10 +81,18 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
 
     match restt{
         None=>{
-            sweeper_update::<_,A::Next>(rest);
-            let container_box=self::create_container_rect::<A,_>(rest);
-            let divider=std::default::Default::default();
-            *nn=Node2{divider,container_box,range:rest};
+            //We are guarenteed that the leaf nodes have at most 10 bots
+            //since we divide based off of the median, and picked the height
+            //such that the leaves would have at most 10.
+
+            oned::sweeper_update_leaf::<_,A::Next>(rest);
+            
+            //nn.divider=std::default::Default::default();
+            nn.container_box=self::create_container_rect::<A,_>(rest);
+            //TODO very important that divider is 
+            //UNDEFINED for leaf nodes!!!! do not access!!!
+            nn.range=rest;
+            //*nn=Node2{divider,container_box,range:rest};
             timer_log.leaf_finish()
         },
         Some((lleft,rright))=>{
@@ -180,7 +159,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                 }; 
                 (nj,ba,bb)
             }else{
-
+                //TODO this should not depend on paralization.
                 sweeper_update::<_,A::Next>(binned_middile);
                 let container_box=self::create_container_rect::<A,_>(binned_middile);
                 let nj=Node2{divider:med,container_box,range:binned_middile};

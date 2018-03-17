@@ -492,7 +492,36 @@ pub fn is_sorted<A:AxisTrait,I:SweepTrait>(collision_botids:&[I]){
     }
 }
 
+///Sorts the bots.
+pub fn sweeper_update_leaf<I:RebalTrait,A:AxisTrait>(values: &mut [I]) {
+    let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
+        let (p1,p2)=(Accessor::<A>::get(a.get()).left(),Accessor::<A>::get(b.get()).left());
+        if p1 > p2 {
+            return std::cmp::Ordering::Greater;
+        }
+        std::cmp::Ordering::Less
+    };
 
+    for i in 0..values.len() {
+        for j in (0..i).rev() {
+            let ret=unsafe{
+                let a=values.get_unchecked(j);
+                let b=values.get_unchecked(j+1);
+                sclosure(a,b)==std::cmp::Ordering::Greater
+            };
+            if ret {
+                unsafe{
+                    let a=values.get_unchecked_mut(j) as *mut I;
+                    let b=values.get_unchecked_mut(j+1) as *mut I;
+                    std::ptr::swap(a,b)
+                };
+                //values.swap(j, j + 1);
+            } else {
+                break
+            }
+        }
+    }
+}
 ///Sorts the bots.
 pub fn sweeper_update<I:RebalTrait,A:AxisTrait>(collision_botids: &mut [I]) {
 
