@@ -1,5 +1,4 @@
 use inner_prelude::*;
-use rayon::prelude::*;
 use base_kdtree::RebalTrait;
 
 /*

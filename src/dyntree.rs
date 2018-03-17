@@ -27,7 +27,7 @@ mod test{
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
         let mut bots=Vec::new();
-        for id in 0..10000{
+        for id in 0..30000{
             let ppp=p.random_point();
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
@@ -44,7 +44,7 @@ mod test{
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
         let mut bots=Vec::new();
-        for id in 0..10000{
+        for id in 0..30000{
             let ppp=p.random_point();
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
@@ -61,7 +61,7 @@ mod test{
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
         let mut bots=Vec::new();
-        for id in 0..10000{
+        for id in 0..30000{
             let ppp=p.random_point();
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 

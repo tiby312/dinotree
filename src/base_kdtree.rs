@@ -84,11 +84,10 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             //We are guarenteed that the leaf nodes have at most 10 bots
             //since we divide based off of the median, and picked the height
             //such that the leaves would have at most 10.
-
             oned::sweeper_update_leaf::<_,A::Next>(rest);
             
             //nn.divider=std::default::Default::default();
-            nn.container_box=self::create_container_rect::<A,_>(rest);
+            nn.container_box=rect_make::create_container_rect::<A,_>(rest);
             //TODO very important that divider is 
             //UNDEFINED for leaf nodes!!!! do not access!!!
             nn.range=rest;
@@ -96,7 +95,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             timer_log.leaf_finish()
         },
         Some((lleft,rright))=>{
-
+            let lleft:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>=lleft;
+            let rright:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>=rright;
             
             let med={
             
@@ -134,22 +134,26 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             let binned=oned::bin::<A,_>(&med,rest);
 
 
+            let oned::Binned{left,middile,right}=binned;
+            
 
-            let binned_left=binned.left;
-            let binned_middile=binned.middile;
-            let binned_right=binned.right;                
-
+            let binned_left=left;
+            let binned_middile=middile;
+            let binned_right=right;                
+            
             let (ta,tb)=timer_log.next();
 
             let (nj,ba,bb)=if !JJ::new().should_switch_to_sequential(level){
                 
                 let ((nj,ba),bb)={
+                    
                     let af=move || {
                         sweeper_update::<_,A::Next>(binned_middile);
-                        let container_box=self::create_container_rect::<A,_>(binned_middile);
-                        let nj=Node2{divider:med,container_box,range:binned_middile};
-                        let ba=self::recurse_rebal::<A::Next,T,par::Parallel,K>(binned_left,lleft,ta);
-                        (nj,ba)
+                        let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
+                        let n:Node2<'b,_>=Node2{divider:med,container_box,range:binned_middile};
+                    
+                        let k=self::recurse_rebal::<A::Next,T,par::Parallel,K>(binned_left,lleft,ta);
+                        (n,k)
                     };
 
                     let bf=move || {
@@ -159,9 +163,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                 }; 
                 (nj,ba,bb)
             }else{
-                //TODO this should not depend on paralization.
                 sweeper_update::<_,A::Next>(binned_middile);
-                let container_box=self::create_container_rect::<A,_>(binned_middile);
+                let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
                 let nj=Node2{divider:med,container_box,range:binned_middile};
                 let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(binned_left,lleft,ta);
                 let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(binned_right,rright,tb);
@@ -174,12 +177,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
     }
 }
 
-
-use self::bla::create_container_rect;
-use self::bla::create_container_rect_par;
-mod bla{
+mod rect_make{
     use super::*;
-    /*
+    
     #[cfg(test)]
     mod test{
         use super::*;
@@ -229,8 +229,43 @@ mod bla{
             });
             
         }
+
+            
+        pub fn create_container_rect_par<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
+            use rayon::prelude::*;
+
+            {
+                let res=middile.split_first();
+
+                match res{
+                    Some((first,rest))=>{
+
+                        let first_ra=first.get().get_range2::<A>().clone();
+                        
+                        use smallvec::SmallVec;
+                        let mut vecs:SmallVec<[&[T];16]> =rest.chunks(2000).collect();
+
+                        let res:axgeom::Range<T::Num>=
+                            vecs.par_iter().map(|a|{create_container::<A,T>(a,first_ra)}).
+                            reduce(||first_ra,|a,b|merge(a,b));
+                        res
+                    },
+                    None=>{
+                        
+                        let d=std::default::Default::default();
+                        axgeom::Range{start:d,end:d}
+                    }
+
+                }
+            }
+        }
+
+        fn merge<T:NumTrait>(mut a:axgeom::Range<T>,b:axgeom::Range<T>)->axgeom::Range<T>{
+            a.grow_to_fit(&b);
+            a
+        }
     }
-    */
+    
 
     pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
         
@@ -252,39 +287,6 @@ mod bla{
 
             }
         }
-    }
-    pub fn create_container_rect_par<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
-        use rayon::prelude::*;
-
-        {
-            let res=middile.split_first();
-
-            match res{
-                Some((first,rest))=>{
-
-                    let first_ra=first.get().get_range2::<A>().clone();
-                    
-                    use smallvec::SmallVec;
-                    let mut vecs:SmallVec<[&[T];16]> =rest.chunks(2000).collect();
-
-                    let res:axgeom::Range<T::Num>=
-                        vecs.par_iter().map(|a|{create_container::<A,T>(a,first_ra)}).
-                        reduce(||first_ra,|a,b|merge(a,b));
-                    res
-                },
-                None=>{
-                    
-                    let d=std::default::Default::default();
-                    axgeom::Range{start:d,end:d}
-                }
-
-            }
-        }
-    }
-
-    fn merge<T:NumTrait>(mut a:axgeom::Range<T>,b:axgeom::Range<T>)->axgeom::Range<T>{
-        a.grow_to_fit(&b);
-        a
     }
     fn create_container<A:AxisTrait,T:RebalTrait>(rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
         

@@ -100,8 +100,6 @@ pub fn compute_tree_height(num_bots: usize) -> usize {
     }
 }
 
-//pub use base_kdtree::TreeCache;
-use compt::LevelDesc;
 use axgeom::Rect;
 pub use treetimer::*;
 
@@ -250,7 +248,9 @@ pub mod par{
         }
 
         fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
-          a.get_depth()>=6
+          //Seems like 6 is ideal for my dell xps laptop
+          //8 is best on my android phone.
+          a.get_depth()>=7
         }
 
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
@@ -268,7 +268,7 @@ pub mod par{
           Sequential
         }
 
-        fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
+        fn should_switch_to_sequential(&self,_a:LevelDesc)->bool{
            true
         }
 
