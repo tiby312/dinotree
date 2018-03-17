@@ -250,7 +250,7 @@ pub mod par{
         fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
           //Seems like 6 is ideal for my dell xps laptop
           //8 is best on my android phone.
-          a.get_depth()>=7
+          a.get_depth()>=8
         }
 
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {

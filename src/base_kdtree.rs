@@ -1,5 +1,4 @@
 use inner_prelude::*;
-//use median::strict::*;
 
 #[derive(Copy,Clone,Debug)]
 pub struct DivNode<Nu:Ord+Copy+std::fmt::Debug>{
@@ -32,6 +31,8 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             //let rest=&mut [];
             //let co=self::create_container_rect::<A,_>(rest);
             //Node2{divider:std::default::Default::default(),container_box:co,range:rest}
+
+            //Unsafely assume that the rebalance algorithm will initialize the nodes.
             let n:Node2<T>=unsafe{std::mem::uninitialized()};
             n
         },height);
@@ -61,6 +62,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
 pub struct Node2<'a,T:RebalTrait+'a>{ 
 
+    //Undefined for leaf nodes.
     pub divider:T::Num,
 
     //only valid if the node has bots in it.
@@ -86,12 +88,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             //such that the leaves would have at most 10.
             oned::sweeper_update_leaf::<_,A::Next>(rest);
             
+            //Unsafely leave the dividers of leaf nodes uninitialized.
             //nn.divider=std::default::Default::default();
+
             nn.container_box=rect_make::create_container_rect::<A,_>(rest);
-            //TODO very important that divider is 
-            //UNDEFINED for leaf nodes!!!! do not access!!!
+         
             nn.range=rest;
-            //*nn=Node2{divider,container_box,range:rest};
             timer_log.leaf_finish()
         },
         Some((lleft,rright))=>{
@@ -99,12 +101,10 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             let rright:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>=rright;
             
             let med={
-            
-                
+              
                 let div_axis=A::get();
                 let m = if rest.len() == 0{
-                            std::default::Default::default()
-                            //TODO what to do here?
+                        std::default::Default::default()
                     }
                     else
                     {
@@ -230,7 +230,7 @@ mod rect_make{
             
         }
 
-            
+
         pub fn create_container_rect_par<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
             use rayon::prelude::*;
 
