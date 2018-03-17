@@ -179,7 +179,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
 
 mod rect_make{
     use super::*;
-    
+    /*
     #[cfg(test)]
     mod test{
         use super::*;
@@ -265,6 +265,7 @@ mod rect_make{
             a
         }
     }
+    */
     
 
     pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{

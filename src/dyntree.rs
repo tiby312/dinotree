@@ -27,7 +27,7 @@ mod test{
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
         let mut bots=Vec::new();
-        for id in 0..30000{
+        for id in 0..50000{
             let ppp=p.random_point();
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
@@ -44,7 +44,7 @@ mod test{
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
         let mut bots=Vec::new();
-        for id in 0..30000{
+        for id in 0..50000{
             let ppp=p.random_point();
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
@@ -61,7 +61,7 @@ mod test{
         let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
         let mut bots=Vec::new();
-        for id in 0..30000{
+        for id in 0..50000{
             let ppp=p.random_point();
             let k=test_support::create_rect_from_point(ppp);
             bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
@@ -294,7 +294,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         //let num_bots=rest.len();
         let (fb,mover,bag)={
             //This one is the fastest when benching on phone and pc.
-            Self::method_exp2::<JJ,K>(rest,height)
+            Self::method_exp::<JJ,K>(rest,height)
         };
 
         (DynTree{orig:rest,tree:fb,mover,_p:PhantomData},bag)
