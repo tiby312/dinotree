@@ -108,8 +108,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         let mut conts:Vec<Cont2<T::Num>>=rects.iter().map(|a|Cont2{inner:a}).collect();
         
 
-        let start_addr:*const Rect<T::Num>=unsafe{std::mem::transmute(&rects[0])};
-        
+        let start_addr=rects.as_ptr();
 
         {
             let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,K>(&mut conts,height);
@@ -195,10 +194,10 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                 let container_box=node.container_box;
                 let num_bots=node.range.len();
                 let range=node.range.iter_mut().map(|b|{
+
                     let b=&rest[b.index as usize];
-                    let mut k=unsafe{std::mem::uninitialized()};
-                    unsafe{std::ptr::copy(b,&mut k,1)};
-                    k
+                    unsafe{Mover::move_into_tree(b)}
+                    
                 });
                 NodeDynBuilder{divider,container_box,num_bots,range}
             });
@@ -233,7 +232,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
         let num_bots=rest.len();
         
-        let start_addr:*mut T=unsafe{std::mem::transmute(&mut rest[0])};
+        let start_addr=rest.as_ptr();
         let mut conts:Vec<Cont2<T>>=Vec::with_capacity(rest.len());
         for k in rest.iter_mut(){
             conts.push(Cont2{inner:k});
@@ -268,6 +267,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                 let container_box=node.container_box;
                 let num_bots=node.range.len();
                 let range=node.range.iter_mut().map(|b|{
+
                     //let b=&rest[b.index as usize];
                     let mut k=unsafe{std::mem::uninitialized()};
                     unsafe{std::ptr::copy(b.inner,&mut k,1)};
@@ -362,7 +362,9 @@ impl<'a,A:AxisTrait,T:SweepTrait+Send+'a> Drop for DynTree<'a,A,T>{
             a.range.iter()
         });
 
-        self.mover.finish(k,orig);
+        unsafe{
+            self.mover.move_out_of_tree(k,orig);
+        }
     }
 }
 
@@ -397,14 +399,6 @@ mod alloc{
         pub fn get_iter<'b>(&'b self)->NdIter<'b,T>{
             self.alloc.get_iter()
         }
-        /*
-        pub fn get_root(&self)->&NodeDstDyn<T>{
-            self.alloc.get_root()
-        }
-        pub fn get_root_mut(&mut self)->&mut NodeDstDyn<T>{
-            self.alloc.get_root_mut()
-        }
-        */
     }
 }
 
@@ -417,51 +411,28 @@ mod mover{
     pub struct Mover(
         Vec<u32>
     );
-    /*
-    pub fn get_start_pointer<T>(rest:&[T])->*const T{
-        struct Repr<T>{
-            ptr:*const T,
-            _size:usize
-        }
-        let j:Repr<T>=unsafe{std::mem::transmute(rest)};
-        j.ptr
-    }
-    */
+
     impl Mover{
         pub fn new<'b,T:NumTrait+'b,I:Iterator<Item=u32>>(num_bots:usize,iter:I)->Mover{
             let mut move_vector=Vec::with_capacity(num_bots);    
-             /*          
-            #[inline]
-            pub fn offset_to<T>(s: *const T, other: *const T) -> Option<isize> where T: Sized {
-                 let size = std::mem::size_of::<T>();
-                 if size == 0 {
-                     None
-                 } else {
-                     let diff = (other as isize).wrapping_sub(s as isize);
-                     Some(diff / size as isize)
-                 }
-            }
-
-            for bot in iter {
-                let target_ind:usize=offset_to(start_pointer,bot.a).unwrap() as usize;
-                move_vector.push(target_ind);
-            }
-            */
+            
             for index in iter{
                 move_vector.push(index);
             }
 
             Mover(move_vector)
         }
-
-        pub fn finish<'a,T:'a,I:Iterator<Item=&'a T>>(&mut self,tree_bots:I,orig:&mut [T]){
+        pub unsafe  fn move_into_tree<T>(a:&T)->T{
+            let mut k=unsafe{std::mem::uninitialized()};
+            unsafe{std::ptr::copy(a,&mut k,1)};
+            k
+        }
+        pub unsafe fn move_out_of_tree<'a,T:'a,I:Iterator<Item=&'a T>>(&mut self,tree_bots:I,orig:&mut [T]){
             for (mov,b) in self.0.iter().zip(tree_bots){
 
                 let cp=&mut orig[*mov as usize];
 
                 unsafe{std::ptr::copy(b,cp,1)};
-                    
-                //*unsafe{orig.get_unchecked_mut(*mov)}=*b;
             }
         }
     }
