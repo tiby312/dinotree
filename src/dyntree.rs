@@ -291,6 +291,9 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
+
+        assert!(rest.len()<u32::max_value() as usize,"Slice too large. The max slice size is {:?}",u32::max_value());
+
         //let num_bots=rest.len();
         let (fb,mover,bag)={
             //This one is the fastest when benching on phone and pc.
