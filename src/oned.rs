@@ -1,35 +1,7 @@
 use inner_prelude::*;
 use base_kdtree::RebalTrait;
 
-/*
-///Provides contains that support converting a closure to a struct that implements Bleek.
-///Working with closures, you have to be carful with the recursion limit. This avoids
-///having to be careful of how many wrapper closures you make.
-pub mod sup{
-    use super::*;
-    use std::marker::PhantomData;
-    use tools::PhantomSendSync;
 
-
-
-    pub struct BleekSF<'a,T:SweepTrait+'a,F:FnMut(ColPair<T>)+'a>{
-        a:&'a mut F,
-        _p:PhantomData<T>
-    }
-    impl<'a,T:SweepTrait+'a,F:FnMut(ColPair<T>)+'a> BleekSF<'a,T,F>{
-        pub fn new(a:&'a mut F)->BleekSF<'a,T,F>{
-            BleekSF{a:a,_p:PhantomData}
-        }
-    }
-
-    impl<'a,T:SweepTrait+'a,F:FnMut(ColPair<T>)+'a> Bleek for BleekSF<'a,T,F>{
-        type T=T;
-        fn collide(&mut self,cc:ColPair<Self::T>){
-            (self.a)(cc);
-        }
-    }
-}
-*/
 
 unsafe fn swap_unchecked<T>(list:&mut [T],a:usize,b:usize){
     let x=list.get_unchecked_mut(a) as *mut T;
@@ -423,9 +395,18 @@ fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<
 }
 */
 
+
+
+
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-pub fn bin<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+    unimplemented!()
+}
+
+/// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
+/// They will be laid out in memory s.t.  middile<left<right
+pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;

@@ -169,12 +169,19 @@ pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug+Default{}
 pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);
 impl<N:NumTrait> AABBox<N>{
 
-  ///For both axises, the first value must be less than the second.
+  ///For both axises, the first value must be less than or equal the second.
+  ///Panics if not the case.
   pub fn new(xaxis:(N,N),yaxis:(N,N))->AABBox<N>{
+    assert!(xaxis.0<=xaxis.1);
+    assert!(yaxis.0<=yaxis.1);
     AABBox(axgeom::Rect::new(xaxis.0,xaxis.1,yaxis.0,yaxis.1))
   }
-
+  
+  ///For both axises, the first value must be less than or equal the second.
+  ///Panics if not the case.
   pub fn from_array(arr:[N;4])->AABBox<N>{
+    assert!(arr[0]<=arr[1]);
+    assert!(arr[2]<=arr[3]);
     AABBox(axgeom::Rect::new(arr[0],arr[1],arr[2],arr[3]))
   }
   pub fn get(&self)->((N,N),(N,N)){

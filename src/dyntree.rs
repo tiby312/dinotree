@@ -78,7 +78,7 @@ mod test{
 impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
 
-
+    /*
     fn method_exp2<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
         #[inline]
         pub fn offset_to<T>(s: *const T, other: *const T) -> Option<isize> where T: Sized {
@@ -152,6 +152,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
             (fb,mover,bag)
         }
     }
+    */
 
 
     fn method_exp<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
@@ -189,7 +190,8 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
             let leveld=tree2.get_tree().get_level_desc();
             let num_nodes=tree2.get_tree().get_nodes().len();
 
-            let ii=tree2.get_tree_mut().create_down_mut().bfs_iter().map(|node|{
+
+            let ii=tree2.get_tree_mut().create_down_mut().map(|node:&mut Node2<Cont2<T::Num>>|{
                 let divider=node.divider;
                 let container_box=node.container_box;
                 let num_bots=node.range.len();
@@ -208,6 +210,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         }
     }
 
+    /*
     fn method1<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<T>,Mover,K::Bag){
         #[inline]
         pub fn offset_to<T>(s: *const T, other: *const T) -> Option<isize> where T: Sized {
@@ -280,7 +283,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
             
             (fb,mover,bag)
         }
-    }
+    }*/
 
 
     ///Create the tree.
@@ -307,6 +310,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     ///If parallel, also specify the depth at which to switch to sequential.
     ///Also specify the median finding strategy to use.
     ///Also specify whether to use collect timing dat.a
+    /*
     pub fn new_normal<JJ:par::Joiner,K:TreeTimerTrait>(
         rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
 
@@ -338,6 +342,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
         (DynTree{orig:rest,tree:fb,mover,_p:PhantomData},bag)
     }
+    */
     pub fn get_height(&self)->usize{
         self.tree.get_height()
     }
@@ -377,16 +382,19 @@ mod alloc{
     use super::*;
     use tree_alloc::TreeAllocDst;
     use tree_alloc::NodeDynBuilder; 
+    use tree_alloc::TreeAllocDstDfsOrder;
 
     pub struct DynTreeRaw<T:SweepTrait>{
         height:usize,
         level:LevelDesc,
-        alloc:TreeAllocDst<T>,
+        //alloc:TreeAllocDstDfsOrder<T>,
+        alloc:TreeAllocDstDfsOrder<T>,
+    
     }
 
     impl<T:SweepTrait+Send> DynTreeRaw<T>{
-        pub fn new<II:Iterator<Item=T>,I:Iterator<Item=NodeDynBuilder<II,T>>>(height:usize,level:LevelDesc,num_nodes:usize,num_bots:usize,ir:I)->DynTreeRaw<T>{
-            let alloc=TreeAllocDst::new(num_nodes,num_bots,ir);
+        pub fn new<II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>(height:usize,level:LevelDesc,num_nodes:usize,num_bots:usize,ir:I)->DynTreeRaw<T>{
+            let alloc=TreeAllocDstDfsOrder::new(num_nodes,num_bots,ir);
             DynTreeRaw{height,level,alloc}
         }
         pub fn get_level(&self)->LevelDesc{

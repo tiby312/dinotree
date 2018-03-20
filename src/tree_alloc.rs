@@ -86,6 +86,154 @@ pub struct NodeDynBuilder<I:Iterator<Item=T>,T:SweepTrait>{
 }
 
 
+pub struct TreeAllocDstDfsOrder<T:SweepTrait>{
+    _vec:Vec<u8>,
+    root:*mut NodeDstDyn<T>
+}
+
+pub trait DfsBuilder{
+    type T:SweepTrait;
+    type II:Iterator<Item=Self::T>;
+    type I:CTreeIterator<Item=NodeDynBuilder<Self::II,Self::T>>;
+}
+
+
+impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
+    pub fn get_root_mut(&mut self)->&mut NodeDstDyn<T>{
+        unsafe{std::mem::transmute(self.root)}
+    }
+
+    pub fn get_root(&self)->&NodeDstDyn<T>{
+        unsafe{std::mem::transmute(self.root)}
+    }
+
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+        NdIterMut{c:self.get_root_mut()}
+    }
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,T>{
+        NdIter{c:self.get_root()}
+    }
+
+
+
+    fn compute_alignment_and_size()->(usize,usize){
+        
+        let (alignment,siz)={
+            let k:&NodeDstDyn<T>=unsafe{
+            //let mut vec:Vec<u8>=Vec::with_capacity(500);
+            //vec.push(0);
+            //let x:&[u8]= std::slice::from_raw_parts(&vec[0], 200+std::mem::size_of::<T>()); 
+            //TODO safe to do this??????????????
+                let k:*const u8=std::mem::transmute(0x10 as usize);//std::ptr::null::<T>();
+                std::mem::transmute(Repr{ptr:k,size:0})
+            };
+            (std::mem::align_of_val(k),std::mem::size_of_val(k))
+        };
+
+        assert!(std::mem::size_of::<T>() % alignment==0);
+
+        (alignment,siz)
+    }
+
+    pub fn new<II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>(
+        num_nodes:usize,num_bots:usize,it:I)->TreeAllocDstDfsOrder<T>{
+        use std::marker::PhantomData;
+        struct Temp<T:SweepTrait,II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>{
+            _a:PhantomData<(T,II,I)>
+        };
+
+        impl<T:SweepTrait,II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>> DfsBuilder for Temp<T,II,I>{
+            type T=T;
+            type II=II;
+            type I=I;
+        }
+        Self::new_inner::<Temp<T,II,I>>(num_nodes,num_bots,it)
+    }
+
+    pub fn new_inner<D:DfsBuilder<T=T>>(num_nodes:usize,num_bots:usize,it:D::I)->TreeAllocDstDfsOrder<T>{
+
+
+        let (alignment,node_size)=Self::compute_alignment_and_size();
+
+        let cap=node_size*num_nodes+std::mem::size_of::<T>()*num_bots;
+        
+        let (start_addr,vec)={
+
+            let mut v=Vec::with_capacity(alignment+cap);
+        
+            v.push(0);
+            let mut counter=(&mut v[0]) as *mut u8;
+            v.pop();
+            
+
+            for _ in 0..alignment{
+                let k=counter as *const u8;
+                if k as usize % alignment == 0{
+                    break;
+                }
+                counter=unsafe{counter.offset(1)};
+            } 
+            (unsafe{&mut *counter},v)
+        };
+
+        
+        struct Counter<'a>{
+            counter:&'a 
+            mut u8
+        }
+        impl<'a> Counter<'a>{
+            fn add_node<D:DfsBuilder>(&mut self,builder:NodeDynBuilder<D::II,D::T>)->&'a mut NodeDstDyn<D::T>{
+                let dst:&mut NodeDstDyn<D::T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:builder.num_bots})};    
+                dst.c=None; //We set the children later
+                dst.n.divider=builder.divider;
+                dst.n.container_box=builder.container_box;
+
+                for (a,b) in dst.n.range.iter_mut().zip(builder.range){
+                    //let k=&mut all_bots[b.index as usize];
+                    //we cant just move it into here.
+                    //then rust will try and call the destructor of the uninitialized object
+                    unsafe{std::ptr::copy(&b,a,1)};
+                    std::mem::forget(b);
+                }
+                self.counter=unsafe{&mut *(self.counter as *mut u8).offset(std::mem::size_of_val(dst) as isize)};
+                dst
+            }
+        }
+
+        let mut cc=Counter{counter:start_addr};
+        let root=recc::<D>(it,&mut cc);
+        
+        return TreeAllocDstDfsOrder{_vec:vec,root};
+
+
+        fn recc<'a,D:DfsBuilder>
+            (it:D::I,counter:&mut Counter<'a>)->&'a mut NodeDstDyn<D::T>{
+            
+            let (nn,rest)=it.next();
+            
+            return match rest{
+                Some((left,right))=>{
+                    let left=recc::<D>(left,counter);
+                    
+                    let mut node=counter.add_node::<D>(nn);
+                    
+                    let right=recc::<D>(right,counter);
+                    
+                    node.c=Some((left,right));
+                    node
+                    //Do stuff here! Now both children okay
+                },
+                None=>{
+                    let mut node=counter.add_node::<D>(nn);
+                    node.c=None;
+                    node
+                }
+            };   
+        }
+    }
+}
+
+
 //TODO should technically call the destructor of T.
 pub struct TreeAllocDst<T:SweepTrait>{
     _vec:Vec<u8>,
@@ -109,7 +257,8 @@ impl<T:SweepTrait> TreeAllocDst<T>{
         NdIter{c:self.get_root()}
     }
 
-    pub fn new<II:Iterator<Item=T>,I:Iterator<Item=NodeDynBuilder<II,T>>>(num_nodes:usize,num_bots:usize,it:I)->TreeAllocDst<T>{
+    pub fn new<II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>(num_nodes:usize,num_bots:usize,it:I)->TreeAllocDst<T>{
+        let mut it=it.bfs_iter();
 
         let (alignment,node_size)=Self::compute_alignment_and_size();
 

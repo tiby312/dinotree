@@ -131,7 +131,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                 
             };
 
-            let binned=oned::bin::<A,_>(&med,rest);
+            let binned=oned::bin_middile_left_right::<A,_>(&med,rest);
 
 
             let oned::Binned{left,middile,right}=binned;
