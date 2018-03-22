@@ -191,6 +191,8 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
 
             let ii=tree2.get_tree_mut().create_down_mut().map(|node:&mut Node2<Cont2<T::Num>>|{
+                (node.range.len(),node as &Node2<Cont2<T::Num>>)
+                /*
                 let divider=node.divider;
                 let container_box=node.container_box;
                 let num_bots=node.range.len();
@@ -201,9 +203,27 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                     
                 });
                 NodeDynBuilder{divider,container_box,num_bots,range}
+                */
             });
 
-            let fb=DynTreeRaw::new(height,leveld,num_nodes,num_bots,ii);
+            let func=|builder:&Node2<Cont2<T::Num>>,dst:&mut NodeDyn<T>|{
+                
+                dst.divider=builder.divider;
+                dst.container_box=builder.container_box;
+
+                
+                for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
+                    //let k=&mut all_bots[b.index as usize];
+                    //we cant just move it into here.
+                    //then rust will try and call the destructor of the uninitialized object
+                    let b=&rest[b.index as usize];
+                   
+                    unsafe{std::ptr::copy(b,a,1)};
+                    std::mem::forget(b);
+                }
+                
+            };
+            let fb=DynTreeRaw::new(height,leveld,num_nodes,num_bots,ii,func);
             
             (fb,mover,bag)
         }
@@ -392,8 +412,8 @@ mod alloc{
     }
 
     impl<T:SweepTrait+Send> DynTreeRaw<T>{
-        pub fn new<II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>(height:usize,level:LevelDesc,num_nodes:usize,num_bots:usize,ir:I)->DynTreeRaw<T>{
-            let alloc=TreeAllocDstDfsOrder::new(num_nodes,num_bots,ir);
+        pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>(height:usize,level:LevelDesc,num_nodes:usize,num_bots:usize,ir:C,func:F)->DynTreeRaw<T>{
+            let alloc=TreeAllocDstDfsOrder::new(num_nodes,num_bots,ir,func);
             DynTreeRaw{height,level,alloc}
         }
         pub fn get_level(&self)->LevelDesc{

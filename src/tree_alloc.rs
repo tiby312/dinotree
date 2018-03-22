@@ -98,6 +98,7 @@ pub trait DfsBuilder{
 }
 
 
+
 impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
     pub fn get_root_mut(&mut self)->&mut NodeDstDyn<T>{
         unsafe{std::mem::transmute(self.root)}
@@ -135,22 +136,15 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
         (alignment,siz)
     }
 
-    pub fn new<II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>(
-        num_nodes:usize,num_bots:usize,it:I)->TreeAllocDstDfsOrder<T>{
-        use std::marker::PhantomData;
-        struct Temp<T:SweepTrait,II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>>{
-            _a:PhantomData<(T,II,I)>
-        };
 
-        impl<T:SweepTrait,II:Iterator<Item=T>,I:CTreeIterator<Item=NodeDynBuilder<II,T>>> DfsBuilder for Temp<T,II,I>{
-            type T=T;
-            type II=II;
-            type I=I;
-        }
-        Self::new_inner::<Temp<T,II,I>>(num_nodes,num_bots,it)
+    pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>(
+        num_nodes:usize,num_bots:usize,it:C,func:F)->TreeAllocDstDfsOrder<T>{
+        
+        Self::new_inner(num_nodes,num_bots,it,func)
     }
 
-    pub fn new_inner<D:DfsBuilder<T=T>>(num_nodes:usize,num_bots:usize,it:D::I)->TreeAllocDstDfsOrder<T>{
+    pub fn new_inner<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>(
+            num_nodes:usize,num_bots:usize,it:C,func:F)->TreeAllocDstDfsOrder<T>{
 
 
         let (alignment,node_size)=Self::compute_alignment_and_size();
@@ -182,49 +176,41 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
             mut u8
         }
         impl<'a> Counter<'a>{
-            fn add_node<D:DfsBuilder>(&mut self,builder:NodeDynBuilder<D::II,D::T>)->&'a mut NodeDstDyn<D::T>{
-                let dst:&mut NodeDstDyn<D::T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:builder.num_bots})};    
+            fn add_node<T:SweepTrait,B,F:Fn(B,&mut NodeDyn<T>)>(&mut self,stuff:(usize,B),func:&F)->&'a mut NodeDstDyn<T>{
+                let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:stuff.0})};    
+                
                 dst.c=None; //We set the children later
-                dst.n.divider=builder.divider;
-                dst.n.container_box=builder.container_box;
-
-                for (a,b) in dst.n.range.iter_mut().zip(builder.range){
-                    //let k=&mut all_bots[b.index as usize];
-                    //we cant just move it into here.
-                    //then rust will try and call the destructor of the uninitialized object
-                    unsafe{std::ptr::copy(&b,a,1)};
-                    std::mem::forget(b);
-                }
+                func(stuff.1,&mut dst.n);
                 self.counter=unsafe{&mut *(self.counter as *mut u8).offset(std::mem::size_of_val(dst) as isize)};
                 dst
             }
         }
 
         let mut cc=Counter{counter:start_addr};
-        let root=recc::<D>(it,&mut cc);
+        let root=recc(it,&func,&mut cc);
         
         return TreeAllocDstDfsOrder{_vec:vec,root};
 
 
-        fn recc<'a,D:DfsBuilder>
-            (it:D::I,counter:&mut Counter<'a>)->&'a mut NodeDstDyn<D::T>{
+        fn recc<'a,T:SweepTrait,B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>
+            (it:C,func:&F,counter:&mut Counter<'a>)->&'a mut NodeDstDyn<T>{
             
             let (nn,rest)=it.next();
             
             return match rest{
                 Some((left,right))=>{
-                    let left=recc::<D>(left,counter);
+                    let left=recc(left,func,counter);
                     
-                    let mut node=counter.add_node::<D>(nn);
+                    let mut node=counter.add_node(nn,func);
                     
-                    let right=recc::<D>(right,counter);
+                    let right=recc(right,func,counter);
                     
                     node.c=Some((left,right));
                     node
                     //Do stuff here! Now both children okay
                 },
                 None=>{
-                    let mut node=counter.add_node::<D>(nn);
+                    let mut node=counter.add_node(nn,func);
                     node.c=None;
                     node
                 }
