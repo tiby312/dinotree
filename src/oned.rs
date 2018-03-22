@@ -401,7 +401,51 @@ fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
 pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
-    unimplemented!()
+    let bot_len=bots.len();
+        
+    let mut left_end=0;
+    let mut middile_end=0;
+    //     |    middile   |   left|              right              |---------|
+    //
+    //                ^           ^                                  ^
+    //              middile_end    left_end                      index_at
+
+    //     |   left |   middile|----right-----|-------------|
+    //                                         ^
+    //                                     index_at
+    //
+    for index_at in 0..bot_len{
+        unsafe{
+            
+            match Accessor::<A>::get(bots.get_unchecked(index_at).get()).left_or_right_or_contain(med){
+                
+                std::cmp::Ordering::Equal=>{
+                     
+                    swap_unchecked(bots,index_at,middile_end);
+                    middile_end+=1;                    
+
+                },
+                std::cmp::Ordering::Less=>{
+                  
+                },
+                std::cmp::Ordering::Greater=>{
+
+                    swap_unchecked(bots,index_at,middile_end);
+                    swap_unchecked(bots,middile_end,left_end);
+                    left_end+=1;
+                    middile_end+=1;                   
+                }
+            }
+        }
+    }
+    //assert!(index_at==right_start);
+
+    let (rest,right)=bots.split_at_mut(middile_end);
+    let (left,middile)=rest.split_at_mut(left_end);
+    debug_assert!(left.len()+right.len()+middile.len()==bot_len);
+    //debug_assert!(bot_len==index_at,"{:?} ,{:?}",bot_len,index_at);
+
+    Binned{left:left,middile:middile,right:right}
 }
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
@@ -446,7 +490,8 @@ pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&
 
     let (rest,right)=bots.split_at_mut(left_end);
     let (middile,left)=rest.split_at_mut(middile_end);
-
+//println!("num_bots={:?}",(left.len(),middile.len(),right.len()));
+    
     debug_assert!(left.len()+right.len()+middile.len()==bot_len);
     //debug_assert!(bot_len==index_at,"{:?} ,{:?}",bot_len,index_at);
 

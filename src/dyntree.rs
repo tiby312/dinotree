@@ -177,9 +177,8 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
             let (mut tree2,bag)=KdTree::<A,_>::new::<JJ,K>(&mut conts,height);
             
             let mover={
-                let t=tree2.get_tree().create_down();
 
-                let k=t.dfs_preorder_iter().flat_map(|a:&Node2<Cont2<T::Num>>|{
+                let k=tree2.get_tree().dfs_inorder_iter().flat_map(|a:&Node2<Cont2<T::Num>>|{
                     a.range.iter()
                 }).map(|a|a.index);
 

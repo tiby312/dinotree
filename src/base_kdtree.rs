@@ -19,7 +19,7 @@ pub trait RebalTrait:Send+Sync{
 
 ///A KdTree construction
 pub struct KdTree<'a,A:AxisTrait,T:RebalTrait+'a> {
-    tree: compt::GenTree<Node2<'a,T>>,
+    tree: compt::dfs::GenTreeDfsOrder<Node2<'a,T>>,
     _p:PhantomData<A>
 }
 
@@ -27,14 +27,14 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
-        let mut ttree=compt::GenTree::from_bfs(&mut ||{
-            //let rest=&mut [];
-            //let co=self::create_container_rect::<A,_>(rest);
-            //Node2{divider:std::default::Default::default(),container_box:co,range:rest}
+        let mut ttree=compt::dfs::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
+            let rest=&mut [];
+            let co=self::rect_make::create_container_rect::<A,_>(rest);
+            Node2{divider:std::default::Default::default(),container_box:co,range:rest}
 
             //Unsafely assume that the rebalance algorithm will initialize the nodes.
-            let n:Node2<T>=unsafe{std::mem::uninitialized()};
-            n
+            //let n:Node2<T>=unsafe{std::mem::uninitialized()};
+            //n
         },height);
 
         let bag={
@@ -46,14 +46,14 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
         (KdTree{tree:ttree,_p:PhantomData},bag)
     }
 
-    pub fn get_tree(&self)->&compt::GenTree<Node2<'a,T>>{
+    pub fn get_tree(&self)->&compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &self.tree
     }
-    pub fn get_tree_mut(&mut self)->&mut compt::GenTree<Node2<'a,T>>{
+    pub fn get_tree_mut(&mut self)->&mut compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &mut self.tree
     }
 
-    pub fn into_tree(self)->compt::GenTree<Node2<'a,T>>{
+    pub fn into_tree(self)->compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         let KdTree{tree,_p}=self;
         tree
     }
@@ -72,9 +72,10 @@ pub struct Node2<'a,T:RebalTrait+'a>{
 }
 
 
+
 fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
     rest:&'b mut [T],
-    down:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>,
+    down:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>,
     mut timer_log:K)->K::Bag{
 
     timer_log.start();
@@ -97,8 +98,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             timer_log.leaf_finish()
         },
         Some((lleft,rright))=>{
-            let lleft:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>=lleft;
-            let rright:compt::LevelIter<compt::DownTMut<Node2<'b,T>>>=rright;
+            let lleft:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>=lleft;
+            let rright:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>=rright;
             
             let med={
               
@@ -131,9 +132,13 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                 
             };
 
+            //TODO not sure why this is slower
+            //let binned=oned::bin_left_mid_right::<A,_>(&med,rest);
             let binned=oned::bin_middile_left_right::<A,_>(&med,rest);
-
-
+            
+            
+                    
+    
             let oned::Binned{left,middile,right}=binned;
             
 
