@@ -78,25 +78,13 @@ pub struct NodeDstDyn<T:SweepTrait>{
 unsafe impl<T:SweepTrait> Send for NodeDstDyn<T>{}
 
 
-pub struct NodeDynBuilder<I:Iterator<Item=T>,T:SweepTrait>{
-    pub divider:T::Num,
-    pub container_box:axgeom::Range<T::Num>,
-    pub num_bots:usize,
-    pub range:I
-}
+
 
 
 pub struct TreeAllocDstDfsOrder<T:SweepTrait>{
     _vec:Vec<u8>,
     root:*mut NodeDstDyn<T>
 }
-
-pub trait DfsBuilder{
-    type T:SweepTrait;
-    type II:Iterator<Item=Self::T>;
-    type I:CTreeIterator<Item=NodeDynBuilder<Self::II,Self::T>>;
-}
-
 
 
 impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
@@ -121,11 +109,8 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
         
         let (alignment,siz)={
             let k:&NodeDstDyn<T>=unsafe{
-            //let mut vec:Vec<u8>=Vec::with_capacity(500);
-            //vec.push(0);
-            //let x:&[u8]= std::slice::from_raw_parts(&vec[0], 200+std::mem::size_of::<T>()); 
-            //TODO safe to do this??????????????
-                let k:*const u8=std::mem::transmute(0x10 as usize);//std::ptr::null::<T>();
+
+                let k:*const u8=std::mem::transmute(0x10 as usize);
                 std::mem::transmute(Repr{ptr:k,size:0})
             };
             (std::mem::align_of_val(k),std::mem::size_of_val(k))
@@ -219,7 +204,7 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
     }
 }
 
-
+/*
 //TODO should technically call the destructor of T.
 pub struct TreeAllocDst<T:SweepTrait>{
     _vec:Vec<u8>,
@@ -336,3 +321,4 @@ impl<T:SweepTrait> TreeAllocDst<T>{
     }
 
 }
+*/

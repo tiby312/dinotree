@@ -4,7 +4,7 @@ use tree_alloc::NodeDyn;
 use base_kdtree::Node2;
 use base_kdtree::KdTree;
 use base_kdtree::RebalTrait;
-use tree_alloc::NodeDynBuilder;
+//use tree_alloc::NodeDynBuilder;
 use tree_alloc::NdIterMut;
 use tree_alloc::NdIter;
 
@@ -399,8 +399,8 @@ impl<'a,A:AxisTrait,T:SweepTrait+Send+'a> Drop for DynTree<'a,A,T>{
 use self::alloc::DynTreeRaw;
 mod alloc{
     use super::*;
-    use tree_alloc::TreeAllocDst;
-    use tree_alloc::NodeDynBuilder; 
+    //use tree_alloc::TreeAllocDst;
+    //use tree_alloc::NodeDynBuilder; 
     use tree_alloc::TreeAllocDstDfsOrder;
 
     pub struct DynTreeRaw<T:SweepTrait>{
@@ -436,7 +436,6 @@ mod alloc{
 use self::mover::Mover;
 mod mover{
     use std;
-    //use super::Cont2;
     use NumTrait;
     pub struct Mover(
         Vec<u32>
