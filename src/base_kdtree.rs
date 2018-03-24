@@ -31,10 +31,6 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             let rest=&mut [];
             let co=self::rect_make::create_container_rect::<A,_>(rest);
             Node2{divider:std::default::Default::default(),container_box:co,range:rest}
-
-            //Unsafely assume that the rebalance algorithm will initialize the nodes.
-            //let n:Node2<T>=unsafe{std::mem::uninitialized()};
-            //n
         },height);
 
         let bag={
