@@ -31,6 +31,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             let rest=&mut [];
             let co=self::rect_make::create_container_rect::<A,_>(rest);
             Node2{divider:std::default::Default::default(),container_box:co,range:rest}
+            //unsafe{std::mem::uninitialized()}
         },height);
 
         let bag={
@@ -103,8 +104,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             
             //Unsafely leave the dividers of leaf nodes uninitialized.
             //nn.divider=std::default::Default::default();
-
-            nn.container_box=rect_make::create_container_rect::<A,_>(rest);
+            //nn.container_box=rect_make::create_container_rect::<A,_>(rest);
          
             nn.range=rest;
             timer_log.leaf_finish()
