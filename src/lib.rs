@@ -92,7 +92,7 @@ pub fn compute_tree_height(num_bots: usize) -> usize {
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
     //TODO test this more!!!!
-    const NUM_PER_NODE: usize = 16;
+    const NUM_PER_NODE: usize = 20;  //I'm picking 20 since std::sort uses insertion sort uf at this number of lower
     if num_bots <= NUM_PER_NODE {
         return 1;
     } else {
@@ -161,7 +161,7 @@ pub trait DepthLevel:Send+Sync+Copy+Clone{
 ///The underlying number type used for the bounding boxes,
 ///and for the dividers. 
 //TODO get rid of default trait bound
-pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug+Default{}
+pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 
 ///A bounding box made up of x and y ordered pairs.

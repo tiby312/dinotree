@@ -122,7 +122,8 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
             let func=|builder:&Node2<Cont2<T::Num>>,dst:&mut NodeDyn<T>|{
                 
-                dst.inner=builder.inner;
+                dst.div=builder.div;
+                dst.cont=builder.cont;
                 //dst.divider=builder.divider;
                 //dst.container_box=builder.container_box;
 

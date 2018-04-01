@@ -30,7 +30,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
         let mut ttree=compt::dfs::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
             let rest=&mut [];
             //let co=self::rect_make::create_container_rect::<A,_>(rest);
-            Node2{inner:None,range:rest}
+            Node2{div:None,cont:None,range:rest}
             //unsafe{std::mem::uninitialized()}
         },height);
 
@@ -72,15 +72,15 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 }
 
 
+//TODO why is this public?
 pub struct Node2<'a,T:RebalTrait+'a>{ 
 
-    //Undefined for leaf nodes.
-    pub inner:Option<(T::Num,axgeom::Range<T::Num>)>,
-    //pub divider:T::Num,
-
-    //only valid if the node has bots in it.
-    //pub container_box:axgeom::Range<T::Num>,
-
+   //div is None iff this node and children nodes do not have any bots in them.
+    pub div:Option<T::Num>,
+ 
+    //box is None iff range.len()==0
+    pub cont:Option<axgeom::Range<T::Num>>,
+    
     pub range:&'a mut [T]
 }
 
@@ -177,9 +177,10 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                 let ((nj,ba),bb)={
                     
                     let af=move || {
+
                         sweeper_update::<_,A::Next>(binned_middile);
                         let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
-                        let n:Node2<'b,_>=Node2{inner:Some((med,container_box)),range:binned_middile};
+                        let n:Node2<'b,_>=Node2{div:Some(med),cont:container_box,range:binned_middile};
                     
                         let k=self::recurse_rebal::<A::Next,T,_,K>(dlevel,binned_left,lleft,ta);
                         (n,k)
@@ -194,7 +195,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             }else{
                 sweeper_update::<_,A::Next>(binned_middile);
                 let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
-                let nj=Node2{inner:Some((med,container_box)),range:binned_middile};
+                let nj=Node2{div:Some(med),cont:container_box,range:binned_middile};
                 let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
@@ -297,7 +298,7 @@ mod rect_make{
     */
     
 
-    pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
+    pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->Option<axgeom::Range<T::Num>>{
         
         {
             let res=middile.split_first();
@@ -307,12 +308,13 @@ mod rect_make{
 
                     let first_ra=first.get().get_range2::<A>().clone();
                     
-                    create_container::<A,T>(rest,first_ra)
+                    Some(create_container::<A,T>(rest,first_ra))
                 },
                 None=>{
-                    
-                    let d=std::default::Default::default();
-                    axgeom::Range{start:d,end:d}
+                    None
+                    //panic!("trying to create container rect of empty list!");
+                    //let d=std::default::Default::default();
+                    //axgeom::Range{start:d,end:d}
                 }
 
             }

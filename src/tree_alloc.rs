@@ -18,15 +18,14 @@ struct Repr<T>{
 
 pub struct NodeDyn<T:SweepTrait>{ 
 
-    pub inner:Option<(T::Num,axgeom::Range<T::Num>)>,
-    /*
-    pub divider:T::Num,
-
-    //only valid if the node has bots in it.
-    pub container_box:axgeom::Range<T::Num>,
-    */
+    //div is None iff this node and children nodes do not have any bots in them.
+    pub div:Option<T::Num>,
+ 
+    //box is None iff range.len()==0
+    pub cont:Option<axgeom::Range<T::Num>>,
     pub range:[T]
 }
+
 
 
 pub struct NdIterMut<'a,T:SweepTrait+'a>{
