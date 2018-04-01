@@ -34,6 +34,13 @@ impl Numf32{
     }
 }
 
+
+impl NumTrait for NotNaN<f32>{}
+impl NumTrait for NotNaN<f64>{}
+impl NumTrait for isize{}
+impl NumTrait for i32{}
+impl NumTrait for usize{}
+
 ///A premade f64 wrapper that implements NumTrait
 #[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
 pub struct Numf64(pub NotNaN<f64>);
