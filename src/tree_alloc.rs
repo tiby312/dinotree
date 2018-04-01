@@ -18,11 +18,13 @@ struct Repr<T>{
 
 pub struct NodeDyn<T:SweepTrait>{ 
 
+    pub inner:Option<(T::Num,axgeom::Range<T::Num>)>,
+    /*
     pub divider:T::Num,
 
     //only valid if the node has bots in it.
     pub container_box:axgeom::Range<T::Num>,
-    
+    */
     pub range:[T]
 }
 

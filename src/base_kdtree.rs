@@ -29,8 +29,8 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
         
         let mut ttree=compt::dfs::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
             let rest=&mut [];
-            let co=self::rect_make::create_container_rect::<A,_>(rest);
-            Node2{divider:std::default::Default::default(),container_box:co,range:rest}
+            //let co=self::rect_make::create_container_rect::<A,_>(rest);
+            Node2{inner:None,range:rest}
             //unsafe{std::mem::uninitialized()}
         },height);
 
@@ -75,10 +75,11 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 pub struct Node2<'a,T:RebalTrait+'a>{ 
 
     //Undefined for leaf nodes.
-    pub divider:T::Num,
+    pub inner:Option<(T::Num,axgeom::Range<T::Num>)>,
+    //pub divider:T::Num,
 
     //only valid if the node has bots in it.
-    pub container_box:axgeom::Range<T::Num>,
+    //pub container_box:axgeom::Range<T::Num>,
 
     pub range:&'a mut [T]
 }
@@ -167,7 +168,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                     let af=move || {
                         sweeper_update::<_,A::Next>(binned_middile);
                         let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
-                        let n:Node2<'b,_>=Node2{divider:med,container_box,range:binned_middile};
+                        let n:Node2<'b,_>=Node2{inner:Some((med,container_box)),range:binned_middile};
                     
                         let k=self::recurse_rebal::<A::Next,T,_,K>(dlevel,binned_left,lleft,ta);
                         (n,k)
@@ -182,7 +183,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             }else{
                 sweeper_update::<_,A::Next>(binned_middile);
                 let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
-                let nj=Node2{divider:med,container_box,range:binned_middile};
+                let nj=Node2{inner:Some((med,container_box)),range:binned_middile};
                 let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
