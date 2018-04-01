@@ -19,6 +19,8 @@ struct Repr<T>{
 pub struct NodeDyn<T:SweepTrait>{ 
 
     //div is None iff this node and children nodes do not have any bots in them.
+    //That is not to say that the node doesnt have children.
+    //Just that the children nodes dont have bots in them.
     pub div:Option<T::Num>,
  
     //box is None iff range.len()==0
