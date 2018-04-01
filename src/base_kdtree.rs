@@ -40,7 +40,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
             //TODO this value really should be able to be set by the user right?
             //highly dependant on the algorithm 
-            const a:usize=5;
+            const a:usize=7;
 
             let gg=if height<=a{
                 0
