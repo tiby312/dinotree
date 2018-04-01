@@ -118,7 +118,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
               
                 let div_axis=A::get();
                 let m = if rest.len() == 0{
-                        std::default::Default::default()
+                        None
+                        //panic!("no bots in a non leaf node! depth:{:?}",level.0);
+                        //std::default::Default::default()
                     }
                     else
                     {
@@ -139,12 +141,21 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                             pdqselect::select_by(rest, mm, closure);
                             &rest[mm]
                         };
-                        k.get().get_range(div_axis).start
+                        Some(k.get().get_range(div_axis).start)
                     };
                 m
                 
             };
 
+            let med=match med{
+                Some(med)=>{
+                    med
+                },
+                None=>{
+                    //TODO not necessarily leaf okay?
+                    return timer_log.leaf_finish();
+                }
+            };
             //TODO not sure why this is slower
             //let binned=oned::bin_left_mid_right::<A,_>(&med,rest);
             let binned=oned::bin_middile_left_right::<A,_>(&med,rest);

@@ -91,8 +91,8 @@ pub fn compute_tree_height(num_bots: usize) -> usize {
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-
-    const NUM_PER_NODE: usize = 10;
+    //TODO test this more!!!!
+    const NUM_PER_NODE: usize = 16;
     if num_bots <= NUM_PER_NODE {
         return 1;
     } else {
@@ -160,6 +160,7 @@ pub trait DepthLevel:Send+Sync+Copy+Clone{
 
 ///The underlying number type used for the bounding boxes,
 ///and for the dividers. 
+//TODO get rid of default trait bound
 pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug+Default{}
 
 
