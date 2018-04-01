@@ -37,8 +37,22 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             let level=ttree.get_level_desc();
             let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
-            self::recurse_rebal::<A,T,JJ,K>(rest,j,t)
+
+            //TODO this value really should be able to be set by the user right?
+            //highly dependant on the algorithm 
+            const a:usize=5;
+
+            let gg=if height<=a{
+                0
+            }else{
+                height-a
+            };
+            
+            let dlevel=JJ::new(Depth(gg));
+            self::recurse_rebal::<A,T,JJ,K>(dlevel,rest,j,t)
         };
+
+
         (KdTree{tree:ttree,_p:PhantomData},bag)
     }
 
@@ -70,6 +84,7 @@ pub struct Node2<'a,T:RebalTrait+'a>{
 
 
 fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
+    dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>,
     mut timer_log:K)->K::Bag{
@@ -144,7 +159,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
             
             let (ta,tb)=timer_log.next();
 
-            let (nj,ba,bb)=if !JJ::new().should_switch_to_sequential(level){
+            let (nj,ba,bb)=if !dlevel.should_switch_to_sequential(level){
                 
                 let ((nj,ba),bb)={
                     
@@ -153,12 +168,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                         let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
                         let n:Node2<'b,_>=Node2{divider:med,container_box,range:binned_middile};
                     
-                        let k=self::recurse_rebal::<A::Next,T,par::Parallel,K>(binned_left,lleft,ta);
+                        let k=self::recurse_rebal::<A::Next,T,_,K>(dlevel,binned_left,lleft,ta);
                         (n,k)
                     };
 
                     let bf=move || {
-                        self::recurse_rebal::<A::Next,T,par::Parallel,K>(binned_right,rright,tb)
+                        self::recurse_rebal::<A::Next,T,_,K>(dlevel,binned_right,rright,tb)
                     };
                     rayon::join(af,bf)
                 }; 
@@ -167,8 +182,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                 sweeper_update::<_,A::Next>(binned_middile);
                 let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
                 let nj=Node2{divider:med,container_box,range:binned_middile};
-                let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(binned_left,lleft,ta);
-                let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(binned_right,rright,tb);
+                let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_left,lleft,ta);
+                let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
             };
 

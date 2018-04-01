@@ -22,7 +22,7 @@ mod inner_prelude{
   pub use AABBox;
   pub use axgeom::Axis;
   pub use compt::LevelIter;
-  pub use compt::LevelDesc;
+  pub use compt::Depth;
   pub use axgeom::Range;
   pub use *;
   pub use oned::sweeper_update;
@@ -233,31 +233,31 @@ pub use median::MedianStrat;
 
 pub mod par{
     use rayon;
-    use compt::LevelDesc;
+    use compt::Depth;
 
     pub trait Joiner:Send+Sync+Copy+Clone{
-        fn new()->Self;
+        fn new(d:Depth)->Self;
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB);
         //fn is_parallel(&self)->bool;
         fn into_seq(&self)->Sequential;
-        fn should_switch_to_sequential(&self,a:LevelDesc)->bool;
+        fn should_switch_to_sequential(&self,a:Depth)->bool;
     }
 
     #[derive(Copy,Clone)]
-    pub struct Parallel;
+    pub struct Parallel(Depth);
     impl Joiner for Parallel{
-        fn new()->Self{
-          Parallel
+        fn new(d:Depth)->Self{
+          Parallel(d)
         }
 
         fn into_seq(&self)->Sequential{
           Sequential
         }
 
-        fn should_switch_to_sequential(&self,a:LevelDesc)->bool{
+        fn should_switch_to_sequential(&self,a:Depth)->bool{
           //Seems like 6 is ideal for my dell xps laptop
           //8 is best on my android phone.
-          a.get_depth()>=8
+          a.0>=(self.0).0
         }
 
         fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
@@ -268,14 +268,14 @@ pub mod par{
     #[derive(Copy,Clone)]
     pub struct Sequential;
     impl Joiner for Sequential{
-        fn new()->Self{
+        fn new(_:Depth)->Self{
           Sequential
         }
         fn into_seq(&self)->Sequential{
           Sequential
         }
 
-        fn should_switch_to_sequential(&self,_a:LevelDesc)->bool{
+        fn should_switch_to_sequential(&self,_a:Depth)->bool{
            true
         }
 

@@ -6,7 +6,7 @@ pub trait MedianStrat:Sync{
     ///updates median and bins.
     fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:RebalTrait<Num=Self::Num>>(
         &self,
-        level:LevelDesc,
+        level:Depth,
         rest:&'a mut [T],
         mmm:&mut T::Num)->(T::Num,oned::Binned<'a,T>);
 }
@@ -52,7 +52,7 @@ pub mod relax{
         type Num=N;
         fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:RebalTrait<Num=N>>(
             &self,
-            _level:LevelDesc,
+            _level:Depth,
             rest:&'a mut [T],
             divider:&mut T::Num)->(T::Num,oned::Binned<'a,T>){
             let div_axis=A::get();
@@ -235,7 +235,7 @@ pub mod strict{
         
         fn compute<'a,JJ:par::Joiner,A:AxisTrait,T:RebalTrait<Num=N>>(
             &self,
-            _level:LevelDesc,
+            _level:Depth,
             rest:&'a mut [T],
             mmm:&mut T::Num)->(T::Num,oned::Binned<'a,T>){
             let div_axis=A::get();
