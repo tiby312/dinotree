@@ -256,11 +256,6 @@ mod mover{
             Mover(move_vector)
         }
 
-        pub unsafe fn move_into_tree<T>(a:&T)->T{
-            let mut k=std::mem::uninitialized();
-            std::ptr::copy(a,&mut k,1);
-            k
-        }
         pub unsafe fn move_out_of_tree<'a,T:'a+SweepTrait,C:CTreeIterator<Item=&'a NodeDyn<T>>>(&mut self,tree_bots:C,orig:&mut [T]){
 
             let mut i1=self.0.iter();
