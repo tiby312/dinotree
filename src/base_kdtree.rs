@@ -31,7 +31,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             let rest=&mut [];
             //let co=self::rect_make::create_container_rect::<A,_>(rest);
             Node2{div:None,cont:None,range:rest}
-            //unsafe{std::mem::uninitialized()}
+            
         },height);
 
         let bag={

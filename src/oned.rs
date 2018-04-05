@@ -3,11 +3,6 @@ use base_kdtree::RebalTrait;
 
 
 
-unsafe fn swap_unchecked<T>(list:&mut [T],a:usize,b:usize){
-    let x=list.get_unchecked_mut(a) as *mut T;
-    let y=list.get_unchecked_mut(b) as *mut T;
-    std::ptr::swap(x,y)
-}
 
 
 
@@ -415,28 +410,28 @@ pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b m
     //                                     index_at
     //
     for index_at in 0..bot_len{
-        unsafe{
+       
+        match Accessor::<A>::get(bots[index_at].get()).left_or_right_or_contain(med){
             
-            match Accessor::<A>::get(bots.get_unchecked(index_at).get()).left_or_right_or_contain(med){
-                
-                std::cmp::Ordering::Equal=>{
-                     
-                    swap_unchecked(bots,index_at,middile_end);
-                    middile_end+=1;                    
+            std::cmp::Ordering::Equal=>{
+                bots.swap(index_at,middile_end);
+                //swap_unchecked(bots,index_at,middile_end);
+                middile_end+=1;                    
 
-                },
-                std::cmp::Ordering::Less=>{
-                  
-                },
-                std::cmp::Ordering::Greater=>{
-
-                    swap_unchecked(bots,index_at,middile_end);
-                    swap_unchecked(bots,middile_end,left_end);
-                    left_end+=1;
-                    middile_end+=1;                   
-                }
+            },
+            std::cmp::Ordering::Less=>{
+              
+            },
+            std::cmp::Ordering::Greater=>{
+                bots.swap(index_at,middile_end);
+                bots.swap(middile_end,left_end);
+                //swap_unchecked(bots,index_at,middile_end);
+                //swap_unchecked(bots,middile_end,left_end);
+                left_end+=1;
+                middile_end+=1;                   
             }
         }
+   
     }
     //assert!(index_at==right_start);
 
@@ -462,29 +457,31 @@ pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&
     //              middile_end    left_end                      index_at
 
     for index_at in 0..bot_len{
-        unsafe{
-            
-            match Accessor::<A>::get(bots.get_unchecked(index_at).get()).left_or_right_or_contain(med){
+        
+            match Accessor::<A>::get(bots[index_at].get()).left_or_right_or_contain(med){
                 
                 //If the divider is less than the bot
                 std::cmp::Ordering::Equal=>{
                     //left
-                    swap_unchecked(bots,index_at,left_end);
-                    swap_unchecked(bots,left_end,middile_end);
+                    bots.swap(index_at,left_end);
+                    bots.swap(left_end,middile_end);
+                    //swap_unchecked(bots,index_at,left_end);
+                    //swap_unchecked(bots,left_end,middile_end);
                     middile_end+=1;
                     left_end+=1;  
                 },
                 //If the divider is greater than the bot
                 std::cmp::Ordering::Greater=>{
                     //middile
-                    swap_unchecked(bots,index_at,left_end);
+                    bots.swap(index_at,left_end);
+                    //swap_unchecked(bots,index_at,left_end);
                     left_end+=1;
                 },
                 std::cmp::Ordering::Less=>{
                     //right                    
                 }
             }
-        }
+        
         
     }
 
@@ -529,20 +526,15 @@ pub fn sweeper_update_leaf<I:RebalTrait,A:AxisTrait>(values: &mut [I]) {
 
     for i in 0..values.len() {
         for j in (0..i).rev() {
-            let ret=unsafe{
-                let a=values.get_unchecked(j);
-                let b=values.get_unchecked(j+1);
-                sclosure(a,b)==std::cmp::Ordering::Greater
-            };
-            if ret {
-                unsafe{
-                    let a=values.get_unchecked_mut(j) as *mut I;
-                    let b=values.get_unchecked_mut(j+1) as *mut I;
+            unsafe{
+                let a=values.get_unchecked_mut(j) as *mut I;
+                let b=values.get_unchecked_mut(j+1) as *mut I;
+            
+                if sclosure(&*a,&*b)==std::cmp::Ordering::Greater {
                     std::ptr::swap(a,b)
-                };
-                //values.swap(j, j + 1);
-            } else {
-                break
+                } else {
+                    break
+                }
             }
         }
     }

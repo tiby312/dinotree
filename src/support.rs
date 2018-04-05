@@ -23,6 +23,9 @@ impl DepthLevel for DefaultDepthLevel{
 pub struct NumWrapper<T:Ord+Copy+Send+Sync+std::fmt::Debug+Default>(pub T);
 impl<T:Ord+Copy+Send+Sync+std::fmt::Debug+Default> NumTrait for NumWrapper<T>{}
 
+
+
+/*
 ///A premade f32 wrapper that implements NumTrait
 #[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
 pub struct Numf32(pub NotNaN<f32>);
@@ -33,7 +36,7 @@ impl Numf32{
         Numf32(NotNaN::new(a).unwrap())
     }
 }
-
+*/
 
 impl NumTrait for NotNaN<f32>{}
 impl NumTrait for NotNaN<f64>{}
@@ -41,6 +44,7 @@ impl NumTrait for isize{}
 impl NumTrait for i32{}
 impl NumTrait for usize{}
 
+/*
 ///A premade f64 wrapper that implements NumTrait
 #[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
 pub struct Numf64(pub NotNaN<f64>);
@@ -55,7 +59,7 @@ impl NumTrait for Numisize{}
 #[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
 pub struct Numusize(pub usize);
 impl NumTrait for Numusize{}
-
+*/
 
 
 ///A generic container that implements the kdtree trait.
