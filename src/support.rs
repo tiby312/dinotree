@@ -1,20 +1,5 @@
 use inner_prelude::*;
-use ordered_float::NotNaN;
-
-/*
-///A default depth level from which to switch to sequential.
-#[derive(Copy,Clone)]
-pub struct DefaultDepthLevel;
-
-impl DepthLevel for DefaultDepthLevel{
-    fn new()->DefaultDepthLevel{
-        DefaultDepthLevel
-    }
-    fn switch_to_sequential(&self,a:LevelDesc)->bool{
-        a.get_depth()>=5
-    }
-}
-*/
+use ordered_float;
 
 
 ///A convenience wrapper that implements the NumTrait around any number that implements the 
@@ -25,41 +10,13 @@ impl<T:Ord+Copy+Send+Sync+std::fmt::Debug+Default> NumTrait for NumWrapper<T>{}
 
 
 
-/*
-///A premade f32 wrapper that implements NumTrait
-#[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
-pub struct Numf32(pub NotNaN<f32>);
-impl NumTrait for Numf32{}
-
-impl Numf32{
-    pub fn from_f32(a:f32)->Numf32{
-        Numf32(NotNaN::new(a).unwrap())
-    }
-}
-*/
-
-impl NumTrait for NotNaN<f32>{}
-impl NumTrait for NotNaN<f64>{}
+impl NumTrait for ordered_float::NotNaN<f32>{}
+impl NumTrait for ordered_float::NotNaN<f64>{}
+impl NumTrait for ordered_float::OrderedFloat<f32>{}
+impl NumTrait for ordered_float::OrderedFloat<f64>{}
 impl NumTrait for isize{}
 impl NumTrait for i32{}
 impl NumTrait for usize{}
-
-/*
-///A premade f64 wrapper that implements NumTrait
-#[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
-pub struct Numf64(pub NotNaN<f64>);
-impl NumTrait for Numf64{}
-
-///A premade isize wrapper that implements NumTrait
-#[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
-pub struct Numisize(pub isize);
-impl NumTrait for Numisize{}
-
-///A premade usize wrapper that implements NumTrait
-#[derive(Copy,Clone,Default,Debug,Eq,PartialEq,PartialOrd,Ord)]
-pub struct Numusize(pub usize);
-impl NumTrait for Numusize{}
-*/
 
 
 ///A generic container that implements the kdtree trait.
@@ -83,12 +40,10 @@ impl<Nu:NumTrait,T:Send+Sync> SweepTrait for BBox<Nu,T>{
         (&self.rect,&self.val)
     }
 }
-impl<Nu:NumTrait,T:Send+Sync+Copy> Copy for BBox<Nu,T>{
 
-}
 impl<Nu:NumTrait,T:Send+Sync+Clone> Clone for BBox<Nu,T>{
     fn clone(&self)->BBox<Nu,T>{
-        BBox{rect:self.rect,val:self.val.clone()}
+        BBox{rect:self.rect.clone(),val:self.val.clone()}
     }
 }
 impl<Nu:NumTrait,T:Send+Sync> BBox<Nu,T>{

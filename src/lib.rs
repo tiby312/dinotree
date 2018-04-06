@@ -168,7 +168,7 @@ pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 ///A bounding box made up of x and y ordered pairs.
 ///The left must be less than the right. //TODO or equal to?
-#[derive(Copy,Clone)]
+#[derive(Clone)]
 pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);
 impl<N:NumTrait> AABBox<N>{
 
