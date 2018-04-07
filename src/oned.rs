@@ -392,7 +392,7 @@ fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<
 
 
 
-
+/*
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
 pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
@@ -442,6 +442,7 @@ pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b m
 
     Binned{left:left,middile:middile,right:right}
 }
+*/
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right

@@ -210,7 +210,6 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
 }
 
 /*
-//TODO should technically call the destructor of T.
 pub struct TreeAllocDst<T:SweepTrait>{
     _vec:Vec<u8>,
     root:*mut NodeDstDyn<T>
@@ -313,7 +312,7 @@ impl<T:SweepTrait> TreeAllocDst<T>{
             //let mut vec:Vec<u8>=Vec::with_capacity(500);
             //vec.push(0);
             //let x:&[u8]= std::slice::from_raw_parts(&vec[0], 200+std::mem::size_of::<T>()); 
-            //TODO safe to do this??????????????
+            
                 let k:*const u8=std::mem::transmute(0x10 as usize);//std::ptr::null::<T>();
                 std::mem::transmute(Repr{ptr:k,size:0})
             };

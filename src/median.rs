@@ -62,7 +62,6 @@ pub mod relax{
             let mut times=[0.0f64;2];
             let tt0=tools::Timer2::new();
 
-            //TODO only do this at upper levels??
             
             let binned=oned::bin::<A,_>(&med,rest);
             
@@ -246,7 +245,7 @@ pub mod strict{
 
                 let m = if rest.len() == 0{
                             std::default::Default::default()
-                            //TODO what to do here?
+                            
                     }
                     else
                     {

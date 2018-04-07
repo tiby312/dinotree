@@ -1,5 +1,6 @@
  use super::*;
-//TODO use this
+
+
 pub trait TreeTimerTrait:Sized+Send{
     type Bag:Send+Sized;
     fn combine(a:Self::Bag,b:Self::Bag)->Self::Bag;
@@ -65,10 +66,11 @@ impl TreeTimerTrait for TreeTimer2{
         TreeTimer2{a:v,index:0,timer:None}
     }
 
+    //Can be called prematurely if there are no children
     fn leaf_finish(self)->Bag{
 
-       let TreeTimer2{mut a,index,timer}=self;
-        debug_assert!(index==a.len()-1);
+        let TreeTimer2{mut a,index,timer}=self;
+        //debug_assert!(index==a.len()-1);
         a[index]+=timer.unwrap().elapsed();
         Bag{a:a}
     }

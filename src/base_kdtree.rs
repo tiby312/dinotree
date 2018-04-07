@@ -39,8 +39,6 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
             let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
 
-            //TODO this value really should be able to be set by the user right?
-            //highly dependant on the algorithm 
             //on xps13 5 seems good
             const DEPTH_SEQ:usize=5;
 
@@ -72,7 +70,6 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 }
 
 
-//TODO why is this public?
 pub struct Node2<'a,T:RebalTrait+'a>{ 
 
    //div is None iff this node and children nodes do not have any bots in them.
@@ -152,12 +149,11 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                     med
                 },
                 None=>{
-                    //TODO not necessarily leaf okay?
+
                     return timer_log.leaf_finish();
                 }
             };
-            //TODO not sure why this is slower
-            //let binned=oned::bin_left_mid_right::<A,_>(&med,rest);
+            
             let binned=oned::bin_middile_left_right::<A,_>(&med,rest);
             
             

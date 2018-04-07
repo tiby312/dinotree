@@ -91,9 +91,8 @@ pub fn compute_tree_height(num_bots: usize) -> usize {
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    //TODO test this more!!!!
-    const NUM_PER_NODE: usize = 12;  //I'm picking 20 since std::sort uses insertion sort uf at this number of lower
-    
+    const NUM_PER_NODE: usize = 12;  
+
     //8 is worse than 20 which is worse than 12 on android. sticking with 12
     if num_bots <= NUM_PER_NODE {
         return 1;
@@ -162,14 +161,13 @@ pub trait DepthLevel:Send+Sync+Copy+Clone{
 
 ///The underlying number type used for the bounding boxes,
 ///and for the dividers. 
-//TODO get rid of default trait bound
 pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 
 ///A bounding box made up of x and y ordered pairs.
-///The left must be less than the right. //TODO or equal to?
+///The left must be less than or equal the right.
 #[derive(Clone)]
-pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);   //TODO make private
+pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);  //TODO make private 
 impl<N:NumTrait> AABBox<N>{
 
   ///For both axises, the first value must be less than or equal the second.
