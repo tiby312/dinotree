@@ -169,7 +169,7 @@ pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 ///A bounding box made up of x and y ordered pairs.
 ///The left must be less than the right. //TODO or equal to?
 #[derive(Clone)]
-pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);
+pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);   //TODO make private
 impl<N:NumTrait> AABBox<N>{
 
   ///For both axises, the first value must be less than or equal the second.
