@@ -151,13 +151,7 @@ fn assert_invariant<T:SweepTrait>(d:&DinoTree2<T>){
 
 ///Returns the level at which a parallel divide and conqur algorithm will switch to sequential
 
-/*
-pub trait DepthLevel:Send+Sync+Copy+Clone{
-    ///Switch to sequential at this height.
-    fn switch_to_sequential(&self,a:LevelDesc)->bool;
-    fn new()->Self;
-}
-*/
+
 
 ///The underlying number type used for the bounding boxes,
 ///and for the dividers. 

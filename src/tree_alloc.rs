@@ -90,7 +90,8 @@ pub struct TreeAllocDstDfsOrder<T:SweepTrait>{
     _vec:Vec<u8>,
     root:*mut NodeDstDyn<T>
 }
-
+unsafe impl<T:SweepTrait> Send for TreeAllocDstDfsOrder<T>{}
+unsafe impl<T:SweepTrait> Sync for TreeAllocDstDfsOrder<T>{}
 
 impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
     pub fn get_root_mut(&mut self)->&mut NodeDstDyn<T>{
