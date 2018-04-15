@@ -36,7 +36,8 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
         let bag={
             let level=ttree.get_level_desc();
-            let j=compt::LevelIter::new(ttree.create_down_mut(),level);
+            let j=ttree.create_down_mut().with_depth();
+            //let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
 
             //on xps13 5 seems good
