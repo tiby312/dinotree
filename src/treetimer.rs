@@ -61,7 +61,7 @@ impl TreeTimerTrait for TreeTimer2{
         a
     }
     fn new(height:usize)->TreeTimer2{
-        let v=(0..height-1).map(|_|0.0).collect();
+        let v=(0..height).map(|_|0.0).collect();
         
         TreeTimer2{a:v,index:0,timer:None}
     }

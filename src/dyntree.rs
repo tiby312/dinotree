@@ -16,68 +16,40 @@ pub struct DynTree<'b,A:AxisTrait,T:SweepTrait+Send+'b>{
     pub tree:DynTreeRaw<A,T>,
 }
 
-#[cfg(test)]
-mod test{
-    use support::BBox;
-    use super::*;
-    use test::*;
-    #[bench]
-    fn method1(b:&mut Bencher){
-         use test_support::*;
-        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
-
-        let mut bots=Vec::new();
-        for id in 0..50000{
-            let ppp=p.random_point();
-            let k=test_support::create_rect_from_point(ppp);
-            bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
-        }
-        
-        let height=compute_tree_height(bots.len());
-        b.iter(||{
-            black_box(DynTree::<XAXISS,_>::new::<par::Parallel,TreeTimerEmpty>(&mut bots,height));
-        });
-    }
-    #[bench]
-    fn method_exp(b:&mut Bencher){
-         use test_support::*;
-        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
-
-        let mut bots=Vec::new();
-        for id in 0..50000{
-            let ppp=p.random_point();
-            let k=test_support::create_rect_from_point(ppp);
-            bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
-        }
-        
-        let height=compute_tree_height(bots.len());
-        b.iter(||{
-            black_box(DynTree::<XAXISS,_>::from_exp_method::<par::Parallel,TreeTimerEmpty>(&mut bots,height));
-        });
-    }
-    #[bench]
-    fn method_exp2(b:&mut Bencher){
-         use test_support::*;
-        let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
-
-        let mut bots=Vec::new();
-        for id in 0..50000{
-            let ppp=p.random_point();
-            let k=test_support::create_rect_from_point(ppp);
-            bots.push(BBox::new(Bot{id,col:Vec::new()},k)); 
-        }
-        
-        let height=compute_tree_height(bots.len());
-        b.iter(||{
-            black_box(DynTree::<XAXISS,_>::from_exp2_method::<par::Parallel,TreeTimerEmpty>(&mut bots,height));
-        });
-    }
-}
-
 
 
 impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
+    fn assert_invariants(&self){
+        let c=self.get_iter().with_depth();
 
+
+        fn recc<'a,A:AxisTrait,T:SweepTrait+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<T>)>>(axis:A,cc:C){
+            let ((depth,nn),rest)=cc.next();
+
+                
+            let div=match nn.div{
+                Some(div)=>{div},
+                None=>{return;}
+            };
+
+            for b in &nn.range{
+                let r=(b.get().0).0.get_range(A::get());
+                assert!(r.start<=div && r.end>=div);
+            }        
+
+            match rest{
+                Some((left,right))=>{
+                    recc(axis.next(),left);
+                    recc(axis.next(),right);
+                },
+                None=>{
+
+                }
+            }
+        }
+        recc(A::new(),c);
+
+    }
 
     fn method_exp<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<A,T>,Mover,K::Bag){
         
@@ -162,7 +134,10 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
             Self::method_exp::<JJ,K>(rest,height)
         };
 
-        (DynTree{orig:rest,mover,tree:fb},bag)
+        let d=DynTree{orig:rest,mover,tree:fb};
+        //TODO remove
+        //d.assert_invariants();
+        (d,bag)
     }
 
     pub fn get_height(&self)->usize{

@@ -13,20 +13,21 @@ pub struct Bot{
   pub col:Vec<usize>
 }
 
-pub fn make_rect(a:(isize,isize),b:(isize,isize))->axgeom::Rect<Numisize>{
+
+pub fn make_rect(a:(isize,isize),b:(isize,isize))->axgeom::Rect<isize>{
   axgeom::Rect::new(
-    Numisize(a.0),
-    Numisize(a.1),
-    Numisize(b.0),
-    Numisize(b.1),
+    a.0,
+    a.1,
+    b.0,
+    b.1,
    )
 }
 
-pub fn create_rect_from_point(a:(Numisize,Numisize))->AABBox<Numisize>{
+pub fn create_rect_from_point(a:(isize,isize))->AABBox<isize>{
   let r:isize=10;
   let x=a.0;
   let y=a.1;
-  AABBox(make_rect((x.0-r,x.0+r),(y.0-r,y.0+r)))
+  AABBox(make_rect((x-r,x+r),(y-r,y+r)))
 }
 pub fn create_unordered(a:&Bot,b:&Bot)->(usize,usize){
   if a.id<b.id{
@@ -36,14 +37,14 @@ pub fn create_unordered(a:&Bot,b:&Bot)->(usize,usize){
   }
 }
 pub fn compair_bot_pair(a:&(usize,usize),b:&(usize,usize))->std::cmp::Ordering{
-    if a.0<b.0{
+    if a<b{
         std::cmp::Ordering::Less
-    }else if a.0>b.0{
+    }else if a>b{
         std::cmp::Ordering::Greater
     }else{
-        if a.1<b.1{
+        if a<b{
             std::cmp::Ordering::Less
-        }else if a.1>b.1{
+        }else if a>b{
             std::cmp::Ordering::Greater
         }else{
             std::cmp::Ordering::Equal
@@ -58,22 +59,22 @@ pub struct PointGenerator{
     ydist:Range<isize>
 }
 impl PointGenerator{
-  pub fn new(a:&axgeom::Rect<Numisize>,seed:&[usize])->PointGenerator{
+  pub fn new(a:&axgeom::Rect<isize>,seed:&[usize])->PointGenerator{
 
      let mut rng: StdRng = SeedableRng::from_seed(seed);
 
      let rr=a.get_range2::<axgeom::XAXISS>();
-     let xdist=rand::distributions::Range::new(rr.start.0,rr.end.0);
+     let xdist=rand::distributions::Range::new(rr.start,rr.end);
      
      let rr=a.get_range2::<axgeom::YAXISS>();
-     let ydist=rand::distributions::Range::new(rr.start.0,rr.end.0);
+     let ydist=rand::distributions::Range::new(rr.start,rr.end);
 
      PointGenerator{rng,xdist,ydist}
   }
-  pub fn random_point(&mut self)->(Numisize,Numisize){
+  pub fn random_point(&mut self)->(isize,isize){
       (
-        Numisize(self.xdist.ind_sample(&mut self.rng)),
-        Numisize(self.ydist.ind_sample(&mut self.rng))
+        self.xdist.ind_sample(&mut self.rng),
+        self.ydist.ind_sample(&mut self.rng)
       )
   }
 }

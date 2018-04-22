@@ -16,7 +16,12 @@ impl NumTrait for ordered_float::OrderedFloat<f32>{}
 impl NumTrait for ordered_float::OrderedFloat<f64>{}
 impl NumTrait for isize{}
 impl NumTrait for i32{}
+impl NumTrait for i64{}
+impl NumTrait for u32{}
+impl NumTrait for u64{}
 impl NumTrait for usize{}
+
+
 
 
 ///A generic container that implements the kdtree trait.

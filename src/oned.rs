@@ -444,6 +444,46 @@ pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b m
 }
 */
 
+#[test]
+fn test_binning(){
+    use test_support::*;
+    use support::*;
+
+
+    let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
+
+    struct BBot(BBox<isize,Bot>);
+    impl RebalTrait for BBot{
+        type Num=isize;
+        fn get(&self)->&axgeom::Rect<Self::Num>{
+            &self.0.rect.0
+        }
+    }
+
+    let mut bots=Vec::new();
+    for id in 0..100000{
+        let ppp=p.random_point();
+        let k=test_support::create_rect_from_point(ppp);
+        bots.push(BBot(BBox::new(Bot{id,col:Vec::new()},k))); 
+    }
+
+    let div=500;
+    let binned=bin_middile_left_right::<axgeom::XAXISS,_>(&div,&mut bots);
+
+    for b in binned.left{
+        assert!(b.0.rect.0.get_range(axgeom::XAXISS::get()).end<div);
+    }
+
+    for b in binned.right{
+        assert!(b.0.rect.0.get_range(axgeom::XAXISS::get()).start>div);
+    }
+
+    for b in binned.middile{
+        let r=b.0.rect.0.get_range(axgeom::XAXISS::get());
+        assert!(r.start<=div && r.end>=div);
+    }
+}
+
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
 pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{

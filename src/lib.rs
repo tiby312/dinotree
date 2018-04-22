@@ -50,6 +50,7 @@ pub mod prelude{
   pub use NumTrait;
   pub use SweepTrait;
   pub use oned::sweeper_update;
+  pub use DynTreeRaw;
   //pub use median::*;
   //pub use median::relax::*;
   //pub use median::strict::*;
@@ -78,6 +79,7 @@ mod tree_alloc;
 ///Main property is that the nodes and the bots are all copied into one
 ///segment of memory. 
 mod dyntree;
+
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
@@ -160,12 +162,13 @@ pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 ///A bounding box made up of x and y ordered pairs.
 ///The left must be less than or equal the right.
-#[derive(Clone)]
+#[derive(Copy,Clone)]
 pub struct AABBox<N:NumTrait>(pub axgeom::Rect<N>);  //TODO make private 
 impl<N:NumTrait> AABBox<N>{
 
   ///For both axises, the first value must be less than or equal the second.
   ///Panics if not the case.
+  //TODO make pass arrays!
   pub fn new(xaxis:(N,N),yaxis:(N,N))->AABBox<N>{
     assert!(xaxis.0<=xaxis.1);
     assert!(yaxis.0<=yaxis.1);
@@ -222,6 +225,7 @@ pub trait SweepTrait:Send+Sync{
 }
 
 pub use dyntree::DynTree;
+pub use dyntree::DynTreeRaw;
 pub use median::MedianStrat;
 
 
