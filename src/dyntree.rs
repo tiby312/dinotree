@@ -19,12 +19,12 @@ pub struct DynTree<'b,A:AxisTrait,T:SweepTrait+Send+'b>{
 
 
 impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
-    fn assert_invariants(&self){
-        let c=self.get_iter().with_depth();
+    pub fn assert_invariants(&self){
+        let c=self.get_iter().with_depth(Depth(0));
 
 
         fn recc<'a,A:AxisTrait,T:SweepTrait+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<T>)>>(axis:A,cc:C){
-            let ((depth,nn),rest)=cc.next();
+            let ((_depth,nn),rest)=cc.next();
 
                 
             let div=match nn.div{

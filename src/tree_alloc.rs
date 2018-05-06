@@ -33,7 +33,11 @@ pub struct NodeDyn<T:SweepTrait>{
 pub struct NdIterMut<'a,T:SweepTrait+'a>{
     c:&'a mut NodeDstDyn<T>
 }
-
+impl<'a,T:SweepTrait+'a> NdIterMut<'a,T>{
+    pub fn create_wrap_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+        NdIterMut{c:self.c}
+    }
+}
 impl<'a,T:SweepTrait+'a> CTreeIterator for NdIterMut<'a,T>{
     type Item=&'a mut NodeDyn<T>;
     fn next(self)->(Self::Item,Option<(Self,Self)>){
@@ -52,8 +56,15 @@ impl<'a,T:SweepTrait+'a> CTreeIterator for NdIterMut<'a,T>{
     }
 }
 
+
+
 pub struct NdIter<'a,T:SweepTrait+'a>{
     c:&'a NodeDstDyn<T>
+}
+impl<'a,T:SweepTrait+'a> NdIter<'a,T>{
+    pub fn create_wrap<'b>(&'b mut self)->NdIter<'b,T>{
+        NdIter{c:self.c}
+    }
 }
 
 impl<'a,T:SweepTrait+'a> CTreeIterator for NdIter<'a,T>{

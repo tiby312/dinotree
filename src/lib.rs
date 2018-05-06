@@ -43,6 +43,7 @@ pub mod prelude{
   //pub use base_kdtree::TreeCache;
   pub use tree_alloc::NodeDyn;
   pub use tree_alloc::NdIter;
+  pub use tree_alloc::NdIterMut;
   pub use treetimer::*;
   pub use daxis;
   pub use AABBox;
@@ -84,7 +85,7 @@ mod dyntree;
 mod oned;
 
 ///C  ontains misc tools
-mod tools;
+pub mod tools;
 
 
 ///Returns the height of what is used internally to construct a dinotree.
@@ -243,7 +244,7 @@ pub mod par{
     }
 
     #[derive(Copy,Clone)]
-    pub struct Parallel(Depth);
+    pub struct Parallel(pub Depth);
     impl Joiner for Parallel{
         fn new(d:Depth)->Self{
           Parallel(d)

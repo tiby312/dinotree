@@ -35,8 +35,8 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
         },height);
 
         let bag={
-            let level=ttree.get_level_desc();
-            let j=ttree.create_down_mut().with_depth();
+            //let level=ttree.get_level_desc();
+            let j=ttree.create_down_mut().with_depth(Depth(0));
             //let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
 
@@ -73,7 +73,9 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
 
 pub struct Node2<'a,T:RebalTrait+'a>{ 
 
-   //div is None iff this node and children nodes do not have any bots in them.
+    //If this is a non leaf node, then,
+    //  div is None iff this node and children nodes do not have any bots in them.
+    //If it is a leaf node, then div being none still means it could have bots in it.
     pub div:Option<T::Num>,
  
     //box is None iff range.len()==0
@@ -150,7 +152,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
                     med
                 },
                 None=>{
-
+                    debug_assert_eq!(rest.len(),0);
                     return timer_log.leaf_finish();
                 }
             };
