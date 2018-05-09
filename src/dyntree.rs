@@ -10,20 +10,87 @@ use compt::CTreeIterator;
 
 
 
-pub struct DynTree<'b,A:AxisTrait,T:SweepTrait+Send+'b>{
+pub struct DynTree<'b,A:AxisTrait,N:Send,T:SweepTrait+Send+'b>{
     orig:&'b mut [T],
     mover:Mover,
-    pub tree:DynTreeRaw<A,T>,
+    pub tree:DynTreeRaw<A,N,T>,
+}
+
+pub struct DynTreeCopy<'a,'b:'a,A:AxisTrait+'a,N:Send+'b,N2:Send+'a,T:SweepTrait+Send+'b>{
+    orig:&'a mut DynTree<'b,A,N,T>,
+    pub tree:DynTreeRaw<A,N2,T>,
+}
+
+impl<'a,'b:'a,A:AxisTrait+'a,N:Send+'b,N2:Send+'a,T:SweepTrait+Send+'b> Drop for DynTreeCopy<'a,'b,A,N,N2,T>{
+    fn drop(&mut self){
+
+        self.tree.get_iter().zip(self.orig.get_iter_mut()).dfs_preorder(|(a,b)|{
+            for (a,b) in a.range.iter().zip(b.range.iter_mut()){
+                unsafe{std::ptr::copy(a,b,1)};
+            }
+        });
+        //TODO figure out destructors
+        //copy contents into the orig.
+        //call destructor of N.
+        //dont call destructor of t
+    }
 }
 
 
 
-impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
+
+
+
+
+impl<'a,A:AxisTrait,N:Send,T:SweepTrait+'a> DynTree<'a,A,N,T>{
+
+    
+    //Create a version of the tree that uses a different internal mic
+    pub fn create_copy<'b,N2:Send+Copy+'b>(&'b mut self,n2:N2)->DynTreeCopy<'b,'a,A,N,N2,T>{
+        let func=|builder:(N2,&NodeDyn<N,T>),dst:&mut NodeDyn<N2,T>|{
+            let (misc,builder)=builder;
+
+            dst.div=builder.div;
+            dst.cont=builder.cont;
+
+            //dst.divider=builder.divider;
+            //dst.container_box=builder.container_box;
+
+            
+            for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
+                //let k=&mut all_bots[b.index as usize];
+                //we cant just move it into here.
+                //then rust will try and call the destructor of the uninitialized object
+                //let bb=&rest[b.index as usize];
+               
+                unsafe{std::ptr::copy(b,a,1)};
+                
+            }  
+
+            dst.misc=misc;
+        };
+
+        let fb={
+            let ii=self.get_iter().with_extra(|_,b|{(b,b)},n2).map(|node:(N2,&NodeDyn<N,T>)|{
+                    (node.1.range.len(),node)
+                });;
+
+
+            let height=self.get_height();
+            let num_nodes=compt::compute_num_nodes(height);
+            let num_bots=self.orig.len();
+            DynTreeRaw::new(height,num_nodes,num_bots,ii,func)
+        };
+        DynTreeCopy{orig:self,tree:fb}
+
+    }
+    
+
     pub fn assert_invariants(&self){
         let c=self.get_iter().with_depth(Depth(0));
 
 
-        fn recc<'a,A:AxisTrait,T:SweepTrait+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<T>)>>(axis:A,cc:C){
+        fn recc<'a,A:AxisTrait,N:Send+'a,T:SweepTrait+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<N,T>)>>(axis:A,cc:C){
             let ((_depth,nn),rest)=cc.next();
 
                 
@@ -51,7 +118,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
 
     }
 
-    fn method_exp<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<A,T>,Mover,K::Bag){
+    fn method_exp<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize)->(DynTreeRaw<A,N,T>,Mover,K::Bag){
         
         pub struct Cont2<N:NumTrait>{
             rect:Rect<N>,
@@ -84,7 +151,6 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
             
 
             let height=tree2.get_tree().get_height();                
-            let leveld=tree2.get_tree().get_level_desc();
             let num_nodes=tree2.get_tree().get_nodes().len();
 
 
@@ -92,7 +158,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                 (node.range.len(),node as &Node2<Cont2<T::Num>>)
             });
 
-            let func=|builder:&Node2<Cont2<T::Num>>,dst:&mut NodeDyn<T>|{
+            let func=|builder:&Node2<Cont2<T::Num>>,dst:&mut NodeDyn<N,T>|{
                 
                 dst.div=builder.div;
                 dst.cont=builder.cont;
@@ -111,7 +177,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
                 }
                 
             };
-            let fb=DynTreeRaw::new(height,leveld,num_nodes,num_bots,ii,func);
+            let fb=DynTreeRaw::new(height,num_nodes,num_bots,ii,func);
             
             (fb,mover,bag)
         }
@@ -123,7 +189,7 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
     ///Also specify the median finding strategy to use.
     ///Also specify whether to use collect timing dat.a
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(
-        rest:&'a mut [T],height:usize) -> (DynTree<'a,A,T>,K::Bag) {
+        rest:&'a mut [T],height:usize) -> (DynTree<'a,A,N,T>,K::Bag) {
 
 
         assert!(rest.len()<u32::max_value() as usize,"Slice too large. The max slice size is {:?}",u32::max_value());
@@ -144,20 +210,17 @@ impl<'a,A:AxisTrait,T:SweepTrait+'a> DynTree<'a,A,T>{
         self.tree.get_height()
     }
 
-    pub fn get_level_desc(&self)->Depth{
-        self.tree.get_level_desc()
-    }
-    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         self.tree.get_iter_mut()
     }
-    pub fn get_iter<'b>(&'b self)->NdIter<'b,T>{
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
         self.tree.get_iter()
     }
 }
 
 
 
-impl<'a,A:AxisTrait,T:SweepTrait+Send+'a> Drop for DynTree<'a,A,T>{
+impl<'a,A:AxisTrait,N:Send,T:SweepTrait+Send+'a> Drop for DynTree<'a,A,N,T>{
     fn drop(&mut self){
         let orig=&mut self.orig;
 
@@ -178,29 +241,26 @@ mod alloc{
     //use tree_alloc::NodeDynBuilder; 
     use tree_alloc::TreeAllocDstDfsOrder;
 
-    pub struct DynTreeRaw<A:AxisTrait,T:SweepTrait>{
+    pub struct DynTreeRaw<A:AxisTrait,N:Send,T:SweepTrait>{
         height:usize,
-        level:Depth,
-        alloc:TreeAllocDstDfsOrder<T>,
+        alloc:TreeAllocDstDfsOrder<N,T>,
         _p:PhantomData<A>
     }
 
-    impl<A:AxisTrait,T:SweepTrait+Send> DynTreeRaw<A,T>{
-        pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>(height:usize,level:Depth,num_nodes:usize,num_bots:usize,ir:C,func:F)->DynTreeRaw<A,T>{
+    impl<A:AxisTrait,N:Send,T:SweepTrait+Send> DynTreeRaw<A,N,T>{
+        pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<N,T>)>(height:usize,num_nodes:usize,num_bots:usize,ir:C,func:F)->DynTreeRaw<A,N,T>{
             let alloc=TreeAllocDstDfsOrder::new(num_nodes,num_bots,ir,func);
-            DynTreeRaw{height,level,alloc,_p:PhantomData}
+            DynTreeRaw{height,alloc,_p:PhantomData}
         }
-        pub fn get_level_desc(&self)->Depth{
-            self.level
-        }
+       
         pub fn get_height(&self)->usize{
             self.height
         }
 
-        pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+        pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
             self.alloc.get_iter_mut()
         }
-        pub fn get_iter<'b>(&'b self)->NdIter<'b,T>{
+        pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
             self.alloc.get_iter()
         }
     }
@@ -231,7 +291,7 @@ mod mover{
             Mover(move_vector)
         }
 
-        pub unsafe fn move_out_of_tree<'a,T:'a+SweepTrait,C:CTreeIterator<Item=&'a NodeDyn<T>>>(&mut self,tree_bots:C,orig:&mut [T]){
+        pub unsafe fn move_out_of_tree<'a,N:Send+'a,T:'a+SweepTrait,C:CTreeIterator<Item=&'a NodeDyn<N,T>>>(&mut self,tree_bots:C,orig:&mut [T]){
 
             let mut i1=self.0.iter();
             tree_bots.dfs_inorder(|node|{

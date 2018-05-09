@@ -16,8 +16,9 @@ struct Repr<T>{
 
 
 
-pub struct NodeDyn<T:SweepTrait>{ 
+pub struct NodeDyn<N:Send,T:SweepTrait>{ 
 
+    pub misc:N,
     //div is None iff this node and children nodes do not have any bots in them.
     //That is not to say that the node doesnt have children.
     //Just that the children nodes dont have bots in them.
@@ -30,16 +31,16 @@ pub struct NodeDyn<T:SweepTrait>{
 
 
 
-pub struct NdIterMut<'a,T:SweepTrait+'a>{
-    c:&'a mut NodeDstDyn<T>
+pub struct NdIterMut<'a,N:Send+'a,T:SweepTrait+'a>{
+    c:&'a mut NodeDstDyn<N,T>
 }
-impl<'a,T:SweepTrait+'a> NdIterMut<'a,T>{
-    pub fn create_wrap_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+impl<'a,N:Send+'a,T:SweepTrait+'a> NdIterMut<'a,N,T>{
+    pub fn create_wrap_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         NdIterMut{c:self.c}
     }
 }
-impl<'a,T:SweepTrait+'a> CTreeIterator for NdIterMut<'a,T>{
-    type Item=&'a mut NodeDyn<T>;
+impl<'a,N:Send+'a,T:SweepTrait+'a> CTreeIterator for NdIterMut<'a,N,T>{
+    type Item=&'a mut NodeDyn<N,T>;
     fn next(self)->(Self::Item,Option<(Self,Self)>){
         let i=&mut self.c.n;
         let o=match self.c.c{
@@ -58,17 +59,17 @@ impl<'a,T:SweepTrait+'a> CTreeIterator for NdIterMut<'a,T>{
 
 
 
-pub struct NdIter<'a,T:SweepTrait+'a>{
-    c:&'a NodeDstDyn<T>
+pub struct NdIter<'a,N:Send+'a,T:SweepTrait+'a>{
+    c:&'a NodeDstDyn<N,T>
 }
-impl<'a,T:SweepTrait+'a> NdIter<'a,T>{
-    pub fn create_wrap<'b>(&'b mut self)->NdIter<'b,T>{
+impl<'a,N:Send+'a,T:SweepTrait+'a> NdIter<'a,N,T>{
+    pub fn create_wrap<'b>(&'b mut self)->NdIter<'b,N,T>{
         NdIter{c:self.c}
     }
 }
 
-impl<'a,T:SweepTrait+'a> CTreeIterator for NdIter<'a,T>{
-    type Item=&'a NodeDyn<T>;
+impl<'a,N:Send+'a,T:SweepTrait+'a> CTreeIterator for NdIter<'a,N,T>{
+    type Item=&'a NodeDyn<N,T>;
     fn next(self)->(Self::Item,Option<(Self,Self)>){
         let i=&self.c.n;
         let o=match self.c.c{
@@ -87,36 +88,36 @@ impl<'a,T:SweepTrait+'a> CTreeIterator for NdIter<'a,T>{
 
 
 
-pub struct NodeDstDyn<T:SweepTrait>{
-    c:Option<(*mut NodeDstDyn<T>,*mut NodeDstDyn<T>)>,
-    pub n:NodeDyn<T>
+pub struct NodeDstDyn<N:Send,T:SweepTrait>{
+    c:Option<(*mut NodeDstDyn<N,T>,*mut NodeDstDyn<N,T>)>,
+    pub n:NodeDyn<N,T>
 }
-unsafe impl<T:SweepTrait> Send for NodeDstDyn<T>{}
+unsafe impl<N:Send,T:SweepTrait> Send for NodeDstDyn<N,T>{}
 
 
 
 
 
-pub struct TreeAllocDstDfsOrder<T:SweepTrait>{
+pub struct TreeAllocDstDfsOrder<N:Send,T:SweepTrait>{
     _vec:Vec<u8>,
-    root:*mut NodeDstDyn<T>
+    root:*mut NodeDstDyn<N,T>
 }
-unsafe impl<T:SweepTrait> Send for TreeAllocDstDfsOrder<T>{}
-unsafe impl<T:SweepTrait> Sync for TreeAllocDstDfsOrder<T>{}
+unsafe impl<N:Send,T:SweepTrait> Send for TreeAllocDstDfsOrder<N,T>{}
+unsafe impl<N:Send,T:SweepTrait> Sync for TreeAllocDstDfsOrder<N,T>{}
 
-impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
-    pub fn get_root_mut(&mut self)->&mut NodeDstDyn<T>{
+impl<N:Send,T:SweepTrait> TreeAllocDstDfsOrder<N,T>{
+    pub fn get_root_mut(&mut self)->&mut NodeDstDyn<N,T>{
         unsafe{std::mem::transmute(self.root)}
     }
 
-    pub fn get_root(&self)->&NodeDstDyn<T>{
+    pub fn get_root(&self)->&NodeDstDyn<N,T>{
         unsafe{std::mem::transmute(self.root)}
     }
 
-    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,T>{
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         NdIterMut{c:self.get_root_mut()}
     }
-    pub fn get_iter<'b>(&'b self)->NdIter<'b,T>{
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
         NdIter{c:self.get_root()}
     }
 
@@ -125,7 +126,7 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
     fn compute_alignment_and_size()->(usize,usize){
         
         let (alignment,siz)={
-            let k:&NodeDstDyn<T>=unsafe{
+            let k:&NodeDstDyn<N,T>=unsafe{
 
                 let k:*const u8=std::mem::transmute(0x10 as usize);
                 std::mem::transmute(Repr{ptr:k,size:0})
@@ -139,14 +140,14 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
     }
 
 
-    pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>(
-        num_nodes:usize,num_bots:usize,it:C,func:F)->TreeAllocDstDfsOrder<T>{
+    pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<N,T>)>(
+        num_nodes:usize,num_bots:usize,it:C,func:F)->TreeAllocDstDfsOrder<N,T>{
         
         Self::new_inner(num_nodes,num_bots,it,func)
     }
 
-    pub fn new_inner<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>(
-            num_nodes:usize,num_bots:usize,it:C,func:F)->TreeAllocDstDfsOrder<T>{
+    pub fn new_inner<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<N,T>)>(
+            num_nodes:usize,num_bots:usize,it:C,func:F)->TreeAllocDstDfsOrder<N,T>{
 
 
         let (alignment,node_size)=Self::compute_alignment_and_size();
@@ -178,8 +179,8 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
             mut u8
         }
         impl<'a> Counter<'a>{
-            fn add_node<T:SweepTrait,B,F:Fn(B,&mut NodeDyn<T>)>(&mut self,stuff:(usize,B),func:&F)->&'a mut NodeDstDyn<T>{
-                let dst:&mut NodeDstDyn<T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:stuff.0})};    
+            fn add_node<N:Send,T:SweepTrait,B,F:Fn(B,&mut NodeDyn<N,T>)>(&mut self,stuff:(usize,B),func:&F)->&'a mut NodeDstDyn<N,T>{
+                let dst:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:stuff.0})};    
                 
                 dst.c=None; //We set the children later
                 func(stuff.1,&mut dst.n);
@@ -194,8 +195,8 @@ impl<T:SweepTrait> TreeAllocDstDfsOrder<T>{
         return TreeAllocDstDfsOrder{_vec:vec,root};
 
 
-        fn recc<'a,T:SweepTrait,B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<T>)>
-            (it:C,func:&F,counter:&mut Counter<'a>)->&'a mut NodeDstDyn<T>{
+        fn recc<'a,N:Send,T:SweepTrait,B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<N,T>)>
+            (it:C,func:&F,counter:&mut Counter<'a>)->&'a mut NodeDstDyn<N,T>{
             
             let (nn,rest)=it.next();
             
