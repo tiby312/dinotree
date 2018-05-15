@@ -11,7 +11,7 @@ impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
 }
 
 
-pub trait RebalTrait:Send+Sync{
+pub trait RebalTrait{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
@@ -23,7 +23,7 @@ pub struct KdTree<'a,A:AxisTrait,T:RebalTrait+'a> {
     _p:PhantomData<A>
 }
 
-impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
+impl<'a,A:AxisTrait,T:RebalTrait+Send+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
@@ -57,6 +57,10 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
         (KdTree{tree:ttree,_p:PhantomData},bag)
     }
 
+}
+
+impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
+
     pub fn get_tree(&self)->&compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &self.tree
     }
@@ -69,7 +73,6 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
         tree
     }
 }
-
 
 pub struct Node2<'a,T:RebalTrait+'a>{ 
 
@@ -86,7 +89,7 @@ pub struct Node2<'a,T:RebalTrait+'a>{
 
 
 
-fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait,JJ:par::Joiner,K:TreeTimerTrait>(
+fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait+Send,JJ:par::Joiner,K:TreeTimerTrait>(
     dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>,

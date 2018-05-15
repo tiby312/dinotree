@@ -104,6 +104,7 @@ pub struct TreeAllocDstDfsOrder<N,T:SweepTrait>{
     _vec:Vec<u8>,
     root:*mut NodeDstDyn<N,T>
 }
+
 unsafe impl<N:Send,T:SweepTrait+Send> Send for TreeAllocDstDfsOrder<N,T>{}
 unsafe impl<N:Sync,T:SweepTrait+Sync> Sync for TreeAllocDstDfsOrder<N,T>{}
 

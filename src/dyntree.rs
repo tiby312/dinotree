@@ -10,18 +10,18 @@ use compt::CTreeIterator;
 
 
 
-pub struct DynTree<'b,A:AxisTrait,N:Send,T:SweepTrait+Send+'b>{
+pub struct DynTree<'b,A:AxisTrait,N,T:SweepTrait+'b>{
     orig:&'b mut [T],
     mover:Mover,
     pub tree:DynTreeRaw<A,N,T>,
 }
 
-pub struct DynTreeCopy<'a,'b:'a,A:AxisTrait+'a,N:Send+'b,N2:Send+'a,T:SweepTrait+Send+'b>{
+pub struct DynTreeCopy<'a,'b:'a,A:AxisTrait+'a,N:'b,N2:'a,T:SweepTrait+'b>{
     orig:&'a mut DynTree<'b,A,N,T>,
     pub tree:DynTreeRaw<A,N2,T>,
 }
 
-impl<'a,'b:'a,A:AxisTrait+'a,N:Send+'b,N2:Send+'a,T:SweepTrait+Send+'b> Drop for DynTreeCopy<'a,'b,A,N,N2,T>{
+impl<'a,'b:'a,A:AxisTrait+'a,N:'b,N2:'a,T:SweepTrait+'b> Drop for DynTreeCopy<'a,'b,A,N,N2,T>{
     fn drop(&mut self){
 
         self.tree.get_iter().zip(self.orig.get_iter_mut()).dfs_preorder(|(a,b)|{
@@ -42,7 +42,7 @@ impl<'a,'b:'a,A:AxisTrait+'a,N:Send+'b,N2:Send+'a,T:SweepTrait+Send+'b> Drop for
 
 
 
-impl<'a,A:AxisTrait,N:Send,T:SweepTrait+'a> DynTree<'a,A,N,T>{
+impl<'a,A:AxisTrait,N,T:SweepTrait+'a> DynTree<'a,A,N,T>{
 
     
     //Create a version of the tree that uses a different internal mic
@@ -90,7 +90,7 @@ impl<'a,A:AxisTrait,N:Send,T:SweepTrait+'a> DynTree<'a,A,N,T>{
         let c=self.get_iter().with_depth(Depth(0));
 
 
-        fn recc<'a,A:AxisTrait,N:Send+'a,T:SweepTrait+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<N,T>)>>(axis:A,cc:C){
+        fn recc<'a,A:AxisTrait,N:'a,T:SweepTrait+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<N,T>)>>(axis:A,cc:C){
             let ((_depth,nn),rest)=cc.next();
 
                 
@@ -220,7 +220,7 @@ impl<'a,A:AxisTrait,N:Send,T:SweepTrait+'a> DynTree<'a,A,N,T>{
 
 
 
-impl<'a,A:AxisTrait,N:Send,T:SweepTrait+Send+'a> Drop for DynTree<'a,A,N,T>{
+impl<'a,A:AxisTrait,N,T:SweepTrait+'a> Drop for DynTree<'a,A,N,T>{
     fn drop(&mut self){
         let orig=&mut self.orig;
 
@@ -241,13 +241,13 @@ mod alloc{
     //use tree_alloc::NodeDynBuilder; 
     use tree_alloc::TreeAllocDstDfsOrder;
 
-    pub struct DynTreeRaw<A:AxisTrait,N:Send,T:SweepTrait>{
+    pub struct DynTreeRaw<A:AxisTrait,N,T:SweepTrait>{
         height:usize,
         alloc:TreeAllocDstDfsOrder<N,T>,
         _p:PhantomData<A>
     }
 
-    impl<A:AxisTrait,N:Send,T:SweepTrait+Send> DynTreeRaw<A,N,T>{
+    impl<A:AxisTrait,N,T:SweepTrait> DynTreeRaw<A,N,T>{
         pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<N,T>)>(height:usize,num_nodes:usize,num_bots:usize,ir:C,func:F)->DynTreeRaw<A,N,T>{
             let alloc=TreeAllocDstDfsOrder::new(num_nodes,num_bots,ir,func);
             DynTreeRaw{height,alloc,_p:PhantomData}
@@ -291,7 +291,7 @@ mod mover{
             Mover(move_vector)
         }
 
-        pub unsafe fn move_out_of_tree<'a,N:Send+'a,T:'a+SweepTrait,C:CTreeIterator<Item=&'a NodeDyn<N,T>>>(&mut self,tree_bots:C,orig:&mut [T]){
+        pub unsafe fn move_out_of_tree<'a,N:'a,T:'a+SweepTrait,C:CTreeIterator<Item=&'a NodeDyn<N,T>>>(&mut self,tree_bots:C,orig:&mut [T]){
 
             let mut i1=self.0.iter();
             tree_bots.dfs_inorder(|node|{

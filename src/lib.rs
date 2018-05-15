@@ -152,12 +152,7 @@ fn assert_invariant<T:SweepTrait>(d:&DinoTree2<T>){
 */
 
 
-///Returns the level at which a parallel divide and conqur algorithm will switch to sequential
-
-
-
-///The underlying number type used for the bounding boxes,
-///and for the dividers. 
+///The underlying number type used for the dinotree.
 pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 
@@ -205,7 +200,7 @@ impl<N:NumTrait> std::fmt::Debug for AABBox<N> {
 }
 
 ///The interface through which the tree interacts with the objects being inserted into it.
-pub trait SweepTrait:Send+Sync{
+pub trait SweepTrait{
     ///The part of the object that is allowed to be mutated
     ///during the querying of the tree. It is important that
     ///the bounding boxes not be mutated during querying of the tree
