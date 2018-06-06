@@ -1,5 +1,5 @@
 use inner_prelude::*;
-use base_kdtree::RebalTrait;
+use HasAabb;
 
 
 
@@ -47,7 +47,7 @@ mod test{
         pub a:&'b mut T
     }
 
-    impl<'b,T:'b+SweepTrait+Send> SweepTrait for Cont<'b,T>{
+    impl<'b,T:'b+HasAabb+Send> HasAabb for Cont<'b,T>{
         type Inner=T::Inner;
         type Num=T::Num;
 
@@ -293,7 +293,7 @@ mod test{
 */
 
 /*
-pub fn bin_par<'a,'b,A:AxisTrait,X:RebalTrait+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_par<'a,'b,A:AxisTrait,X:HasAabb+'b>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let ff1=tools::create_empty_slice_at_start_mut(bots);
     let ff2=tools::create_empty_slice_at_start_mut(bots);
     let ff3=tools::create_empty_slice_at_start_mut(bots);
@@ -311,7 +311,7 @@ pub fn bin_par<'a,'b,A:AxisTrait,X:RebalTrait+'b>(med:&X::Num,bots:&'b mut [X])-
 }
 
 
-fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<'a,X>{
+fn merge<'a,A:AxisTrait,X:HasAabb+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<'a,X>{
     //assert!(tools::slice_adjacent(a.right,b.middile));
 
     let amed_len=a.middile.len();
@@ -395,7 +395,7 @@ fn merge<'a,A:AxisTrait,X:RebalTrait+'a>(a:Binned<'a,X>,b:Binned<'a,X>)->Binned<
 /*
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_left_mid_right<'a,'b,A:AxisTrait,X:HasAabb>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
@@ -453,7 +453,7 @@ fn test_binning(){
     let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
 
     struct BBot(BBox<isize,Bot>);
-    impl RebalTrait for BBot{
+    impl HasAabb for BBot{
         type Num=isize;
         fn get(&self)->&axgeom::Rect<Self::Num>{
             &self.0.rect.0
@@ -486,7 +486,7 @@ fn test_binning(){
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:HasAabb>(med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
@@ -537,7 +537,7 @@ pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:RebalTrait>(med:&X::Num,bots:&
 }
 
 #[cfg(test)]
-pub fn is_sorted<A:AxisTrait,I:SweepTrait>(collision_botids:&[I]){
+pub fn is_sorted<A:AxisTrait,I:HasAabb>(collision_botids:&[I]){
     
     if collision_botids.len()==0{
         return;
@@ -556,7 +556,7 @@ pub fn is_sorted<A:AxisTrait,I:SweepTrait>(collision_botids:&[I]){
 }
 
 ///Sorts the bots.
-pub fn sweeper_update_leaf<I:RebalTrait,A:AxisTrait>(values: &mut [I]) {
+pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(values: &mut [I]) {
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
         let (p1,p2)=(Accessor::<A>::get(a.get()).left(),Accessor::<A>::get(b.get()).left());
         if p1 > p2 {
@@ -581,7 +581,7 @@ pub fn sweeper_update_leaf<I:RebalTrait,A:AxisTrait>(values: &mut [I]) {
     }
 }
 ///Sorts the bots.
-pub fn sweeper_update<I:RebalTrait,A:AxisTrait>(collision_botids: &mut [I]) {
+pub fn sweeper_update<I:HasAabb,A:AxisTrait>(collision_botids: &mut [I]) {
 
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
         let (p1,p2)=(Accessor::<A>::get(a.get()).left(),Accessor::<A>::get(b.get()).left());
@@ -594,9 +594,9 @@ pub fn sweeper_update<I:RebalTrait,A:AxisTrait>(collision_botids: &mut [I]) {
     if JJ::new().is_parallel(){
         //let p=collision_botids.par_iter_mut();
         //p.par_sort_unstable_by(sclosure);
-        struct Bo<'a,I:RebalTrait+'a>(&'a mut [I]);
+        struct Bo<'a,I:HasAabb+'a>(&'a mut [I]);
 
-        impl<'a,I:RebalTrait+'a> ParallelSliceMut<I> for Bo<'a,I>{
+        impl<'a,I:HasAabb+'a> ParallelSliceMut<I> for Bo<'a,I>{
             fn as_parallel_slice_mut(&mut self) -> &mut [I]{
                 self.0
             }

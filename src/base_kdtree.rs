@@ -1,5 +1,6 @@
 use inner_prelude::*;
 
+/*
 #[derive(Copy,Clone,Debug)]
 pub struct DivNode<Nu:Ord+Copy+std::fmt::Debug>{
     divider:Nu    
@@ -8,22 +9,17 @@ impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
     pub fn divider(&self)->&Nu{
         &self.divider
     }
-}
+}*/
 
-
-pub trait RebalTrait{
-    type Num:NumTrait;
-    fn get(&self)->&axgeom::Rect<Self::Num>;
-}
 
 
 ///A KdTree construction
-pub struct KdTree<'a,A:AxisTrait,T:RebalTrait+'a> {
+pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
     tree: compt::dfs::GenTreeDfsOrder<Node2<'a,T>>,
     _p:PhantomData<A>
 }
 
-impl<'a,A:AxisTrait,T:RebalTrait+Send+'a> KdTree<'a,A,T>{
+impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
@@ -59,7 +55,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+Send+'a> KdTree<'a,A,T>{
 
 }
 
-impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
+impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
 
     pub fn get_tree(&self)->&compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &self.tree
@@ -74,7 +70,7 @@ impl<'a,A:AxisTrait,T:RebalTrait+'a> KdTree<'a,A,T>{
     }
 }
 
-pub struct Node2<'a,T:RebalTrait+'a>{ 
+pub struct Node2<'a,T:HasAabb+'a>{ 
 
     //If this is a non leaf node, then,
     //  div is None iff this node and children nodes do not have any bots in them.
@@ -89,7 +85,7 @@ pub struct Node2<'a,T:RebalTrait+'a>{
 
 
 
-fn recurse_rebal<'b,A:AxisTrait,T:RebalTrait+Send,JJ:par::Joiner,K:TreeTimerTrait>(
+fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
     dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>,
@@ -263,7 +259,7 @@ mod rect_make{
         }
 
 
-        pub fn create_container_rect_par<A:AxisTrait,T:RebalTrait>(middile:&[T])->axgeom::Range<T::Num>{
+        pub fn create_container_rect_par<A:AxisTrait,T:HasAabb>(middile:&[T])->axgeom::Range<T::Num>{
             use rayon::prelude::*;
 
             {
@@ -300,7 +296,7 @@ mod rect_make{
     */
     
 
-    pub fn create_container_rect<A:AxisTrait,T:RebalTrait>(middile:&[T])->Option<axgeom::Range<T::Num>>{
+    pub fn create_container_rect<A:AxisTrait,T:HasAabb>(middile:&[T])->Option<axgeom::Range<T::Num>>{
         
         {
             let res=middile.split_first();
@@ -322,7 +318,7 @@ mod rect_make{
             }
         }
     }
-    fn create_container<A:AxisTrait,T:RebalTrait>(rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
+    fn create_container<A:AxisTrait,T:HasAabb>(rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
         
         for i in rest{
             container_rect.grow_to_fit(i.get().get_range2::<A>());
