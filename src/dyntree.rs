@@ -35,6 +35,28 @@ fn compute_tree_height(num_bots: usize) -> usize {
 
 impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 
+    
+    pub fn iter_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut T>{
+        self.get_iter_mut().dfs_preorder_iter().flat_map(|a|a.range.iter_mut())
+    }
+
+    pub fn iter<'a>(&'a self)->impl Iterator<Item=&'a T>{
+        self.get_iter().dfs_preorder_iter().flat_map(|a|a.range.iter())
+    }
+    /*
+    pub fn for_every_mut(&mut self,mut func:impl FnMut(DynTreeExp<A,N,T>,BBoxDet<N,T>)){
+        use compt::CTreeIterator;
+        let tree2=unsafe{&mut *(tree as *mut DynTree<A,(),BBox<N,T>>)};
+            
+        for b in self.get_iter_mut().dfs_preorder_iter().flat_map(|a|a.range.iter_mut()){
+            let bot=unsafe{&mut *(b as *mut BBox<N,T>)};
+            let d:DynTreeExp<A,N,T>=DynTreeExp{tree:tree2,bot_to_ignore:bot};
+            func(d,b.destruct());
+        }
+    }
+    */
+
+
 
     pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,T>{
 
@@ -400,7 +422,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         self.tree.get_iter()
     }
 
-    pub fn into_iter(mut self)->impl ExactSizeIterator<Item=T>{
+    pub fn into_iter_orig_order(mut self)->impl ExactSizeIterator<Item=T>{
         
         
         let mut ret:Vec<T>=(0..self.mover.0.len()).map(|_|{
