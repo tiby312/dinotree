@@ -43,18 +43,6 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
     pub fn iter<'a>(&'a self)->impl Iterator<Item=&'a T>{
         self.get_iter().dfs_preorder_iter().flat_map(|a|a.range.iter())
     }
-    /*
-    pub fn for_every_mut(&mut self,mut func:impl FnMut(DynTreeExp<A,N,T>,BBoxDet<N,T>)){
-        use compt::CTreeIterator;
-        let tree2=unsafe{&mut *(tree as *mut DynTree<A,(),BBox<N,T>>)};
-            
-        for b in self.get_iter_mut().dfs_preorder_iter().flat_map(|a|a.range.iter_mut()){
-            let bot=unsafe{&mut *(b as *mut BBox<N,T>)};
-            let d:DynTreeExp<A,N,T>=DynTreeExp{tree:tree2,bot_to_ignore:bot};
-            func(d,b.destruct());
-        }
-    }
-    */
 
 
 
@@ -352,9 +340,6 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
                 dst.misc=n;
                 dst.div=builder.div;
                 dst.cont=builder.cont;
-                //dst.divider=builder.divider;
-                //dst.container_box=builder.container_box;
-
                 
                 for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
                     //let k=&mut all_bots[b.index as usize];
@@ -421,7 +406,29 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
     pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
         self.tree.get_iter()
     }
+    /*
+    pub fn into_iter(mut self)->impl ExactSizeIterator<Item=T>{
+        /*
+        let mut ret:Vec<T>=(0..self.mover.0.len()).map(|_|{
+            unsafe{std::mem::uninitialized()}
+        }).collect();
+        */
+        //let mut i1=self.mover.0.iter();
+        let mut ret:Vec<T>=Vec::new();
+        self.tree.get_iter_mut().dfs_preorder_iter().map(|node|{
+            for b in node.range.iter(){
+                let mut k=unsafe{std::mem::uninitialized()};
+                unsafe{
+                    std::ptr::copy(b,&mut k,1);
+                }
+                ret.push(k);
+            }
+        });
+        println!("SIZE={:?}",ret.len());
 
+        ret.into_iter()
+    }
+    */
     pub fn into_iter_orig_order(mut self)->impl ExactSizeIterator<Item=T>{
         
         
@@ -430,16 +437,16 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         }).collect();
     
         let mut i1=self.mover.0.iter();
-        self.tree.get_iter_mut().dfs_preorder_iter().map(|node|{
-            for b in node.range.iter(){
+        for node in self.tree.get_iter_mut().dfs_preorder_iter(){
+            for bot in node.range.iter(){
                 let mov=i1.next().unwrap();
                 
                 let cp=&mut ret[*mov as usize];
                 unsafe{
-                    std::ptr::copy(b,cp,1);
+                    std::ptr::copy(bot,cp,1);
                 }
             }
-        });
+        }
 
         ret.into_iter()
 
@@ -451,7 +458,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 impl<A:AxisTrait,N,T:HasAabb> Drop for DynTree<A,N,T>{
     fn drop(&mut self){
         //TODO drop eveyrthing in the tree if it hasnt been moved out.
-        unimplemented!();
+        //unimplemented!();
     }
 }
 

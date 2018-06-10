@@ -71,6 +71,7 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
 pub struct NdIter<'a,N:'a,T:HasAabb+'a>{
     c:&'a NodeDstDyn<N,T>
 }
+
 impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
     pub fn create_wrap<'b>(&'b mut self)->NdIter<'b,N,T>{
         NdIter{c:self.c}
@@ -103,7 +104,10 @@ pub struct NodeDstDyn<N,T:HasAabb>{
 }
 
 unsafe impl<N:Send,T:HasAabb+Send> Send for NodeDstDyn<N,T>{}
-unsafe impl<N:Sync,T:HasAabb+Sync> Sync for NodeDstDyn<N,T>{}
+//unsafe impl<N:Sync,T:HasAabb+Sync> Sync for NodeDstDyn<N,T>{}
+//Unsafely implement sync. even though contains do not impelemnt sync.
+//This is safe to do because TODO reason??
+unsafe impl<N,T:HasAabb> Sync for NodeDstDyn<N,T>{}
 
 
 

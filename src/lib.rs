@@ -90,7 +90,17 @@ use dyntree::DynTreeRaw;
 
 
 
-
+///Marker trait.
+///Elements that are inserted into the tree must have a bounding box.
+///Additionally to implemnting get(), implementors must move their 
+///bounding boxes while inserted into the tree.
+///So the Rect returns by get(), must always be the same once the object is inserted
+///into the tree.
+///Not doing so would violate invariants of the tree, and would thus make all the 
+///query algorithms performed on the tree would not be correct.
+///In some cases, violating this rule might even lead to undefined behavior.
+///Some algorithms traverse the tree reading the elements aabb, while the user has a mutable reference to an element.
+///This case is true for DynTreeExt.
 pub trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
