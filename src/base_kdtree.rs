@@ -14,6 +14,7 @@ impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
 
 
 ///A KdTree construction
+///This is like DynTree except the size of every node is constant.
 pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
     tree: compt::dfs::GenTreeDfsOrder<Node2<'a,T>>,
     _p:PhantomData<A>
@@ -21,7 +22,7 @@ pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
 
 impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
+    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
         let mut ttree=compt::dfs::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
             let rest=&mut [];
@@ -46,7 +47,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
             };
             
             let dlevel=JJ::new(Depth(gg));
-            self::recurse_rebal::<A,T,JJ,K>(dlevel,rest,j,t)
+            self::recurse_rebal::<A,T,JJ,K>(axis,dlevel,rest,j,t)
         };
 
 
@@ -63,11 +64,11 @@ impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
     pub fn get_tree_mut(&mut self)->&mut compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &mut self.tree
     }
-
+    /*
     pub fn into_tree(self)->compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         let KdTree{tree,_p}=self;
         tree
-    }
+    }*/
 }
 
 pub struct Node2<'a,T:HasAabb+'a>{ 
@@ -86,6 +87,7 @@ pub struct Node2<'a,T:HasAabb+'a>{
 
 
 fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
+    div_axis:A,
     dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>,
@@ -100,7 +102,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             //We are guarenteed that the leaf nodes have at most 10 bots
             //since we divide based off of the median, and picked the height
             //such that the leaves would have at most 10.
-            oned::sweeper_update_leaf::<_,A::Next>(rest);
+            oned::sweeper_update_leaf(div_axis.next(),rest);
             
             //Unsafely leave the dividers of leaf nodes uninitialized.
             //nn.divider=std::default::Default::default();
@@ -115,7 +117,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             
             let med={
               
-                let div_axis=A::get();
                 let m = if rest.len() == 0{
                         None
                         //panic!("no bots in a non leaf node! depth:{:?}",level.0);
@@ -125,10 +126,10 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     {
                         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
         
-                            let arr=a.get().get_range(div_axis);
-                            let brr=b.get().get_range(div_axis);
+                            let arr=a.get().as_axis().get(div_axis);//get_range(div_axis);
+                            let brr=b.get().as_axis().get(div_axis);//get_range(div_axis);
                       
-                            if arr.left() > brr.left(){
+                            if arr.left > brr.left{
                                 return std::cmp::Ordering::Greater;
                             
                             }
@@ -140,7 +141,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                             pdqselect::select_by(rest, mm, closure);
                             &rest[mm]
                         };
-                        Some(k.get().get_range(div_axis).start)
+                        Some(k.get().as_axis().get(div_axis).left)
                     };
                 m
                 
@@ -156,7 +157,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                 }
             };
             
-            let binned=oned::bin_middile_left_right::<A,_>(&med,rest);
+            let binned=oned::bin_middile_left_right(div_axis,&med,rest);
             
             
                     
@@ -176,26 +177,26 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     
                     let af=move || {
 
-                        sweeper_update::<_,A::Next>(binned_middile);
-                        let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
+                        sweeper_update(div_axis.next(),binned_middile);
+                        let container_box=rect_make::create_container_rect(div_axis,binned_middile);
                         let n:Node2<'b,_>=Node2{div:Some(med),cont:container_box,range:binned_middile};
                     
-                        let k=self::recurse_rebal::<A::Next,T,_,K>(dlevel,binned_left,lleft,ta);
+                        let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
                         (n,k)
                     };
 
                     let bf=move || {
-                        self::recurse_rebal::<A::Next,T,_,K>(dlevel,binned_right,rright,tb)
+                        self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,tb)
                     };
                     rayon::join(af,bf)
                 }; 
                 (nj,ba,bb)
             }else{
-                sweeper_update::<_,A::Next>(binned_middile);
-                let container_box=rect_make::create_container_rect::<A,_>(binned_middile);
+                sweeper_update(div_axis.next(),binned_middile);
+                let container_box=rect_make::create_container_rect(div_axis,binned_middile);
                 let nj=Node2{div:Some(med),cont:container_box,range:binned_middile};
-                let ba=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_left,lleft,ta);
-                let bb=self::recurse_rebal::<A::Next,T,par::Sequential,K>(dlevel.into_seq(),binned_right,rright,tb);
+                let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
+                let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
             };
 
@@ -296,7 +297,7 @@ mod rect_make{
     */
     
 
-    pub fn create_container_rect<A:AxisTrait,T:HasAabb>(middile:&[T])->Option<axgeom::Range<T::Num>>{
+    pub fn create_container_rect<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
         
         {
             let res=middile.split_first();
@@ -304,9 +305,9 @@ mod rect_make{
             match res{
                 Some((first,rest))=>{
 
-                    let first_ra=first.get().get_range2::<A>().clone();
+                    let first_ra=first.get().as_axis().get(axis).clone();
                     
-                    Some(create_container::<A,T>(rest,first_ra))
+                    Some(create_container(axis,rest,first_ra))
                 },
                 None=>{
                     None
@@ -318,10 +319,10 @@ mod rect_make{
             }
         }
     }
-    fn create_container<A:AxisTrait,T:HasAabb>(rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
+    fn create_container<A:AxisTrait,T:HasAabb>(axis:A,rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
         
         for i in rest{
-            container_rect.grow_to_fit(i.get().get_range2::<A>());
+            container_rect.grow_to_fit(i.get().as_axis().get(axis));
         }
         container_rect
    

@@ -20,7 +20,7 @@ mod inner_prelude{
   
   //pub use base_kdtree::TreeCache;
   //pub use AABBox;
-  pub use axgeom::Axis;
+  //pub use axgeom::Axis;
   pub use compt::LevelIter;
   pub use compt::Depth;
   pub use axgeom::Range;
@@ -68,11 +68,11 @@ mod oned;
 mod tools;
 
 
-use axgeom::Rect;
+//use axgeom::Rect;
 //pub use treetimer::*;
 
-use axgeom::XAXISS;
-use axgeom::YAXISS;
+//use axgeom::XAXISS;
+//use axgeom::YAXISS;
 //pub use base_kdtree::DivNode;
 
 
@@ -86,7 +86,7 @@ pub use dyntree::DynTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
-use dyntree::DynTreeRaw;
+
 
 
 
