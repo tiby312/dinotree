@@ -2,6 +2,12 @@ use super::*;
 
 use compt::CTreeIterator;
 use HasAabb;
+
+
+use compt::CTreeIteratorEx;
+use compt::LeafEx;
+
+
 #[repr(C)]
 struct ReprMut<T>{
     ptr:*mut T,
@@ -33,11 +39,28 @@ pub struct NodeDyn<N,T:HasAabb>{
     //For leaf:
     //cont is always none.
     pub cont:Option<axgeom::Range<T::Num>>,
-
+    //TODO combine this option with the above one.
+    //It is guarenteed that there be at least one bot in this node if the divider exists.
 
     pub range:[T]
 }
 
+pub struct LeafDynMut<'a,T:HasAabb+'a>{
+    pub range:&'a mut [T]
+}
+
+pub enum NonLeafDynMut<'a,T:HasAabb+'a>{
+    NoBotsHereOrBelow,
+    Bots(&'a mut [T],axgeom::Range<T::Num>,T::Num)
+}
+pub struct LeafDyn<'a,T:HasAabb+'a>{
+    pub range:&'a [T]
+}
+
+pub enum NonLeafDyn<'a,T:HasAabb+'a>{
+    NoBotsHereOrBelow,
+    Bots(&'a [T],axgeom::Range<T::Num>,T::Num)
+}
 
 
 pub struct NdIterMut<'a,N:'a,T:HasAabb+'a>{
@@ -47,6 +70,43 @@ impl<'a,N:'a,T:HasAabb+'a> NdIterMut<'a,N,T>{
     pub fn create_wrap_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         NdIterMut{c:self.c}
     }
+}
+
+impl<'a,N:'a,T:HasAabb+'a> CTreeIteratorEx for NdIterMut<'a,N,T>{
+    type LeafItem=LeafDynMut<'a,T>;
+    type NonLeafItem=NonLeafDynMut<'a,T>;
+
+    fn next(self)->LeafEx<Self::LeafItem,(Self::NonLeafItem,Self,Self)>{
+        let (nn,rest)=CTreeIterator::next(self);
+        let nn:&'a mut NodeDyn<N,T>=nn;
+        match rest{
+            Some((left,right))=>{
+                let nj=match nn.div{
+                    Some(div)=>{
+                        match nn.cont{
+                            Some(cont)=>{
+                                NonLeafDynMut::Bots(&mut nn.range,cont,div)
+                            },
+                            None=>{
+                                panic!("Impossible. If a node has a divider, it must have at least one bot in it")
+                                
+                                //NonLeafDynMut::NoBots(div)
+                            }
+                        }
+                    },
+                    None=>{
+                        NonLeafDynMut::NoBotsHereOrBelow
+                    }
+                };
+
+                LeafEx::NonLeaf((nj,left,right))
+            },
+            None=>{
+                LeafEx::Leaf(LeafDynMut{range:&mut nn.range})
+            }
+        }
+    }
+
 }
 impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
     type Item=&'a mut NodeDyn<N,T>;
@@ -78,6 +138,41 @@ impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
     }
 }
 
+impl<'a,N:'a,T:HasAabb+'a> CTreeIteratorEx for NdIter<'a,N,T>{
+    type LeafItem=LeafDyn<'a,T>;
+    type NonLeafItem=NonLeafDyn<'a,T>;
+
+    fn next(self)->LeafEx<Self::LeafItem,(Self::NonLeafItem,Self,Self)>{
+        let (nn,rest)=CTreeIterator::next(self);
+        let nn:&'a NodeDyn<N,T>=nn;
+        match rest{
+            Some((left,right))=>{
+                let nj=match nn.div{
+                    Some(div)=>{
+                        match nn.cont{
+                            Some(cont)=>{
+                                NonLeafDyn::Bots(&nn.range,cont,div)
+                            },
+                            None=>{
+                                panic!("Impossible. If a node has a divider, it must have at least one bot in it")
+                                //NonLeafDyn::NoBots(div)
+                            }
+                        }
+                    },
+                    None=>{
+                        NonLeafDyn::NoBotsHereOrBelow
+                    }
+                };
+
+                LeafEx::NonLeaf((nj,left,right))
+            },
+            None=>{
+                LeafEx::Leaf(LeafDyn{range:&nn.range})
+            }
+        }
+    }
+
+}
 impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
     type Item=&'a NodeDyn<N,T>;
     fn next(self)->(Self::Item,Option<(Self,Self)>){

@@ -38,7 +38,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
             let t=K::new(height);
 
             //on xps13 5 seems good
-            const DEPTH_SEQ:usize=5;
+            const DEPTH_SEQ:usize=6;
 
             let gg=if height<=DEPTH_SEQ{
                 0
@@ -126,8 +126,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     {
                         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
         
-                            let arr=a.get().as_axis().get(div_axis);//get_range(div_axis);
-                            let brr=b.get().as_axis().get(div_axis);//get_range(div_axis);
+                            let arr=a.get().as_axis().get(div_axis);
+                            let brr=b.get().as_axis().get(div_axis);
                       
                             if arr.left > brr.left{
                                 return std::cmp::Ordering::Greater;
@@ -141,6 +141,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                             pdqselect::select_by(rest, mm, closure);
                             &rest[mm]
                         };
+                        //Some(k)
                         Some(k.get().as_axis().get(div_axis).left)
                     };
                 m
@@ -152,34 +153,43 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     med
                 },
                 None=>{
-                    debug_assert_eq!(rest.len(),0);
+                    //TODO turn into debug assert
+                    assert_eq!(rest.len(),0);
                     return timer_log.leaf_finish();
                 }
             };
             
-            let binned=oned::bin_middile_left_right(div_axis,&med,rest);
+            //It is very important that the median bot end up be binned into the middile bin.
+            //We know this must be true because we chose the divider to be the medians left border,
+            //and we binned so that all bots who intersect with the divider end up in the middle bin.
+            //Very important that if a bots border is exactly on the divider, it is put in the middle.
+            //If this were not true, there is no guarentee that the middile bin has bots in it even
+            //though we did pick a divider.
+            let binned=oned::bin_middle_left_right(div_axis,&med,rest);
+            //TODO turn into debug assert
+            assert!(binned.middle.len()!=0);
             
             
                     
     
-            let oned::Binned{left,middile,right}=binned;
+            let oned::Binned{left,middle,right}=binned;
             
 
             let binned_left=left;
-            let binned_middile=middile;
+            let binned_middle=middle;
             let binned_right=right;                
             
             let (ta,tb)=timer_log.next();
 
             let (nj,ba,bb)=if !dlevel.should_switch_to_sequential(level){
-                
+                //println!("Parallel! {:?}",level.0);
                 let ((nj,ba),bb)={
                     
                     let af=move || {
 
-                        sweeper_update(div_axis.next(),binned_middile);
-                        let container_box=rect_make::create_container_rect(div_axis,binned_middile);
-                        let n:Node2<'b,_>=Node2{div:Some(med),cont:container_box,range:binned_middile};
+                        sweeper_update(div_axis.next(),binned_middle);
+                        let container_box=rect_make::create_container_rect(div_axis,binned_middle);
+                        let n:Node2<'b,_>=Node2{div:Some(med),cont:container_box,range:binned_middle};
                     
                         let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
                         (n,k)
@@ -192,9 +202,10 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                 }; 
                 (nj,ba,bb)
             }else{
-                sweeper_update(div_axis.next(),binned_middile);
-                let container_box=rect_make::create_container_rect(div_axis,binned_middile);
-                let nj=Node2{div:Some(med),cont:container_box,range:binned_middile};
+                //println!("Sequential {:?}",level.0);
+                sweeper_update(div_axis.next(),binned_middle);
+                let container_box=rect_make::create_container_rect(div_axis,binned_middle);
+                let nj=Node2{div:Some(med),cont:container_box,range:binned_middle};
                 let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)

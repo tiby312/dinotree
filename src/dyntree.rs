@@ -17,21 +17,6 @@ pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
 }
 
 
-///Returns the height of what is used internally to construct a dinotree.
-fn compute_tree_height(num_bots: usize) -> usize {
-    
-    //we want each node to have space for around 300 bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    const NUM_PER_NODE: usize = 12;  
-
-    //8 is worse than 20 which is worse than 12 on android. sticking with 12
-    if num_bots <= NUM_PER_NODE {
-        return 1;
-    } else {
-        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
-    }
-}
 
 impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 

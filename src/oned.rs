@@ -1,28 +1,11 @@
 use inner_prelude::*;
 use HasAabb;
-use axgeom::*;
-
-
-
-
-/*
-pub struct Accessor<X:AxisTrait>{
-    _p:PhantomData<X>
-}
-impl<X:AxisTrait> Accessor<X>{
-   
-    pub fn get<'b,Nu:NumTrait>(b:&'b Rect<Nu>)->&'b Range<Nu>{
-        b.as_axis().get(self.axis())
-    }
-}
-*/
-
 
 
 
 ///The results of the binning process.
 pub struct Binned<'a,T:'a>{
-    pub middile:&'a mut [T],
+    pub middle:&'a mut [T],
     pub left:&'a mut [T],
     pub right:&'a mut [T],
 }
@@ -487,11 +470,11 @@ fn test_binning(){
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
-    let mut middile_end=0;
+    let mut middle_end=0;
     
     //     |    middile   |   left|              right              |---------|
     //
@@ -506,10 +489,10 @@ pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bo
                 std::cmp::Ordering::Equal=>{
                     //left
                     bots.swap(index_at,left_end);
-                    bots.swap(left_end,middile_end);
+                    bots.swap(left_end,middle_end);
                     //swap_unchecked(bots,index_at,left_end);
                     //swap_unchecked(bots,left_end,middile_end);
-                    middile_end+=1;
+                    middle_end+=1;
                     left_end+=1;  
                 },
                 //If the divider is greater than the bot
@@ -528,13 +511,13 @@ pub fn bin_middile_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bo
     }
 
     let (rest,right)=bots.split_at_mut(left_end);
-    let (middile,left)=rest.split_at_mut(middile_end);
+    let (middle,left)=rest.split_at_mut(middle_end);
 //println!("num_bots={:?}",(left.len(),middile.len(),right.len()));
     
-    debug_assert!(left.len()+right.len()+middile.len()==bot_len);
+    debug_assert!(left.len()+right.len()+middle.len()==bot_len);
     //debug_assert!(bot_len==index_at,"{:?} ,{:?}",bot_len,index_at);
 
-    Binned{left:left,middile:middile,right:right}
+    Binned{left:left,middle:middle,right:right}
 }
 
 /*

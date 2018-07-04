@@ -6,7 +6,7 @@ extern crate axgeom;
 extern crate compt;
 extern crate rayon;
 extern crate pdqselect;
-extern crate ordered_float;
+//extern crate ordered_float;
 #[cfg(test)]
 extern crate rand;
 
@@ -41,8 +41,6 @@ mod inner_prelude{
 ///Contains the different median finding strategies.
 //pub mod median;
 
-///Contains convenience structs.
-pub mod support;
 
 ///Contains tree level by level timing collection code. 
 pub mod treetimer;
@@ -76,18 +74,40 @@ mod tools;
 //pub use base_kdtree::DivNode;
 
 
+///Returns the height of what is used internally to construct a dinotree.
+pub fn compute_tree_height(num_bots: usize) -> usize {
+    
+    //we want each node to have space for around 300 bots.
+    //there are 2^h nodes.
+    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+    const NUM_PER_NODE: usize = 12;  
+
+    //8 is worse than 20 which is worse than 12 on android. sticking with 12
+    if num_bots <= NUM_PER_NODE {
+        return 1;
+    } else {
+        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
+    }
+}
 
 
 ///The underlying number type used for the dinotree.
-pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
+pub trait NumTrait:Ord+Copy+Send+Sync{}
+
+impl<T> NumTrait for T
+where T: Ord+Copy+Send+Sync
+{
+}
 
 
 pub use dyntree::DynTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
-
-
+pub use tree_alloc::LeafDyn;
+pub use tree_alloc::NonLeafDyn;
+pub use tree_alloc::LeafDynMut;
+pub use tree_alloc::NonLeafDynMut;
 
 
 ///Marker trait.
@@ -101,12 +121,12 @@ pub use tree_alloc::NdIterMut;
 ///In some cases, violating this rule might even lead to undefined behavior.
 ///Some algorithms traverse the tree reading the elements aabb, while the user has a mutable reference to an element.
 ///This case is true for DynTreeExt.
+///Its suggested that the user use visilibty to hide the underlying aabb from being modified during
+///the query of the tree.
 pub trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
-
-
 
 
 
