@@ -28,38 +28,58 @@ pub struct NodeDyn<N,T:HasAabb>{
     //Useful for nbody simulation
     pub misc:N,
 
+
+    //TODO explain that these are private since they only apply to non leafs.
+    //type system protects against this
     //For non leaf:
     //div is None iff this node and children nodes do not have any bots in them.
     //For leaf:
     //Always none
-    pub div:Option<T::Num>,
- 
+    //pub(crate) div:Option<(T::Num,axgeom::Range<T::Num>)>,
+ //If this is a non leaf node, then,
+    //  div is None iff this node and children nodes do not have any bots in them.
+    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
+    // This is because we specifically pick the median.
+
+
+
     //For non leaf:
     //cont is None iff range.len()==0
     //For leaf:
     //cont is always none.
-    pub cont:Option<axgeom::Range<T::Num>>,
+    //pub(crate) cont:Option<axgeom::Range<T::Num>>,
     //TODO combine this option with the above one.
     //It is guarenteed that there be at least one bot in this node if the divider exists.
 
+    
+    //The range field acts as a sentinel.
+    //These two values are only valid if the length of range is greater than zero.
+    //For leafs, even if the range is not zero it is still unitiailized
+    pub(crate) div:(T::Num,axgeom::Range<T::Num>),
+
     pub range:[T]
+
+
+
 }
 
-pub struct LeafDynMut<'a,T:HasAabb+'a>{
-    pub range:&'a mut [T]
+pub struct LeafDynMut<'a,N:'a,T:HasAabb+'a>{
+    pub range:&'a mut [T],
+    pub misc:&'a mut N
 }
 
-pub enum NonLeafDynMut<'a,T:HasAabb+'a>{
-    NoBotsHereOrBelow,
-    Bots(&'a mut [T],axgeom::Range<T::Num>,T::Num)
+pub enum NonLeafDynMut<'a,N:'a,T:HasAabb+'a>{
+    NoBotsHereOrBelow(&'a mut N),
+    Bots(&'a mut [T],axgeom::Range<T::Num>,T::Num,&'a mut N)
 }
-pub struct LeafDyn<'a,T:HasAabb+'a>{
-    pub range:&'a [T]
+pub struct LeafDyn<'a,N:'a,T:HasAabb+'a>{
+    pub range:&'a [T],
+    pub misc:&'a N
 }
 
-pub enum NonLeafDyn<'a,T:HasAabb+'a>{
-    NoBotsHereOrBelow,
-    Bots(&'a [T],axgeom::Range<T::Num>,T::Num)
+pub enum NonLeafDyn<'a,N:'a,T:HasAabb+'a>{
+    NoBotsHereOrBelow(&'a N),
+    Bots(&'a [T],axgeom::Range<T::Num>,T::Num,&'a N)
 }
 
 
@@ -73,36 +93,25 @@ impl<'a,N:'a,T:HasAabb+'a> NdIterMut<'a,N,T>{
 }
 
 impl<'a,N:'a,T:HasAabb+'a> CTreeIteratorEx for NdIterMut<'a,N,T>{
-    type LeafItem=LeafDynMut<'a,T>;
-    type NonLeafItem=NonLeafDynMut<'a,T>;
+    type LeafItem=LeafDynMut<'a,N,T>;
+    type NonLeafItem=NonLeafDynMut<'a,N,T>;
 
     fn next(self)->LeafEx<Self::LeafItem,(Self::NonLeafItem,Self,Self)>{
         let (nn,rest)=CTreeIterator::next(self);
         let nn:&'a mut NodeDyn<N,T>=nn;
         match rest{
             Some((left,right))=>{
-                let nj=match nn.div{
-                    Some(div)=>{
-                        match nn.cont{
-                            Some(cont)=>{
-                                NonLeafDynMut::Bots(&mut nn.range,cont,div)
-                            },
-                            None=>{
-                                panic!("Impossible. If a node has a divider, it must have at least one bot in it")
-                                
-                                //NonLeafDynMut::NoBots(div)
-                            }
-                        }
-                    },
-                    None=>{
-                        NonLeafDynMut::NoBotsHereOrBelow
-                    }
+                let nj=if nn.range.is_empty(){
+                    NonLeafDynMut::NoBotsHereOrBelow(&mut nn.misc)
+                }else{
+                    let (div,cont)=nn.div;
+                    NonLeafDynMut::Bots(&mut nn.range,cont,div,&mut nn.misc)
                 };
 
                 LeafEx::NonLeaf((nj,left,right))
             },
             None=>{
-                LeafEx::Leaf(LeafDynMut{range:&mut nn.range})
+                LeafEx::Leaf(LeafDynMut{range:&mut nn.range,misc:&mut nn.misc})
             }
         }
     }
@@ -139,35 +148,25 @@ impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
 }
 
 impl<'a,N:'a,T:HasAabb+'a> CTreeIteratorEx for NdIter<'a,N,T>{
-    type LeafItem=LeafDyn<'a,T>;
-    type NonLeafItem=NonLeafDyn<'a,T>;
+    type LeafItem=LeafDyn<'a,N,T>;
+    type NonLeafItem=NonLeafDyn<'a,N,T>;
 
     fn next(self)->LeafEx<Self::LeafItem,(Self::NonLeafItem,Self,Self)>{
         let (nn,rest)=CTreeIterator::next(self);
         let nn:&'a NodeDyn<N,T>=nn;
         match rest{
             Some((left,right))=>{
-                let nj=match nn.div{
-                    Some(div)=>{
-                        match nn.cont{
-                            Some(cont)=>{
-                                NonLeafDyn::Bots(&nn.range,cont,div)
-                            },
-                            None=>{
-                                panic!("Impossible. If a node has a divider, it must have at least one bot in it")
-                                //NonLeafDyn::NoBots(div)
-                            }
-                        }
-                    },
-                    None=>{
-                        NonLeafDyn::NoBotsHereOrBelow
-                    }
+                let nj=if nn.range.is_empty(){
+                    NonLeafDyn::NoBotsHereOrBelow(&nn.misc)
+                }else{
+                    let (div,cont)=nn.div;
+                    NonLeafDyn::Bots(&nn.range,cont,div,&nn.misc)
                 };
-
+                
                 LeafEx::NonLeaf((nj,left,right))
             },
             None=>{
-                LeafEx::Leaf(LeafDyn{range:&nn.range})
+                LeafEx::Leaf(LeafDyn{range:&nn.range,misc:&nn.misc})
             }
         }
     }

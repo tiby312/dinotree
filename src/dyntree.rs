@@ -37,7 +37,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             let (misc,builder)=builder;
 
             dst.div=builder.div;
-            dst.cont=builder.cont;
+            //dst.cont=builder.cont;
  
             for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
                 //let k=&mut all_bots[b.index as usize];
@@ -104,11 +104,11 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         fn recc<'a,A:AxisTrait,N:'a,T:HasAabb+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<N,T>)>>(axis:A,cc:C){
             let ((_depth,nn),rest)=cc.next();
 
-                
-            let div=match nn.div{
-                Some(div)=>{div},
-                None=>{return;}
-            };
+            //TODO force this to use the safe api?
+            if nn.range.is_empty(){
+                return;
+            }
+            let (div,cont)=nn.div;
 
             for b in &nn.range{
                 let r=b.get().as_axis().get(axis);
@@ -326,7 +326,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
                 
                 dst.misc=n;
                 dst.div=builder.div;
-                dst.cont=builder.cont;
+                //dst.cont=builder.cont;
                 
                 for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
                     //let k=&mut all_bots[b.index as usize];

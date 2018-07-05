@@ -25,9 +25,11 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
         let mut ttree=compt::dfs::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
+            //Get rid of zero initialization???
             let rest=&mut [];
             //let co=self::rect_make::create_container_rect::<A,_>(rest);
-            Node2{div:None,cont:None,range:rest}
+            let div=unsafe{std::mem::uninitialized()};
+            Node2{div,range:rest}
             
         },height);
 
@@ -75,11 +77,11 @@ pub struct Node2<'a,T:HasAabb+'a>{
 
     //If this is a non leaf node, then,
     //  div is None iff this node and children nodes do not have any bots in them.
-    //If it is a leaf node, then div being none still means it could have bots in it.
-    pub div:Option<T::Num>,
+    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
+    // This is because we specifically pick the median.
+    // If it is a leaf node, then div being none still means it could have bots in it.
+    pub div:(T::Num,axgeom::Range<T::Num>),
  
-    //box is None iff range.len()==0
-    pub cont:Option<axgeom::Range<T::Num>>,
     
     pub range:&'a mut [T]
 }
@@ -188,8 +190,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     let af=move || {
 
                         sweeper_update(div_axis.next(),binned_middle);
-                        let container_box=rect_make::create_container_rect(div_axis,binned_middle);
-                        let n:Node2<'b,_>=Node2{div:Some(med),cont:container_box,range:binned_middle};
+                        //TODO use unsafe unwrap?
+                        let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
+                        let n:Node2<'b,_>=Node2{div:(med,container_box),range:binned_middle};
                     
                         let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
                         (n,k)
@@ -204,13 +207,16 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             }else{
                 //println!("Sequential {:?}",level.0);
                 sweeper_update(div_axis.next(),binned_middle);
-                let container_box=rect_make::create_container_rect(div_axis,binned_middle);
-                let nj=Node2{div:Some(med),cont:container_box,range:binned_middle};
+                //TODO use unsafe???
+                let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
+                let nj=Node2{div:(med,container_box),range:binned_middle};
                 let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
             };
 
+            //Its uninitialized.
+            std::mem::forget(&*nn);
             *nn=nj;
             K::combine(ba,bb)
         }
