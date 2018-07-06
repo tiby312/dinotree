@@ -21,13 +21,18 @@ struct Repr<T>{
 }
 
 
-
+/*
+//TODO use???
+pub struct LeafDyn<N,T:HasAabb>{
+    pub misc:N,
+    pub range:[T]
+}
+*/
 
 pub struct NodeDyn<N,T:HasAabb>{ 
     //Carry some user defined data.
     //Useful for nbody simulation
     pub misc:N,
-
 
     //TODO explain that these are private since they only apply to non leafs.
     //type system protects against this
@@ -189,6 +194,18 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
         (i,o)
     }
 }
+
+
+/*
+pub enum NextNodes{
+    nonleaf:(*mut NodeDstDyn<N,T>,*mut NodeDstDyn<N,T>)
+    leaf:(*mut LeafDyn<N,T>,*mut LeafDyn<N,T>)
+}
+pub struct NodeDstDyn<N,T:HasAabb>{
+    c:EitherNode<N,T>,
+    pub n:NodeDyn<N,T>
+}
+*/
 
 
 

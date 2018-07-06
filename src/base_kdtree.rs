@@ -66,11 +66,6 @@ impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
     pub fn get_tree_mut(&mut self)->&mut compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &mut self.tree
     }
-    /*
-    pub fn into_tree(self)->compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
-        let KdTree{tree,_p}=self;
-        tree
-    }*/
 }
 
 pub struct Node2<'a,T:HasAabb+'a>{ 
