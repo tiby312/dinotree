@@ -104,10 +104,6 @@ pub use dyntree::DynTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
-pub use tree_alloc::LeafDyn;
-pub use tree_alloc::NonLeafDyn;
-pub use tree_alloc::LeafDynMut;
-pub use tree_alloc::NonLeafDynMut;
 
 
 ///Marker trait.

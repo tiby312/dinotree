@@ -66,6 +66,8 @@ impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
     pub fn get_tree_mut(&mut self)->&mut compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
         &mut self.tree
     }
+
+
 }
 
 pub struct Node2<'a,T:HasAabb+'a>{ 
@@ -75,12 +77,10 @@ pub struct Node2<'a,T:HasAabb+'a>{
     // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
     // This is because we specifically pick the median.
     // If it is a leaf node, then div being none still means it could have bots in it.
-    pub div:(T::Num,axgeom::Range<T::Num>),
- 
-    
+    //pub div:Option<(T::Num,axgeom::Range<T::Num>)>,
+    pub div:tree_alloc::FullComp<T::Num>,
     pub range:&'a mut [T]
 }
-
 
 
 fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
@@ -104,11 +104,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             //Unsafely leave the dividers of leaf nodes uninitialized.
             //nn.divider=std::default::Default::default();
             //nn.container_box=rect_make::create_container_rect::<A,_>(rest);
-         
+            //nn.div=None;
+
             nn.range=rest;
             timer_log.leaf_finish()
         },
-        Some((lleft,rright))=>{
+        Some(((),lleft,rright))=>{
             let lleft:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>=lleft;
             let rright:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>=rright;
             
@@ -187,7 +188,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                         sweeper_update(div_axis.next(),binned_middle);
                         //TODO use unsafe unwrap?
                         let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
-                        let n:Node2<'b,_>=Node2{div:(med,container_box),range:binned_middle};
+                        let n:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:(med,container_box)},range:binned_middle};
                     
                         let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
                         (n,k)
@@ -204,7 +205,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                 sweeper_update(div_axis.next(),binned_middle);
                 //TODO use unsafe???
                 let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
-                let nj=Node2{div:(med,container_box),range:binned_middle};
+                let nj=Node2{div:tree_alloc::FullComp{div:(med,container_box)},range:binned_middle};
                 let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)

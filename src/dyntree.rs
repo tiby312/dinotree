@@ -9,7 +9,7 @@ use tree_alloc::NdIter;
 use compt::CTreeIterator;
 use axgeom::*;
 
-
+use tree_alloc::FullComp;
 
 pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
     mover:Mover,
@@ -22,54 +22,80 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 
     
     pub fn iter_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut T>{
-        self.get_iter_mut().dfs_preorder_iter().flat_map(|a|a.range.iter_mut())
+        self.get_iter_mut().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut())
     }
 
     pub fn iter<'a>(&'a self)->impl Iterator<Item=&'a T>{
-        self.get_iter().dfs_preorder_iter().flat_map(|a|a.range.iter())
+        self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
     }
 
 
-
-    pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,T>{
-
-        let func=|builder:(N2,&NodeDyn<N,T>),dst:&mut NodeDyn<N2,T>|{
-            let (misc,builder)=builder;
-
-            dst.div=builder.div;
-            //dst.cont=builder.cont;
- 
-            for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
-                //let k=&mut all_bots[b.index as usize];
-                //we cant just move it into here.
-                //then rust will try and call the destructor of the uninitialized object
-                //let bb=&rest[b.index as usize];
-               
-                unsafe{std::ptr::copy(b,a,1)};
-                
-            }  
-
-            dst.misc=misc;
-        };
+    
+    pub fn with_extra<N2:Copy>(mut self,n2:N2)->DynTree<A,N2,T>{
 
 
-        let fb={
+        let (mover,fb)={
             let axis=self.tree.get_axis();
-
-            let ii=self.get_iter().with_extra(|_,b|{(b,b)},n2).map(|node:(N2,&NodeDyn<N,T>)|{
-                    (node.1.range.len(),node)
-                });;
-
+            
 
             let height=self.get_height();
-            let num_nodes=self.tree.get_num_nodes();//compt::compute_num_nodes(height);
-            let num_bots=self.tree.get_num_bots();//orig.len();
-            DynTreeRaw::new(axis,height,num_nodes,num_bots,ii,func)
+            let num_nodes=self.tree.get_num_nodes();
+            let num_bots=self.tree.get_num_bots();
+
+            let mover=self.mover.clone();
+            let ii=self.into_iterr().map(|node,eextra|{
+                //(node.range.len(),node as &Node2<Cont2<T::Num>>)
+                let l=tree_alloc::LeafConstructor{misc:n2,it:node.1};
+
+                let extra=match eextra{
+                    Some(extra)=>{
+                        Some(tree_alloc::ExtraConstructor{
+                            comp:extra
+                        })
+                    },
+                    None=>{
+                        None
+                    }
+                };
+
+                (l,extra)
+            });
+            /*
+            let ii=self.get_iter_mut().map(|node,eextra|{
+                //(node.range.len(),node as &Node2<Cont2<T::Num>>)
+                let l=tree_alloc::LeafConstructor{misc:n2,it:node.range.iter_mut().map(|b|{
+                    //let k=&mut all_bots[b.index as usize];
+                    //we cant just move it into here.
+                    //then rust will try and call the destructor of the uninitialized object
+                    
+                    let mut bot=unsafe{std::mem::uninitialized()};
+                    unsafe{std::ptr::copy(b,&mut bot,1)};
+                    
+                    bot
+                })};
+
+                let extra=match eextra{
+                    Some(extra)=>{
+                        Some(tree_alloc::ExtraConstructor{
+                            comp:extra
+                        })
+                    },
+                    None=>{
+                        None
+                    }
+                };
+
+                (l,extra)
+            });
+            */
+            
+            let tree=TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots);
+            (mover,DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree})
         };
 
         //TODO inefficient!!!!!
         //TODO dont call drop!!
-        DynTree{mover:Mover(self.mover.0.clone()),tree:fb}
+        DynTree{mover,tree:fb}
     
     }
     
@@ -79,7 +105,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         fn recc<N,T:HasAabb>(a:LevelIter<NdIter<N,T>>,counter:&mut usize,height:usize){
             let ((depth,nn),next)=a.next();
             match next{
-                Some((left,right))=>{
+                Some((extra,left,right))=>{
                     *counter+=nn.range.len()*(height-1-depth.0);
                     recc(left,counter,height);
                     recc(right,counter,height);
@@ -101,22 +127,23 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         let c=self.get_iter().with_depth(Depth(0));
 
 
-        fn recc<'a,A:AxisTrait,N:'a,T:HasAabb+'a,C:CTreeIterator<Item=(Depth,&'a NodeDyn<N,T>)>>(axis:A,cc:C){
+        fn recc<'a,A:AxisTrait,N:'a,T:HasAabb+'a>(axis:A,cc:LevelIter<NdIter<N,T>>){
             let ((_depth,nn),rest)=cc.next();
 
-            //TODO force this to use the safe api?
-            if nn.range.is_empty(){
-                return;
-            }
-            let (div,cont)=nn.div;
-
-            for b in &nn.range{
-                let r=b.get().as_axis().get(axis);
-                assert!(r.left<=div && r.right>=div);
-            }        
-
             match rest{
-                Some((left,right))=>{
+                Some((extra,left,right))=>{
+
+                    let (div,cont)=match extra{
+                        Some(g)=>g,
+                        None=>unimplemented!("FINISH THIS")
+                    };
+
+                    for b in &nn.range{
+                        let r=b.get().as_axis().get(axis);
+                        assert!(r.left<=div && r.right>=div);
+                    }        
+
+
                     recc(axis.next(),left);
                     recc(axis.next(),right);
                 },
@@ -306,8 +333,8 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             
             let mover={
 
-                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|a:&Node2<Cont2<T::Num>>|{
-                    a.range.iter()
+                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,extra)|{
+                    node.range.iter()
                 }).map(|a|a.index).collect();
 
                 Mover(kk)
@@ -318,28 +345,59 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             let num_nodes=tree2.get_tree().get_nodes().len();
 
 
-            let ii=tree2.get_tree_mut().create_down_mut().map(|node:&mut Node2<Cont2<T::Num>>|{
-                (node.range.len(),node as &Node2<Cont2<T::Num>>)
-            });
+            let tree={
+                let ii=tree2.get_tree_mut().create_down_mut().map(|node,eextra|{
+                    //(node.range.len(),node as &Node2<Cont2<T::Num>>)
+                    let l=tree_alloc::LeafConstructor{misc:n,it:node.range.iter_mut().map(|b|{
+                        //let k=&mut all_bots[b.index as usize];
+                        //we cant just move it into here.
+                        //then rust will try and call the destructor of the uninitialized object
+                        let bb=&rest[b.index as usize];
+                        let mut bot=unsafe{std::mem::uninitialized()};
+                        unsafe{std::ptr::copy(bb,&mut bot,1)};
+                       
+                        bot
+                    })};
 
-            let func=|builder:&Node2<Cont2<T::Num>>,dst:&mut NodeDyn<N,T>|{
+                    let extra=match eextra{
+                        Some(())=>{
+                            Some(tree_alloc::ExtraConstructor{
+                                comp:Some(node.div.div)
+                            })
+                        },
+                        None=>{
+                            None
+                        }
+                    };
+
+                    (l,extra)
+                });
+
                 
-                dst.misc=n;
-                dst.div=builder.div;
-                //dst.cont=builder.cont;
-                
-                for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
-                    //let k=&mut all_bots[b.index as usize];
-                    //we cant just move it into here.
-                    //then rust will try and call the destructor of the uninitialized object
-                    let bb=&rest[b.index as usize];
-                   
-                    unsafe{std::ptr::copy(bb,a,1)};
-                    std::mem::forget(bb);
-                }
-                
+                /*
+                let func=|builder:&Node2<Cont2<T::Num>>,dst:&mut NodeDyn<N,T>|{
+                    
+                    dst.misc=n;
+                    dst.div=builder.div;
+                    //dst.cont=builder.cont;
+                    
+                    for (a,b) in dst.range.iter_mut().zip(builder.range.iter()){
+                        //let k=&mut all_bots[b.index as usize];
+                        //we cant just move it into here.
+                        //then rust will try and call the destructor of the uninitialized object
+                        let bb=&rest[b.index as usize];
+                       
+                        unsafe{std::ptr::copy(bb,a,1)};
+                        std::mem::forget(bb);
+                    }
+                    
+                };
+                */
+                TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots)
             };
-            let fb=DynTreeRaw::new(axis,height,num_nodes,num_bots,ii,func);
+            std::mem::forget(rest);
+
+            let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
             
             (fb,mover,bag)
         }
@@ -359,7 +417,8 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
     pub fn with_debug_seq(axis:A,n:N,iter:impl ExactSizeIterator<Item=T>)->(DynTree<A,N,T>,Vec<f64>){
         let (a,b)=Self::new_inner::<par::Parallel,treetimer::TreeTimer2,_>(axis,n,iter);
         (a,b.into_vec())
-    }    
+    } 
+
     ///Create the tree.
     ///Specify whether it is done in parallel or sequential.
     ///If parallel, also specify the depth at which to switch to sequential.
@@ -391,6 +450,10 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         self.tree.get_height()
     }
 
+
+    pub fn into_iterr(mut self)->tree_alloc::det::NdIterMove<N,T>{
+        self.tree.into_iterr()
+    }
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         self.tree.get_iter_mut()
     }
@@ -428,7 +491,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         }).collect();
     
         let mut i1=self.mover.0.iter();
-        for node in self.tree.get_iter_mut().dfs_preorder_iter(){
+        for (node,_) in self.tree.get_iter_mut().dfs_preorder_iter(){
             for bot in node.range.iter(){
                 let mov=i1.next().unwrap();
                 
@@ -446,60 +509,49 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 
 
 
-impl<A:AxisTrait,N,T:HasAabb> Drop for DynTree<A,N,T>{
-    fn drop(&mut self){
-        //TODO drop eveyrthing in the tree if it hasnt been moved out.
-        //unimplemented!();
-    }
-}
-
-
-pub use self::alloc::DynTreeRaw;
-
 
 //TODO get rid of this layer. It doesnt add anything.
-mod alloc{
-    use super::*;
-    use tree_alloc::TreeAllocDstDfsOrder;
 
-    pub struct DynTreeRaw<A:AxisTrait,N,T:HasAabb>{
-        height:usize,
-        num_nodes:usize,
-        num_bots:usize,
-        alloc:TreeAllocDstDfsOrder<N,T>,
-        axis:A
+use tree_alloc::TreeAllocDstDfsOrder;
+
+pub struct DynTreeRaw<A:AxisTrait,N,T:HasAabb>{
+    height:usize,
+    num_nodes:usize,
+    num_bots:usize,
+    alloc:TreeAllocDstDfsOrder<N,T>,
+    axis:A
+}
+
+impl<A:AxisTrait,N,T:HasAabb> DynTreeRaw<A,N,T>{
+   
+
+    pub fn get_axis(&self)->A{
+        self.axis
+    }
+    pub fn get_num_nodes(&self)->usize{
+        self.num_nodes
+    }
+    pub fn get_num_bots(&self)->usize{
+        self.num_bots
+    }
+    pub fn get_height(&self)->usize{
+        self.height
     }
 
-    impl<A:AxisTrait,N,T:HasAabb> DynTreeRaw<A,N,T>{
-        pub fn new<B,C:CTreeIterator<Item=(usize,B)>,F:Fn(B,&mut NodeDyn<N,T>)>(axis:A,height:usize,num_nodes:usize,num_bots:usize,ir:C,func:F)->DynTreeRaw<A,N,T>{
-            let alloc=TreeAllocDstDfsOrder::new(num_nodes,num_bots,ir,func);
-            DynTreeRaw{height,num_nodes,num_bots,alloc,axis}
-        }
-
-        pub fn get_axis(&self)->A{
-            self.axis
-        }
-        pub fn get_num_nodes(&self)->usize{
-            self.num_nodes
-        }
-        pub fn get_num_bots(&self)->usize{
-            self.num_bots
-        }
-        pub fn get_height(&self)->usize{
-            self.height
-        }
-
-        pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
-            self.alloc.get_iter_mut()
-        }
-        pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
-            self.alloc.get_iter()
-        }
+    pub fn into_iterr(mut self)->tree_alloc::det::NdIterMove<N,T>{
+        self.alloc.into_iterr()
+    }
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
+        self.alloc.get_iter_mut()
+    }
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
+        self.alloc.get_iter()
     }
 }
 
 
 
+#[derive(Clone)]
 pub struct Mover(
     pub Vec<u32>
 );
