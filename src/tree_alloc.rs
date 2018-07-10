@@ -67,7 +67,7 @@ pub struct NodeDyn<N,T:HasAabb>{
 
 //User provides this!!!!!!!!!!
 pub struct ExtraConstructor<N:NumTrait>{
-    pub comp:Option<(N,axgeom::Range<N>)>
+    pub comp:Option<FullComp<N>>
 }
 
 pub struct LeafConstructor<N,T:HasAabb,I:ExactSizeIterator<Item=T>>{
@@ -84,21 +84,21 @@ pub struct NodeDyn<N,T:HasAabb>{
 
 #[derive(Copy,Clone)]
 pub struct FullComp<N:NumTrait>{
-    pub div:(N,axgeom::Range<N>) 
+    pub div:N,
+    pub cont:axgeom::Range<N> 
 }
 
 
 pub enum Node2<N,T:HasAabb>{
-    Leaf(*mut NodeDyn<N,T>),
-    NonLeaf(*mut NodeDstDyn<N,T>)
+    Leaf(std::ptr::NonNull<NodeDyn<N,T>>),
+    NonLeaf(std::ptr::NonNull<NodeDstDyn<N,T>>)
 }
 
 
-unsafe impl<N:Send,T:HasAabb+Send> Send for Node2<N,T>{}
-//unsafe impl<N:Sync,T:HasAabb+Sync> Sync for NodeDstDyn<N,T>{}
 //Unsafely implement sync. even though contains do not impelemnt sync.
 //This is safe to do because TODO reason??
 unsafe impl<N,T:HasAabb> Sync for Node2<N,T>{}
+unsafe impl<N:Send,T:HasAabb+Send> Send for Node2<N,T>{}
 
 
 impl<N,T:HasAabb> Copy for Node2<N,T>{
@@ -110,8 +110,8 @@ impl<N,T:HasAabb> Clone for Node2<N,T>{
 }
 
 pub enum NextNodes<N,T:HasAabb>{
-    Leaf([*mut NodeDyn<N,T>;2]),
-    NonLeaf([*mut NodeDstDyn<N,T>;2])
+    Leaf([std::ptr::NonNull<NodeDyn<N,T>>;2]),
+    NonLeaf([std::ptr::NonNull<NodeDstDyn<N,T>>;2])
 }
 
 
@@ -130,7 +130,8 @@ unsafe impl<N,T:HasAabb> Sync for NodeDstDyn<N,T>{}
 
 
 use std::cell::RefCell;
-pub mod det{
+pub use self::det::NdIterMove;
+mod det{
     use super::*;
 
     pub struct LeafRangeDestructor<T>{
@@ -174,7 +175,13 @@ pub mod det{
         pub vec:Vec<u8>,
     }
 
-
+    ///When you turn a Vec<T> into an iterator, it is obvious to know
+    ///at what point all the elements are consumed and it is safe to deallocate the underlying memory.
+    ///When a tree, it is much harder. The user might consume all the elements in any order that they choose.
+    ///Reference counting is therefore used. A shared counter keeps track of how many nodes have been consumed.
+    ///Only when all the nodes have been consumed do we deallocate the tree.
+    ///Note that send and sync are not implemented so that the shared reference count 
+    ///has no overhead of a mutex.
     pub struct NdIterMove<N,T:HasAabb>(Option<NdIterMoveInner<N,T>>,Rc<Shared>);
     //When a node dies without being consumed, we have to recurse all the children and destroy them.
     impl<N,T:HasAabb> Drop for NdIterMove<N,T>{
@@ -192,7 +199,7 @@ pub mod det{
 
     impl<N,T:HasAabb> CTreeIterator for NdIterMove<N,T>{
         type Item=(N,LeafRangeDestructor<T>);
-        type Extra=Option<(T::Num,axgeom::Range<T::Num>)>;
+        type Extra=Option<FullComp<T::Num>>;
         fn next(mut self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
             let (nn,rest)=self.0.take().unwrap().next();
 
@@ -221,18 +228,18 @@ pub mod det{
     }
     impl<N,T:HasAabb> CTreeIterator for NdIterMoveInner<N,T>{
         type Item=(N,LeafRangeDestructor<T>);
-        type Extra=Option<(T::Num,axgeom::Range<T::Num>)>;
+        type Extra=Option<FullComp<T::Num>>;
         fn next(mut self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
             match self.0{
-                Node2::Leaf(leaf)=>{
-                    let leaf=unsafe{&mut *leaf};
+                Node2::Leaf(mut leaf)=>{
+                    let leaf=unsafe{leaf.as_mut()};
                     let range=LeafRangeDestructor{inner:&mut leaf.range,count:0};
 
 
                     ((unsafe{copy_unsafe(&leaf.misc)},range),None)
                 },
-                Node2::NonLeaf(nonleaf)=>{
-                    let nonleaf=unsafe{&mut *nonleaf};
+                Node2::NonLeaf(mut nonleaf)=>{
+                    let nonleaf=unsafe{nonleaf.as_mut()};
                     let [left,right]=match nonleaf.next_nodes{
                         NextNodes::Leaf([left,right])=>{
                             [Node2::Leaf(left),Node2::Leaf(right)]
@@ -246,7 +253,7 @@ pub mod det{
                     let rr=if nonleaf.node.range.is_empty(){
                         None
                     }else{
-                        Some(nonleaf.comp.div)
+                        Some(nonleaf.comp)
                     };
 
                     let nn=LeafRangeDestructor{inner:&mut nonleaf.node.range,count:0};
@@ -272,15 +279,15 @@ impl<'a,N:'a,T:HasAabb+'a> NdIterMut<'a,N,T>{
 
 impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
     type Item=&'a mut NodeDyn<N,T>;
-    type Extra=Option<(T::Num,axgeom::Range<T::Num>)>;
+    type Extra=Option<FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
         match (self.0).0{
-            Node2::Leaf(leaf)=>{
-                let leaf=unsafe{&mut *leaf};
+            Node2::Leaf(mut leaf)=>{
+                let leaf=unsafe{&mut *leaf.as_ptr()};
                 (leaf,None)
             },
-            Node2::NonLeaf(nonleaf)=>{
-                let nonleaf=unsafe{&mut *nonleaf};
+            Node2::NonLeaf(mut nonleaf)=>{
+                let nonleaf=unsafe{&mut *nonleaf.as_ptr()};
                 let [left,right]=match nonleaf.next_nodes{
                     NextNodes::Leaf([left,right])=>{
                         [Node2::Leaf(left),Node2::Leaf(right)]
@@ -294,7 +301,7 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
                 let rr=if nonleaf.node.range.is_empty(){
                     None
                 }else{
-                    Some(nonleaf.comp.div)
+                    Some(nonleaf.comp)
                 };
                 (&mut nonleaf.node,Some((rr,left,right)))
             }
@@ -316,15 +323,15 @@ impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
 
 impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
     type Item=&'a NodeDyn<N,T>;
-    type Extra=Option<(T::Num,axgeom::Range<T::Num>)>;
+    type Extra=Option<FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
         match (self.0).0{
-            Node2::Leaf(leaf)=>{
-                let leaf=unsafe{&mut *leaf};
+            Node2::Leaf(mut leaf)=>{
+                let leaf=unsafe{&mut *leaf.as_ptr()};
                 (leaf,None)
             },
-            Node2::NonLeaf(nonleaf)=>{
-                let nonleaf=unsafe{&mut *nonleaf};
+            Node2::NonLeaf(mut nonleaf)=>{
+                let nonleaf=unsafe{&mut *nonleaf.as_ptr()};
                 let [left,right]=match nonleaf.next_nodes{
                     NextNodes::Leaf([left,right])=>{
                         [Node2::Leaf(left),Node2::Leaf(right)]
@@ -339,7 +346,7 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
                 let rr=if nonleaf.node.range.is_empty(){
                     None
                 }else{
-                    Some(nonleaf.comp.div)
+                    Some(nonleaf.comp)
                 };
 
                 (& nonleaf.node,Some((rr,left,right)))
@@ -367,7 +374,10 @@ impl<N,T:HasAabb> Drop for TreeAllocDstDfsOrder<N,T>{
                 //We already move out the vec using the iterator.
             },
             Some(v)=>{
-                 let shared=Rc::new(det::Shared{vec:v});
+                //TODO when dropping, we can establish a order of traversal of the tree.
+                //so we DONT NEED reference counting. TODO make a version that simply frees the 
+                //resource after all the nodes have been visited in dfs preorder.
+                let shared=Rc::new(det::Shared{vec:v});
                 {
                     let cc=shared.clone();
                     let it=self::det::NdIterMove::new(self.root,cc);
@@ -383,22 +393,18 @@ impl<N,T:HasAabb> Drop for TreeAllocDstDfsOrder<N,T>{
 
 impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
-
     pub fn into_iterr(mut self)->self::det::NdIterMove<N,T>{
         let shared=Rc::new(det::Shared{vec:self._vec.take().unwrap()});
-
         self::det::NdIterMove::new(self.root,shared)
     }
-
 
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         NdIterMut((self.root,PhantomData))
     }
+
     pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
         NdIter((self.root,PhantomData))
     }
-
-
 
     fn compute_alignment_and_size()->(usize,usize){
         
@@ -410,6 +416,20 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
             };
             (std::mem::align_of_val(k),std::mem::size_of_val(k))
         };
+
+        let (alignment2,siz2)={
+            let k:&NodeDyn<N,T>=unsafe{
+
+                let k:*const u8=std::mem::transmute(0x10 as usize);
+                std::mem::transmute(Repr{ptr:k,size:0})
+            };
+            (std::mem::align_of_val(k),std::mem::size_of_val(k))
+        };
+        assert_eq!(alignment,alignment2);
+
+        assert_eq!(siz%alignment,0);
+
+        assert_eq!(siz2%alignment2,0);
 
         assert!(std::mem::size_of::<T>() % alignment==0);
 
@@ -447,7 +467,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
             counter:*mut u8
         }
         impl Counter{
-            fn add_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->*mut NodeDyn<N,T>{
+            fn add_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->std::ptr::NonNull<NodeDyn<N,T>>{
                 let len=constructor.it.len();
                 let dst:&mut NodeDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                 
@@ -460,10 +480,10 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
                 //func(stuff.1,dst,None);
                 self.counter=unsafe{&mut *(self.counter).offset(std::mem::size_of_val(dst) as isize)};
-                dst
+                unsafe{std::ptr::NonNull::new_unchecked(dst)}
             
             }
-            fn add_non_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>,cc:ExtraConstructor<T::Num>)->*mut NodeDstDyn<N,T>{
+            fn add_non_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>,cc:ExtraConstructor<T::Num>)->std::ptr::NonNull<NodeDstDyn<N,T>>{
                 let len=constructor.it.len();
                 let dst:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                 
@@ -476,7 +496,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
                 match cc.comp{
                     Some(comp)=>{
-                        dst.comp=FullComp{div:comp};
+                        dst.comp=comp;
                     },
                     None=>{
                         //Leav uninitailized.
@@ -486,7 +506,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
                 }
 
                 self.counter=unsafe{&mut *(self.counter).offset(std::mem::size_of_val(dst) as isize)};
-                dst
+                unsafe{std::ptr::NonNull::new_unchecked(dst)}
             }
         }
 
@@ -508,7 +528,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
                     let mut node=counter.add_non_leaf_node(nn,extra);
                     {
-                        let node=unsafe{&mut *node};
+                        let node=unsafe{node.as_mut()};
 
                         let right=recc(right,counter);
                         

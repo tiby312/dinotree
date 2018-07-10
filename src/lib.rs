@@ -6,10 +6,9 @@ extern crate axgeom;
 extern crate compt;
 extern crate rayon;
 extern crate pdqselect;
-//extern crate ordered_float;
+
 #[cfg(test)]
 extern crate rand;
-
 #[cfg(test)]
 extern crate test;
 
@@ -17,17 +16,11 @@ extern crate smallvec;
 
 
 mod inner_prelude{
-  
-  //pub use base_kdtree::TreeCache;
-  //pub use AABBox;
-  //pub use axgeom::Axis;
   pub use compt::LevelIter;
   pub use compt::Depth;
   pub use axgeom::Range;
   pub use *;
   pub use oned::sweeper_update;
-
-  //pub use super::median::MedianStrat;
   pub use compt::CTreeIterator;
   pub use par;
   pub use axgeom::AxisTrait;
@@ -38,13 +31,8 @@ mod inner_prelude{
   pub use tree_alloc::NodeDyn;
 }
 
-///Contains the different median finding strategies.
-//pub mod median;
-
-
 ///Contains tree level by level timing collection code. 
 pub mod treetimer;
-
 
 pub mod par;
 
@@ -62,20 +50,13 @@ mod dyntree;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
-///C  ontains misc tools
+///Contains misc tools
 mod tools;
 
 
-//use axgeom::Rect;
-//pub use treetimer::*;
-
-//use axgeom::XAXISS;
-//use axgeom::YAXISS;
-//pub use base_kdtree::DivNode;
-
-
-///Returns the height of what is used internally to construct a dinotree.
-pub fn compute_tree_height(num_bots: usize) -> usize {
+///Returns a good height of a binary tree for a given number of bots
+///such that every leaf node as around 12 bots in it.
+fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
@@ -95,16 +76,15 @@ pub fn compute_tree_height(num_bots: usize) -> usize {
 pub trait NumTrait:Ord+Copy+Send+Sync{}
 
 impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync
-{
-}
+where T: Ord+Copy+Send+Sync{}
 
 
+pub use tree_alloc::FullComp;
 pub use dyntree::DynTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
-
+pub use tree_alloc::NdIterMove;
 
 ///Marker trait.
 ///Elements that are inserted into the tree must have a bounding box.

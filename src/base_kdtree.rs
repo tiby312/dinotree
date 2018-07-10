@@ -16,7 +16,7 @@ impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
 ///A KdTree construction
 ///This is like DynTree except the size of every node is constant.
 pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
-    tree: compt::dfs::GenTreeDfsOrder<Node2<'a,T>>,
+    tree: compt::dfs_order::GenTreeDfsOrder<Node2<'a,T>>,
     _p:PhantomData<A>
 }
 
@@ -24,7 +24,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
-        let mut ttree=compt::dfs::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
+        let mut ttree=compt::dfs_order::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
             //Get rid of zero initialization???
             let rest=&mut [];
             //let co=self::rect_make::create_container_rect::<A,_>(rest);
@@ -60,10 +60,10 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
 impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
 
-    pub fn get_tree(&self)->&compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
+    pub fn get_tree(&self)->&compt::dfs_order::GenTreeDfsOrder<Node2<'a,T>>{
         &self.tree
     }
-    pub fn get_tree_mut(&mut self)->&mut compt::dfs::GenTreeDfsOrder<Node2<'a,T>>{
+    pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::GenTreeDfsOrder<Node2<'a,T>>{
         &mut self.tree
     }
 
@@ -87,7 +87,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
     div_axis:A,
     dlevel:JJ,
     rest:&'b mut [T],
-    down:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>,
+    down:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>,
     mut timer_log:K)->K::Bag{
 
     timer_log.start();
@@ -110,8 +110,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             timer_log.leaf_finish()
         },
         Some(((),lleft,rright))=>{
-            let lleft:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>=lleft;
-            let rright:compt::LevelIter<compt::dfs::DownTMut<Node2<'b,T>>>=rright;
+            let lleft:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=lleft;
+            let rright:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=rright;
             
             let med={
               
@@ -188,7 +188,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                         sweeper_update(div_axis.next(),binned_middle);
                         //TODO use unsafe unwrap?
                         let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
-                        let n:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:(med,container_box)},range:binned_middle};
+                        let n:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
                     
                         let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
                         (n,k)
@@ -205,7 +205,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                 sweeper_update(div_axis.next(),binned_middle);
                 //TODO use unsafe???
                 let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
-                let nj=Node2{div:tree_alloc::FullComp{div:(med,container_box)},range:binned_middle};
+                let nj=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
                 let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
