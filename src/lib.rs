@@ -1,17 +1,17 @@
+//! Provides the dinotree data structure and a api on how to traverse it.
+//!
+//!
+
 #![feature(iterator_step_by)]
-
 #![feature(test)]
-
 extern crate axgeom;
 extern crate compt;
 extern crate rayon;
 extern crate pdqselect;
-
 #[cfg(test)]
 extern crate rand;
 #[cfg(test)]
 extern crate test;
-
 extern crate smallvec;
 
 
@@ -56,7 +56,7 @@ mod tools;
 
 ///Returns a good height of a binary tree for a given number of bots
 ///such that every leaf node as around 12 bots in it.
-fn compute_tree_height_heuristic(num_bots: usize) -> usize {
+pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
@@ -103,7 +103,6 @@ pub trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
-
 
 
 //Pub so benches can access

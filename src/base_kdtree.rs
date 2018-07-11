@@ -1,18 +1,5 @@
 use inner_prelude::*;
 
-/*
-#[derive(Copy,Clone,Debug)]
-pub struct DivNode<Nu:Ord+Copy+std::fmt::Debug>{
-    divider:Nu    
-}
-impl<Nu:Ord+Copy+std::fmt::Debug> DivNode<Nu>{
-    pub fn divider(&self)->&Nu{
-        &self.divider
-    }
-}*/
-
-
-
 ///A KdTree construction
 ///This is like DynTree except the size of every node is constant.
 pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
@@ -117,8 +104,6 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
               
                 let m = if rest.len() == 0{
                         None
-                        //panic!("no bots in a non leaf node! depth:{:?}",level.0);
-                        //std::default::Default::default()
                     }
                     else
                     {

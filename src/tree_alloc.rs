@@ -75,13 +75,14 @@ pub struct LeafConstructor<N,T:HasAabb,I:ExactSizeIterator<Item=T>>{
     pub it:I
 }
 
-
-
+///The common struct between leaf nodes and non leaf nodes.
+///It is a dynamically sized type.
 pub struct NodeDyn<N,T:HasAabb>{
     pub misc:N,
     pub range:[T]
 }
 
+///A struct that contains data that only non leaf nodes contain.
 #[derive(Copy,Clone)]
 pub struct FullComp<N:NumTrait>{
     pub div:N,
@@ -175,14 +176,16 @@ mod det{
         pub vec:Vec<u8>,
     }
 
+    ///A Tree Iterator that moves the contents of all the nodes out and to the user.
     ///When you turn a Vec<T> into an iterator, it is obvious to know
     ///at what point all the elements are consumed and it is safe to deallocate the underlying memory.
-    ///When a tree, it is much harder. The user might consume all the elements in any order that they choose.
+    ///With a tree, it is much harder. The user might consume all the elements in any order that they choose.
     ///Reference counting is therefore used. A shared counter keeps track of how many nodes have been consumed.
     ///Only when all the nodes have been consumed do we deallocate the tree.
     ///Note that send and sync are not implemented so that the shared reference count 
-    ///has no overhead of a mutex.
+    ///has no overhead of a mutex without the obvious downside of loss in parallelism.
     pub struct NdIterMove<N,T:HasAabb>(Option<NdIterMoveInner<N,T>>,Rc<Shared>);
+
     //When a node dies without being consumed, we have to recurse all the children and destroy them.
     impl<N,T:HasAabb> Drop for NdIterMove<N,T>{
         fn drop(&mut self){
@@ -248,6 +251,7 @@ mod det{
                             [Node2::NonLeaf(left),Node2::NonLeaf(right)]
                         }
                     };
+                    
                     let [left,right]=[NdIterMoveInner(left),NdIterMoveInner(right)];
 
                     let rr=if nonleaf.node.range.is_empty(){
@@ -266,20 +270,22 @@ mod det{
 
 }
 
-
+///Tree Iterator that returns a mutable reference to each node.
+///It also returns the non-leaf specific data when it applies.
 pub struct NdIterMut<'a,N:'a,T:HasAabb+'a>(
     (Node2<N,T>,PhantomData<&'a mut usize>)
 );
 impl<'a,N:'a,T:HasAabb+'a> NdIterMut<'a,N,T>{
+    ///It is safe to borrow the iterator and then produce mutable references from that
+    ///as long as by the time the borrow ends, all the produced references also go away.
     pub fn create_wrap_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         NdIterMut(((self.0).0,PhantomData))
     }
 }
 
-
 impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
     type Item=&'a mut NodeDyn<N,T>;
-    type Extra=Option<FullComp<T::Num>>;
+    type Extra=Option<&'a FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
         match (self.0).0{
             Node2::Leaf(mut leaf)=>{
@@ -301,7 +307,7 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
                 let rr=if nonleaf.node.range.is_empty(){
                     None
                 }else{
-                    Some(nonleaf.comp)
+                    Some(&nonleaf.comp)
                 };
                 (&mut nonleaf.node,Some((rr,left,right)))
             }
@@ -309,13 +315,15 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
     }
 }
 
-
-
+///Tree Iterator that returns a reference to each node.
+///It also returns the non-leaf specific data when it applies.
 pub struct NdIter<'a,N:'a,T:HasAabb+'a>(
     (Node2<N,T>,PhantomData<&'a usize>)
 );
 
 impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
+    ///It is safe to borrow the iterator and then produce mutable references from that
+    ///as long as by the time the borrow ends, all the produced references also go away.
     pub fn create_wrap<'b>(&'b mut self)->NdIter<'b,N,T>{
         NdIter(((self.0).0,PhantomData))
     }
@@ -323,7 +331,7 @@ impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
 
 impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
     type Item=&'a NodeDyn<N,T>;
-    type Extra=Option<FullComp<T::Num>>;
+    type Extra=Option<&'a FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
         match (self.0).0{
             Node2::Leaf(mut leaf)=>{
@@ -346,7 +354,7 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
                 let rr=if nonleaf.node.range.is_empty(){
                     None
                 }else{
-                    Some(nonleaf.comp)
+                    Some(&nonleaf.comp)
                 };
 
                 (& nonleaf.node,Some((rr,left,right)))
@@ -425,15 +433,16 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
             };
             (std::mem::align_of_val(k),std::mem::size_of_val(k))
         };
-        assert_eq!(alignment,alignment2);
+        //assert_eq!(alignment,alignment2);
+        let max_align=alignment.max(alignment2);
 
-        assert_eq!(siz%alignment,0);
+        assert_eq!(siz%max_align,0);
 
-        assert_eq!(siz2%alignment2,0);
+        assert_eq!(siz2%max_align,0);
 
-        assert!(std::mem::size_of::<T>() % alignment==0);
+        assert!(std::mem::size_of::<T>() % max_align==0);
 
-        (alignment,siz)
+        (max_align,siz)
     }
 
 

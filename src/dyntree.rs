@@ -33,7 +33,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         (a,b.into_vec())
     }
     pub fn with_debug_seq(axis:A,n:N,iter:impl ExactSizeIterator<Item=T>)->(DynTree<A,N,T>,Vec<f64>){
-        let (a,b)=Self::new_inner::<par::Parallel,treetimer::TreeTimer2,_>(axis,n,iter);
+        let (a,b)=Self::new_inner::<par::Sequential,treetimer::TreeTimer2,_>(axis,n,iter);
         (a,b.into_vec())
     } 
     
@@ -118,7 +118,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             match rest{
                 Some((extra,left,right))=>{
 
-                    let FullComp{div,cont}=match extra{
+                    let &FullComp{div,cont}=match extra{
                         Some(g)=>g,
                         None=>unimplemented!("FINISH THIS")
                     };
