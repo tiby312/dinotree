@@ -19,52 +19,6 @@ struct Repr<T>{
 
 
 
-/*
-//TODO use???
-pub struct LeafDyn<N,T:HasAabb>{
-    pub misc:N,
-    pub range:[T]
-}
-*/
-/*
-pub struct NodeDyn<N,T:HasAabb>{ 
-    //Carry some user defined data.
-    //Useful for nbody simulation
-    pub misc:N,
-
-    //TODO explain that these are private since they only apply to non leafs.
-    //type system protects against this
-    //For non leaf:
-    //div is None iff this node and children nodes do not have any bots in them.
-    //For leaf:
-    //Always none
-    //pub(crate) div:Option<(T::Num,axgeom::Range<T::Num>)>,
- //If this is a non leaf node, then,
-    //  div is None iff this node and children nodes do not have any bots in them.
-    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
-    // This is because we specifically pick the median.
-
-
-
-    //For non leaf:
-    //cont is None iff range.len()==0
-    //For leaf:
-    //cont is always none.
-    //pub(crate) cont:Option<axgeom::Range<T::Num>>,
-    //TODO combine this option with the above one.
-    //It is guarenteed that there be at least one bot in this node if the divider exists.
-
-    
-    //The range field acts as a sentinel.
-    //These two values are only valid if the length of range is greater than zero.
-    //For leafs, even if the range is not zero it is still unitiailized
-    pub(crate) div:(T::Num,axgeom::Range<T::Num>),
-
-    pub range:[T]
-
-}
-*/
-
 //User provides this!!!!!!!!!!
 pub struct ExtraConstructor<N:NumTrait>{
     pub comp:Option<FullComp<N>>
@@ -90,7 +44,7 @@ pub struct FullComp<N:NumTrait>{
 }
 
 
-pub enum Node2<N,T:HasAabb>{
+enum Node2<N,T:HasAabb>{
     Leaf(std::ptr::NonNull<NodeDyn<N,T>>),
     NonLeaf(std::ptr::NonNull<NodeDstDyn<N,T>>)
 }
@@ -110,13 +64,12 @@ impl<N,T:HasAabb> Clone for Node2<N,T>{
     }
 }
 
-pub enum NextNodes<N,T:HasAabb>{
+enum NextNodes<N,T:HasAabb>{
     Leaf([std::ptr::NonNull<NodeDyn<N,T>>;2]),
     NonLeaf([std::ptr::NonNull<NodeDstDyn<N,T>>;2])
 }
 
-
-pub struct NodeDstDyn<N,T:HasAabb>{
+struct NodeDstDyn<N,T:HasAabb>{
     pub next_nodes:NextNodes<N,T>,
     pub comp:FullComp<T::Num>,
     pub node:NodeDyn<N,T>
@@ -129,8 +82,6 @@ unsafe impl<N:Send,T:HasAabb+Send> Send for NodeDstDyn<N,T>{}
 unsafe impl<N,T:HasAabb> Sync for NodeDstDyn<N,T>{}
 
 
-
-use std::cell::RefCell;
 pub use self::det::NdIterMove;
 mod det{
     use super::*;
@@ -232,7 +183,7 @@ mod det{
     impl<N,T:HasAabb> CTreeIterator for NdIterMoveInner<N,T>{
         type Item=(N,LeafRangeDestructor<T>);
         type Extra=Option<FullComp<T::Num>>;
-        fn next(mut self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
+        fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
             match self.0{
                 Node2::Leaf(mut leaf)=>{
                     let leaf=unsafe{leaf.as_mut()};
@@ -272,6 +223,9 @@ mod det{
 
 ///Tree Iterator that returns a mutable reference to each node.
 ///It also returns the non-leaf specific data when it applies.
+///It is important that while the user can get mutable references to the bots
+///using this iterator, the user does not modify the aabb() that the bots return.
+///This would invalid the invariants of the tree.
 pub struct NdIterMut<'a,N:'a,T:HasAabb+'a>(
     (Node2<N,T>,PhantomData<&'a mut usize>)
 );
@@ -288,11 +242,11 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
     type Extra=Option<&'a FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
         match (self.0).0{
-            Node2::Leaf(mut leaf)=>{
+            Node2::Leaf(leaf)=>{
                 let leaf=unsafe{&mut *leaf.as_ptr()};
                 (leaf,None)
             },
-            Node2::NonLeaf(mut nonleaf)=>{
+            Node2::NonLeaf(nonleaf)=>{
                 let nonleaf=unsafe{&mut *nonleaf.as_ptr()};
                 let [left,right]=match nonleaf.next_nodes{
                     NextNodes::Leaf([left,right])=>{
@@ -315,8 +269,8 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIterMut<'a,N,T>{
     }
 }
 
-///Tree Iterator that returns a reference to each node.
-///It also returns the non-leaf specific data when it applies.
+/// Tree Iterator that returns a reference to each node.
+/// It also returns the non-leaf specific data when it applies.
 pub struct NdIter<'a,N:'a,T:HasAabb+'a>(
     (Node2<N,T>,PhantomData<&'a usize>)
 );
@@ -334,11 +288,11 @@ impl<'a,N:'a,T:HasAabb+'a> CTreeIterator for NdIter<'a,N,T>{
     type Extra=Option<&'a FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
         match (self.0).0{
-            Node2::Leaf(mut leaf)=>{
+            Node2::Leaf(leaf)=>{
                 let leaf=unsafe{&mut *leaf.as_ptr()};
                 (leaf,None)
             },
-            Node2::NonLeaf(mut nonleaf)=>{
+            Node2::NonLeaf(nonleaf)=>{
                 let nonleaf=unsafe{&mut *nonleaf.as_ptr()};
                 let [left,right]=match nonleaf.next_nodes{
                     NextNodes::Leaf([left,right])=>{
@@ -399,6 +353,12 @@ impl<N,T:HasAabb> Drop for TreeAllocDstDfsOrder<N,T>{
     }
 }
 
+#[derive(Debug)]
+struct SizRet{
+    alignment:usize,
+    size_of_non_leaf:usize,
+    size_of_leaf:usize,
+}
 impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
     pub fn into_iterr(mut self)->self::det::NdIterMove<N,T>{
@@ -414,8 +374,8 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
         NdIter((self.root,PhantomData))
     }
 
-    fn compute_alignment_and_size()->(usize,usize){
-        
+    //fn compute_alignment_and_size()->(usize,usize){
+    fn compute_alignment_and_size()->SizRet{  
         let (alignment,siz)={
             let k:&NodeDstDyn<N,T>=unsafe{
 
@@ -442,24 +402,30 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
         assert!(std::mem::size_of::<T>() % max_align==0);
 
-        (max_align,siz)
+        SizRet{alignment:max_align,size_of_non_leaf:siz,size_of_leaf:siz2}
+        //(max_align,siz)
     }
 
 
     pub fn new<I:ExactSizeIterator<Item=T>>(it:impl CTreeIterator<Item=LeafConstructor<N,T,I>,Extra=ExtraConstructor<T::Num>>,num_nodes:usize,num_bots:usize)->TreeAllocDstDfsOrder<N,T>{
 
-        let (alignment,node_size)=Self::compute_alignment_and_size();
+        let s=Self::compute_alignment_and_size();
+        //println!("Size ret={:?}",s);
+        let SizRet{alignment,size_of_non_leaf,size_of_leaf}=s;
+        let num_non_leafs=num_nodes/2;
+        let num_leafs=num_nodes-num_non_leafs;
 
-        let cap=node_size*num_nodes+std::mem::size_of::<T>()*num_bots;
+        let cap=num_non_leafs*size_of_non_leaf+num_leafs*size_of_leaf+num_bots*std::mem::size_of::<T>();
+        //let cap=node_size*num_nodes+std::mem::size_of::<T>()*num_bots;
+        //let cap=node_size*num_nodes+std::mem::size_of::<T>()*num_bots;
         
+
         let (start_addr,vec)={
 
             let mut v=Vec::with_capacity(alignment+cap);
         
-            v.push(0);
-            let mut counter=(&mut v[0]) as *mut u8;
-            v.pop();
-            
+            let mut counter=v.as_ptr() as *mut u8;
+ 
 
             for _ in 0..alignment{
                 let k=counter as *const u8;
@@ -473,7 +439,8 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
 
         struct Counter{
-            counter:*mut u8
+            counter:*mut u8,
+            _alignment:usize
         }
         impl Counter{
             fn add_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->std::ptr::NonNull<NodeDyn<N,T>>{
@@ -489,6 +456,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
                 //func(stuff.1,dst,None);
                 self.counter=unsafe{&mut *(self.counter).offset(std::mem::size_of_val(dst) as isize)};
+                //assert_eq!(self.counter as usize % self.alignment,0);
                 unsafe{std::ptr::NonNull::new_unchecked(dst)}
             
             }
@@ -515,13 +483,19 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
                 }
 
                 self.counter=unsafe{&mut *(self.counter).offset(std::mem::size_of_val(dst) as isize)};
+                //assert_eq!(self.counter as usize % self.alignment,0);
                 unsafe{std::ptr::NonNull::new_unchecked(dst)}
             }
         }
 
-        let mut cc=Counter{counter:start_addr};
+        let mut cc=Counter{_alignment:alignment,counter:start_addr};
         let root=recc(it,&mut cc);
         
+        //assert we filled up exactly the amount of space we allocated.
+        //Very important assertion!!!!
+        assert_eq!(cc.counter as usize,start_addr as *mut u8 as usize+cap);
+
+
         return TreeAllocDstDfsOrder{_vec:Some(vec),root};
 
 

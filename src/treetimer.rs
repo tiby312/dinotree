@@ -1,6 +1,8 @@
  use super::*;
 
 
+///Used for debugging performance. The user does not need to worry about this.
+///It is exposesed so that the algorithms that operate on this tree may also use this funcionality.
 pub trait TreeTimerTrait:Sized+Send{
     type Bag:Send+Sized;
     fn combine(a:Self::Bag,b:Self::Bag)->Self::Bag;
@@ -10,7 +12,7 @@ pub trait TreeTimerTrait:Sized+Send{
     fn next(self)->(Self,Self);
 }
 
-
+///When we do not use debugging, this version is used.
 pub struct TreeTimerEmpty;
 pub struct BagEmpty;
 impl TreeTimerTrait for TreeTimerEmpty{
@@ -44,6 +46,7 @@ impl Bag{
     }
 }
 
+///Used when the user wants the time to be returned.
 pub struct TreeTimer2{
     a:Vec<f64>,
     index:usize,

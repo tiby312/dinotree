@@ -1,6 +1,4 @@
-//! Provides the dinotree data structure and a api on how to traverse it.
-//!
-//!
+//! Provides the dinotree data structure and ways to traverse it.
 
 #![feature(iterator_step_by)]
 #![feature(test)]
@@ -31,9 +29,14 @@ mod inner_prelude{
   pub use tree_alloc::NodeDyn;
 }
 
-///Contains tree level by level timing collection code. 
+///Contains tree level by level timing collection code. Not intended to be used directly by the user.
+///Used by algorithms that operate on the tree. 
+#[doc(hidden)]
 pub mod treetimer;
 
+///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
+///Used by algorithms that operate on the tree.
+#[doc(hidden)]
 pub mod par;
 
 ///Contains rebalancing code.
@@ -54,8 +57,9 @@ mod oned;
 mod tools;
 
 
-///Returns a good height of a binary tree for a given number of bots
-///such that every leaf node as around 12 bots in it.
+///Returns the height of a dyn tree for a given number of bots.
+///The height is chosen such that the leaf nodes will have a small amount of bots.
+///If we had a node per bot, the tree would be too big. 
 pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
     //we want each node to have space for around 300 bots.

@@ -1,7 +1,5 @@
 
 use inner_prelude::*;
-use tree_alloc::NodeDyn;
-use base_kdtree::Node2;
 use base_kdtree::KdTree;
 use HasAabb;
 use tree_alloc::NdIterMut;
@@ -10,28 +8,35 @@ use tree_alloc::NdIterMove;
 use compt::CTreeIterator;
 use axgeom::*;
 
-use tree_alloc::FullComp;
-
+/// The tree this crate revoles around.
 pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
     mover:Mover,
-    pub tree:DynTreeRaw<A,N,T>,
+    tree:DynTreeRaw<A,N,T>,
 }
 
 
 
 impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 
-    
+    ///Create a new tree taking advantage of rayon's parallelism. Send actually does not need to be implemented by T.
+    ///This is because a more compact list comprised of only the AABB that T has is what is actually used
+    ///to construct the tree.     
     pub fn new(axis:A,n:N,iter:impl ExactSizeIterator<Item=T>)->DynTree<A,N,T>{
         Self::new_inner::<par::Parallel,treetimer::TreeTimerEmpty,_>(axis,n,iter).0
     }
+
+    ///Create a new tree sequentially.
     pub fn new_seq(axis:A,n:N,iter:impl ExactSizeIterator<Item=T>)->DynTree<A,N,T>{
         Self::new_inner::<par::Sequential,treetimer::TreeTimerEmpty,_>(axis,n,iter).0
     }
+
+    ///Create a new tree in parallel with debug time information.
     pub fn with_debug(axis:A,n:N,iter:impl ExactSizeIterator<Item=T>)->(DynTree<A,N,T>,Vec<f64>){
         let (a,b)=Self::new_inner::<par::Parallel,treetimer::TreeTimer2,_>(axis,n,iter);
         (a,b.into_vec())
     }
+
+    ///Create a new tree sequentially with debug time information.
     pub fn with_debug_seq(axis:A,n:N,iter:impl ExactSizeIterator<Item=T>)->(DynTree<A,N,T>,Vec<f64>){
         let (a,b)=Self::new_inner::<par::Sequential,treetimer::TreeTimer2,_>(axis,n,iter);
         (a,b.into_vec())
@@ -49,8 +54,8 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
     }
     
-
-    pub fn with_extra<N2:Copy>(mut self,n2:N2)->DynTree<A,N2,T>{
+    ///Transform the current tree to have a different extra component to each node.
+    pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,T>{
         let (mover,fb)={
             let axis=self.tree.get_axis();
             
@@ -84,13 +89,14 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         DynTree{mover,tree:fb}
     }
     
-
+    ///Compute a metric to determine how healthy the tree is based on how many bots
+    ///live in higher nodes verses lower nodes. Ideally all bots would live in leaves.
     pub fn compute_tree_health(&self)->f64{
         
         fn recc<N,T:HasAabb>(a:LevelIter<NdIter<N,T>>,counter:&mut usize,height:usize){
             let ((depth,nn),next)=a.next();
             match next{
-                Some((extra,left,right))=>{
+                Some((_extra,left,right))=>{
                     *counter+=nn.range.len()*(height-1-depth.0);
                     recc(left,counter,height);
                     recc(right,counter,height);
@@ -103,12 +109,13 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         let mut counter=0;
         recc(self.get_iter().with_depth(Depth(0)),&mut counter,height);
 
-        unimplemented!();
-        //return counter/total as f64;
+        unimplemented!("Not yet implemented");
     }
 
-
+    ///If this function does not panic, then this tree's invariants are being met.
     pub fn debug_assert_invariants(&self){
+        unimplemented!();
+        /*
         let c=self.get_iter().with_depth(Depth(0));
 
 
@@ -118,7 +125,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             match rest{
                 Some((extra,left,right))=>{
 
-                    let &FullComp{div,cont}=match extra{
+                    let &FullComp{div,cont:_}=match extra{
                         Some(g)=>g,
                         None=>unimplemented!("FINISH THIS")
                     };
@@ -138,7 +145,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             }
         }
         recc(self.tree.get_axis(),c);
-
+        */
         /*
         fn assert_correctness(&self,tree:&KdTree,botman:&BotMan)->bool{
             for (level,axis) in kd_axis::AxisIter::with_axis(tree.tree.get_level_iter()) {
@@ -318,7 +325,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             
             let mover={
 
-                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,extra)|{
+                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
                     node.range.iter()
                 }).map(|a|a.index).collect();
 
@@ -394,25 +401,35 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         (d,bag)
     }
 
+    ///Get the axis of the starting divider.
+    ///If this were the x axis, for example, the first dividing line would be from top to bottom,
+    ///partitioning the bots by their x values.
     pub fn get_axis(&self)->A{
         self.tree.get_axis()
     }
+
+    ///Get the height of the tree.
     pub fn get_height(&self)->usize{
         self.tree.get_height()
     }
 
-
-    pub fn into_iterr(mut self)->NdIterMove<N,T>{
+    ///Create a tree visitor that moves all the elements out.
+    pub fn into_iterr(self)->NdIterMove<N,T>{
         self.tree.into_iterr()
     }
+
+    ///Create a mutable tree visitor.
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         self.tree.get_iter_mut()
     }
+
+    ///Create an immutable tree visitor.
     pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
         self.tree.get_iter()
     }
 
-    pub fn into_iter_orig_order(mut self)->impl ExactSizeIterator<Item=T>{
+    ///Returns the bots to their original ordering.
+    pub fn into_iter_orig_order(self)->impl ExactSizeIterator<Item=T>{
     
         let mut ret:Vec<T>=(0..self.mover.0.len()).map(|_|{
             unsafe{std::mem::uninitialized()}
@@ -431,6 +448,11 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         }
         ret.into_iter()
 
+    }
+
+    ///Returns the number of bots that are in the tree.
+    pub fn get_num_bots(&self)->usize{
+        self.tree.num_bots
     }
 }
 
@@ -461,7 +483,7 @@ impl<A:AxisTrait,N,T:HasAabb> DynTreeRaw<A,N,T>{
         self.height
     }
 
-    pub fn into_iterr(mut self)->NdIterMove<N,T>{
+    pub fn into_iterr(self)->NdIterMove<N,T>{
         self.alloc.into_iterr()
     }
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
