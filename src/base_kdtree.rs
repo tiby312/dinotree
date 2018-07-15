@@ -100,48 +100,32 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             let lleft:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=lleft;
             let rright:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=rright;
             
-            let med={
+            let med = if rest.len() == 0{
+                return timer_log.leaf_finish();
+            }
+            else
+            {
+                let closure = |a: &T, b: &T| -> std::cmp::Ordering {
+
+                    let arr=a.get().get_range(div_axis);
+                    let brr=b.get().get_range(div_axis);
               
-                let m = if rest.len() == 0{
-                        None
+                    if arr.left > brr.left{
+                        return std::cmp::Ordering::Greater;
+                    
                     }
-                    else
-                    {
-                        let closure = |a: &T, b: &T| -> std::cmp::Ordering {
-        
-                            let arr=a.get().get_range(div_axis);
-                            let brr=b.get().get_range(div_axis);
-                      
-                            if arr.left > brr.left{
-                                return std::cmp::Ordering::Greater;
-                            
-                            }
-                            std::cmp::Ordering::Less
-                        };
+                    std::cmp::Ordering::Less
+                };
 
-                        let k={
-                            let mm=rest.len()/2;
-                            pdqselect::select_by(rest, mm, closure);
-                            &rest[mm]
-                        };
-                        //Some(k)
-                        Some(k.get().get_range(div_axis).left)
-                    };
-                m
-                
+                let k={
+                    let mm=rest.len()/2;
+                    pdqselect::select_by(rest, mm, closure);
+                    &rest[mm]
+                };
+                //Some(k)
+                Some(k.get().get_range(div_axis).left)
             };
 
-            let med=match med{
-                Some(med)=>{
-                    med
-                },
-                None=>{
-                    //TODO turn into debug assert
-                    assert_eq!(rest.len(),0);
-                    return timer_log.leaf_finish();
-                }
-            };
-            
             //It is very important that the median bot end up be binned into the middile bin.
             //We know this must be true because we chose the divider to be the medians left border,
             //and we binned so that all bots who intersect with the divider end up in the middle bin.

@@ -96,6 +96,7 @@ mod det{
             for _b in self{}
         }
     }
+    impl<T> std::iter::FuzedIterator for LeafRangeDestructor<T>{}
     impl<T> ExactSizeIterator for LeafRangeDestructor<T>{
 
     }
@@ -125,6 +126,11 @@ mod det{
     //TODO future optimization: dont dynamically allocate this shared object.
     pub(super) struct Shared{
         pub vec:Vec<u8>,
+    }
+    impl Drop for Shared{
+        fn drop(&mut self){
+            println!("Dropped!");
+        }
     }
 
     ///A Tree Iterator that moves the contents of all the nodes out and to the user.
