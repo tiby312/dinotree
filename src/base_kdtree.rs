@@ -123,7 +123,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     &rest[mm]
                 };
                 //Some(k)
-                Some(k.get().get_range(div_axis).left)
+                k.get().get_range(div_axis).left
             };
 
             //It is very important that the median bot end up be binned into the middile bin.
