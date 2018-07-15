@@ -96,7 +96,7 @@ mod det{
             for _b in self{}
         }
     }
-    impl<T> std::iter::FuzedIterator for LeafRangeDestructor<T>{}
+    impl<T> std::iter::FusedIterator for LeafRangeDestructor<T>{}
     impl<T> ExactSizeIterator for LeafRangeDestructor<T>{
 
     }
