@@ -11,6 +11,6 @@ rustc-test = "0.3.0"
 [dependencies]
 rayon = "1.0.1"
 pdqselect = "0.1.0"
-compt = {path="../compt"}
-axgeom = {path="../axgeom"}
+compt = {git ="https://github.com/tiby312/compt.git"}
+axgeom = {git="https://github.com/tiby312/axgeom.git"}
 smallvec = "0.6.1"

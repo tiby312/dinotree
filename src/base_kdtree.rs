@@ -109,8 +109,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     {
                         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
         
-                            let arr=a.get().as_axis().get(div_axis);
-                            let brr=b.get().as_axis().get(div_axis);
+                            let arr=a.get().get_range(div_axis);
+                            let brr=b.get().get_range(div_axis);
                       
                             if arr.left > brr.left{
                                 return std::cmp::Ordering::Greater;
@@ -125,7 +125,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                             &rest[mm]
                         };
                         //Some(k)
-                        Some(k.get().as_axis().get(div_axis).left)
+                        Some(k.get().get_range(div_axis).left)
                     };
                 m
                 
@@ -303,7 +303,7 @@ mod rect_make{
             match res{
                 Some((first,rest))=>{
 
-                    let first_ra=first.get().as_axis().get(axis).clone();
+                    let first_ra=first.get().get_range(axis).clone();
                     
                     Some(create_container(axis,rest,first_ra))
                 },
@@ -320,7 +320,7 @@ mod rect_make{
     fn create_container<A:AxisTrait,T:HasAabb>(axis:A,rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
         
         for i in rest{
-            container_rect.grow_to_fit(i.get().as_axis().get(axis));
+            container_rect.grow_to_fit(i.get().get_range(axis));
         }
         container_rect
    

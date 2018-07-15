@@ -483,7 +483,7 @@ pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
 
     for index_at in 0..bot_len{
         
-            match bots[index_at].get().as_axis().get(axis).left_or_right_or_contain(med){
+            match bots[index_at].get().get_range(axis).left_or_right_or_contain(med){
                 
                 //If the divider is less than the bot
                 std::cmp::Ordering::Equal=>{
@@ -544,7 +544,7 @@ pub fn is_sorted<A:AxisTrait,I:HasAabb>(axis:A,collision_botids:&[I]){
 ///Sorts the bots.
 pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
-        let (p1,p2)=(a.get().as_axis().get(axis).left,b.get().as_axis().get(axis).left);
+        let (p1,p2)=(a.get().get_range(axis).left,b.get().get_range(axis).left);
         if p1 > p2 {
             return std::cmp::Ordering::Greater;
         }
@@ -570,7 +570,7 @@ pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
 pub fn sweeper_update<I:HasAabb,A:AxisTrait>(axis:A,collision_botids: &mut [I]) {
 
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
-        let (p1,p2)=(a.get().as_axis().get(axis).left,b.get().as_axis().get(axis).left);
+        let (p1,p2)=(a.get().get_range(axis).left,b.get().get_range(axis).left);
         if p1 > p2 {
             return std::cmp::Ordering::Greater;
         }
