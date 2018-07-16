@@ -89,7 +89,7 @@ pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
 pub use tree_alloc::NdIterMove;
-
+pub use dyntree::DynTree2;
 ///Marker trait.
 ///Elements that are inserted into the tree must have a bounding box.
 ///Additionally to implemnting get(), implementors must move their 

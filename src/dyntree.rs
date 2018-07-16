@@ -8,6 +8,254 @@ use tree_alloc::NdIterMove;
 use compt::CTreeIterator;
 use axgeom::*;
 
+
+
+pub struct BBox<N:NumTrait,T>{
+    rect:Rect<N>,
+    pub val:T
+}
+impl<N:NumTrait,T> HasAabb for BBox<N,T>{
+    type Num=N;
+    fn get(&self)->&Rect<Self::Num>{
+        &self.rect
+    }
+}
+
+
+pub trait GenerateAabb{
+    type Num:NumTrait;
+    //expensive
+    fn create_aabb(&self)->Rect<Self::Num>;
+}
+
+pub struct DynTree2<A:AxisTrait,N,G:GenerateAabb>{
+    mover:Mover,
+    tree:DynTreeRaw<A,N,BBox<G::Num,G>>
+}
+
+impl<A:AxisTrait,N:Copy,G:GenerateAabb+Copy> DynTree2<A,N,G>{
+
+   
+    ///Create a new tree taking advantage of rayon's parallelism. Send actually does not need to be implemented by T.
+    ///This is because a more compact list comprised of only the AABB that T has is what is actually used
+    ///to construct the tree.     
+    pub fn new(axis:A,n:N,bots:&[G])->DynTree2<A,N,G>{
+        Self::new_inner::<par::Parallel,treetimer::TreeTimerEmpty>(axis,n,bots).0
+    }
+
+    ///Create a new tree sequentially.
+    pub fn new_seq(axis:A,n:N,bots:&[G])->DynTree2<A,N,G>{
+        Self::new_inner::<par::Sequential,treetimer::TreeTimerEmpty>(axis,n,bots).0
+    }
+
+    ///Create a new tree in parallel with debug time information.
+    pub fn with_debug(axis:A,n:N,bots:&[G])->(DynTree2<A,N,G>,Vec<f64>){
+        let (a,b)=Self::new_inner::<par::Parallel,treetimer::TreeTimer2>(axis,n,bots);
+        (a,b.into_vec())
+    }
+
+    ///Create a new tree sequentially with debug time information.
+    pub fn with_debug_seq(axis:A,n:N,bots:&[G])->(DynTree2<A,N,G>,Vec<f64>){
+        let (a,b)=Self::new_inner::<par::Sequential,treetimer::TreeTimer2>(axis,n,bots);
+        (a,b.into_vec())
+    } 
+    
+    ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
+    ///Instead, prefer to iterate through all the bots before the tree is constructed.
+    pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut BBox<G::Num,G>>{
+        self.get_iter_mut().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut())
+    }
+
+    ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
+    ///Instead, prefer to iterate through all the bots before the tree is constructed.
+    pub fn iter_every_bot<'a>(&'a self)->impl Iterator<Item=&'a BBox<G::Num,G>>{
+        self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
+    }
+
+
+    fn new_inner<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,n:N,bots:&[G])->(DynTree2<A,N,G>,K::Bag){
+        
+        let height=compute_tree_height_heuristic(bots.len());
+
+        pub struct Cont2<N:NumTrait>{
+            rect:Rect<N>,
+            pub index:u32
+        }
+        impl<N:NumTrait> HasAabb for Cont2<N>{
+            type Num=N;
+            fn get(&self)->&Rect<N>{
+                &self.rect
+            }
+        }
+
+        let num_bots=bots.len();
+        let max=std::u32::MAX;
+        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
+
+
+        let mut conts:Vec<Cont2<G::Num>>=bots.iter().enumerate().map(|(index,k)|{
+            Cont2{rect:k.create_aabb(),index:index as u32}
+        }).collect();
+        
+        {
+            let (mut tree2,bag)=KdTree::new::<JJ,K>(axis,&mut conts,height);
+            
+            
+            let mover={
+
+                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
+                    node.range.iter()
+                }).map(|a|a.index).collect();
+
+                Mover(kk)
+            };
+            
+
+            let height=tree2.get_tree().get_height();                
+            let num_nodes=tree2.get_tree().get_nodes().len();
+
+
+            let tree={
+                let ii=tree2.get_tree_mut().create_down_mut().map(|node,eextra|{
+                    let l=tree_alloc::LeafConstructor{misc:n,it:node.range.iter_mut().map(|b|{
+                        BBox{rect:b.rect,val:bots[b.index as usize]}
+                    })};
+
+                    let extra=match eextra{
+                        Some(())=>{
+                            Some(tree_alloc::ExtraConstructor{
+                                comp:Some(node.div)
+                            })
+                        },
+                        None=>{
+                            None
+                        }
+                    };
+
+                    (l,extra)
+                });
+
+                TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots)
+            };
+
+            let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
+            (DynTree2{mover,tree:fb},bag)
+        }
+    }
+
+    ///Get the axis of the starting divider.
+    ///If this were the x axis, for example, the first dividing line would be from top to bottom,
+    ///partitioning the bots by their x values.
+    pub fn get_axis(&self)->A{
+        self.tree.get_axis()
+    }
+
+    ///Get the height of the tree.
+    pub fn get_height(&self)->usize{
+        self.tree.get_height()
+    }
+
+    ///Create a tree visitor that moves all the elements out.
+    pub fn into_iterr(self)->NdIterMove<N,BBox<G::Num,G>>{
+        self.tree.into_iterr()
+    }
+
+    ///Create a mutable tree visitor.
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,BBox<G::Num,G>>{
+        self.tree.get_iter_mut()
+    }
+
+    ///Create an immutable tree visitor.
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,N,BBox<G::Num,G>>{
+        self.tree.get_iter()
+    }
+
+    ///Returns the bots to their original ordering.
+    pub fn into_iter_orig_order(self)->impl ExactSizeIterator<Item=BBox<G::Num,G>>{
+    
+        let mut ret:Vec<BBox<G::Num,G>>=(0..self.mover.0.len()).map(|_|{
+            unsafe{std::mem::uninitialized()}
+        }).collect();
+
+        let mut i1=self.mover.0.iter();     
+        for (node,_) in self.tree.into_iterr().dfs_preorder_iter(){
+            for bot in node.1{
+                let mov=i1.next().unwrap();
+                let cp=&mut ret[*mov as usize];
+                unsafe{
+                    std::ptr::copy(&bot,cp,1);
+                }
+                std::mem::forget(bot);
+            }
+        }
+        ret.into_iter()
+
+    }
+
+    ///Returns the number of bots that are in the tree.
+    pub fn get_num_bots(&self)->usize{
+        self.tree.num_bots
+    }
+
+    ///Transform the current tree to have a different extra component to each node.
+    pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,BBox<G::Num,G>>{
+        let (mover,fb)={
+            let axis=self.tree.get_axis();
+            
+
+            let height=self.get_height();
+            let num_nodes=self.tree.get_num_nodes();
+            let num_bots=self.tree.get_num_bots();
+
+            let mover=self.mover.clone();
+            let ii=self.into_iterr().map(|node,eextra|{
+                let l=tree_alloc::LeafConstructor{misc:n2,it:node.1};
+
+                let extra=match eextra{
+                    Some(extra)=>{
+                        Some(tree_alloc::ExtraConstructor{
+                            comp:extra
+                        })
+                    },
+                    None=>{
+                        None
+                    }
+                };
+
+                (l,extra)
+            });
+            
+            let tree=TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots);
+            (mover,DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree})
+        };
+
+        DynTree{mover,tree:fb}
+    }
+
+    ///Compute a metric to determine how healthy the tree is based on how many bots
+    ///live in higher nodes verses lower nodes. Ideally all bots would live in leaves.
+    pub fn compute_tree_health(&self)->f64{
+        
+        fn recc<N,T:HasAabb>(a:LevelIter<NdIter<N,T>>,counter:&mut usize,height:usize){
+            let ((depth,nn),next)=a.next();
+            match next{
+                Some((_extra,left,right))=>{
+                    *counter+=nn.range.len()*(height-1-depth.0);
+                    recc(left,counter,height);
+                    recc(right,counter,height);
+                },
+                None=>{
+                }
+            }
+        }
+        let height=self.get_height();
+        let mut counter=0;
+        recc(self.get_iter().with_depth(Depth(0)),&mut counter,height);
+
+        unimplemented!("Not yet implemented");
+    }
+}
+
 /// The tree this crate revoles around.
 pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
     mover:Mover,
