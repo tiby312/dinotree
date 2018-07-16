@@ -12,7 +12,7 @@ use axgeom::*;
 
 pub struct BBox<N:NumTrait,T>{
     rect:Rect<N>,
-    pub val:T
+    pub inner:T
 }
 impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     type Num=N;
@@ -300,7 +300,7 @@ pub mod fast_alloc{
             let tree={
                 let ii=tree2.get_tree_mut().create_down_mut().map(|node,eextra|{
                     let l=tree_alloc::LeafConstructor{misc:n,it:node.range.iter_mut().map(|b|{
-                        BBox{rect:b.rect,val:bots[b.index as usize]}
+                        BBox{rect:b.rect,inner:bots[b.index as usize]}
                     })};
 
                     let extra=match eextra{
