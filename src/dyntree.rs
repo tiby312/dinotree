@@ -327,7 +327,7 @@ pub mod fast_alloc{
 }
 
 /// The tree this crate revoles around.
-pub struct DynTree<A:AxisTrait,N,T:HasAabb+Copy>{
+pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
     mover:Mover,
     tree:DynTreeRaw<A,N,T>,
 }
