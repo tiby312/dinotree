@@ -82,6 +82,7 @@ unsafe impl<N:Send,T:HasAabb+Send> Send for NodeDstDyn<N,T>{}
 unsafe impl<N,T:HasAabb> Sync for NodeDstDyn<N,T>{}
 
 
+/*
 pub use self::det::NdIterMove;
 mod det{
     use super::*;
@@ -224,8 +225,8 @@ mod det{
             }   
         }
     }
-
 }
+*/
 
 ///Tree Iterator that returns a mutable reference to each node.
 ///It also returns the non-leaf specific data when it applies.
@@ -337,6 +338,7 @@ use std::rc::Rc;
 
 impl<N,T:HasAabb> Drop for TreeAllocDstDfsOrder<N,T>{
     fn drop(&mut self){
+        /*
         match self._vec.take(){
             None=>{
                 //We already move out the vec using the iterator.
@@ -355,6 +357,7 @@ impl<N,T:HasAabb> Drop for TreeAllocDstDfsOrder<N,T>{
                 assert!(Rc::weak_count(&shared)==0);
             }
         }
+        */
        
     }
 }
@@ -366,11 +369,12 @@ struct SizRet{
     size_of_leaf:usize,
 }
 impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
-
+    /*
     pub fn into_iterr(mut self)->self::det::NdIterMove<N,T>{
         let shared=Rc::new(det::Shared{vec:self._vec.take().unwrap()});
         self::det::NdIterMove::new(self.root,shared)
     }
+    */
 
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         NdIterMut((self.root,PhantomData))

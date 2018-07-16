@@ -88,7 +88,7 @@ pub use dyntree::DynTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
-pub use tree_alloc::NdIterMove;
+//pub use tree_alloc::NdIterMove;
 pub use dyntree::fast_alloc;
 //pub use dyntree::DynTree2;
 pub use dyntree::BBox;

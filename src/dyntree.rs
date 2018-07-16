@@ -4,12 +4,12 @@ use base_kdtree::KdTree;
 use HasAabb;
 use tree_alloc::NdIterMut;
 use tree_alloc::NdIter;
-use tree_alloc::NdIterMove;
+//use tree_alloc::NdIterMove;
 use compt::CTreeIterator;
 use axgeom::*;
 
 
-
+#[derive(Copy,Clone)]
 pub struct BBox<N:NumTrait,T>{
     rect:Rect<N>,
     pub inner:T
@@ -327,14 +327,14 @@ pub mod fast_alloc{
 }
 
 /// The tree this crate revoles around.
-pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
+pub struct DynTree<A:AxisTrait,N,T:HasAabb+Copy>{
     mover:Mover,
     tree:DynTreeRaw<A,N,T>,
 }
 
 
 
-impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
+impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
 
     ///Create a new tree taking advantage of rayon's parallelism. Send actually does not need to be implemented by T.
     ///This is because a more compact list comprised of only the AABB that T has is what is actually used
@@ -383,13 +383,13 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
             let num_bots=self.tree.get_num_bots();
 
             let mover=self.mover.clone();
-            let ii=self.into_iterr().map(|node,eextra|{
-                let l=tree_alloc::LeafConstructor{misc:n2,it:node.1};
+            let ii=self.get_iter().map(|node,eextra|{
+                let l=tree_alloc::LeafConstructor{misc:n2,it:node.range.iter().map(|b|*b)};
 
                 let extra=match eextra{
                     Some(extra)=>{
                         Some(tree_alloc::ExtraConstructor{
-                            comp:extra
+                            comp:extra.map(|a|*a)
                         })
                     },
                     None=>{
@@ -730,11 +730,12 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
     pub fn get_height(&self)->usize{
         self.tree.get_height()
     }
-
+    /*
     ///Create a tree visitor that moves all the elements out.
     pub fn into_iterr(self)->NdIterMove<N,T>{
         self.tree.into_iterr()
     }
+    */
 
     ///Create a mutable tree visitor.
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
@@ -754,14 +755,10 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
         }).collect();
 
         let mut i1=self.mover.0.iter();     
-        for (node,_) in self.tree.into_iterr().dfs_preorder_iter(){
-            for bot in node.1{
+        for (node,_) in self.tree.get_iter().dfs_preorder_iter(){
+            for bot in node.range.iter(){
                 let mov=i1.next().unwrap();
-                let cp=&mut ret[*mov as usize];
-                unsafe{
-                    std::ptr::copy(&bot,cp,1);
-                }
-                std::mem::forget(bot);
+                ret[*mov as usize]=*bot;
             }
         }
         ret.into_iter()
@@ -800,10 +797,11 @@ impl<A:AxisTrait,N,T:HasAabb> DynTreeRaw<A,N,T>{
     pub fn get_height(&self)->usize{
         self.height
     }
-
+    /*
     pub fn into_iterr(self)->NdIterMove<N,T>{
         self.alloc.into_iterr()
     }
+    */
     pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
         self.alloc.get_iter_mut()
     }
