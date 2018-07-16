@@ -22,58 +22,55 @@ impl<N:NumTrait,T> HasAabb for BBox<N,T>{
 }
 
 
-pub trait GenerateAabb{
-    type Num:NumTrait;
-    //expensive
-    fn create_aabb(&self)->Rect<Self::Num>;
-}
-
-pub struct DynTree2<A:AxisTrait,N,G:GenerateAabb>{
+/*
+pub struct DynTree2<A:AxisTrait,N,T,Num:NumTrait>{
     mover:Mover,
-    tree:DynTreeRaw<A,N,BBox<G::Num,G>>
+    tree:DynTreeRaw<A,N,BBox<Num,T>>
 }
 
-impl<A:AxisTrait,N:Copy,G:GenerateAabb+Copy> DynTree2<A,N,G>{
+
+
+impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree2<A,N,G,Num>{
 
    
     ///Create a new tree taking advantage of rayon's parallelism. Send actually does not need to be implemented by T.
     ///This is because a more compact list comprised of only the AABB that T has is what is actually used
     ///to construct the tree.     
-    pub fn new(axis:A,n:N,bots:&[G])->DynTree2<A,N,G>{
+    pub fn new(axis:A,n:N,bots:&[G])->DynTree2<A,N,T,Num>{
         Self::new_inner::<par::Parallel,treetimer::TreeTimerEmpty>(axis,n,bots).0
     }
 
     ///Create a new tree sequentially.
-    pub fn new_seq(axis:A,n:N,bots:&[G])->DynTree2<A,N,G>{
+    pub fn new_seq(axis:A,n:N,bots:&[G])->DynTree2<A,N,T,Num>{
         Self::new_inner::<par::Sequential,treetimer::TreeTimerEmpty>(axis,n,bots).0
     }
 
     ///Create a new tree in parallel with debug time information.
-    pub fn with_debug(axis:A,n:N,bots:&[G])->(DynTree2<A,N,G>,Vec<f64>){
+    pub fn with_debug(axis:A,n:N,bots:&[G])->(DynTree2<A,N,T,Num>,Vec<f64>){
         let (a,b)=Self::new_inner::<par::Parallel,treetimer::TreeTimer2>(axis,n,bots);
         (a,b.into_vec())
     }
 
     ///Create a new tree sequentially with debug time information.
-    pub fn with_debug_seq(axis:A,n:N,bots:&[G])->(DynTree2<A,N,G>,Vec<f64>){
+    pub fn with_debug_seq(axis:A,n:N,bots:&[G])->(DynTree2<A,N,T,Num>,Vec<f64>){
         let (a,b)=Self::new_inner::<par::Sequential,treetimer::TreeTimer2>(axis,n,bots);
         (a,b.into_vec())
     } 
     
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
-    pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut BBox<G::Num,G>>{
+    pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut BBox<Num,T>>{
         self.get_iter_mut().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut())
     }
 
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
-    pub fn iter_every_bot<'a>(&'a self)->impl Iterator<Item=&'a BBox<G::Num,G>>{
+    pub fn iter_every_bot<'a>(&'a self)->impl Iterator<Item=&'a BBox<Num,T>>{
         self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
     }
 
 
-    fn new_inner<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,n:N,bots:&[G])->(DynTree2<A,N,G>,K::Bag){
+    fn new_inner<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,n:N,bots:&[T])->(DynTree2<A,N,T,Num>,K::Bag){
         
         let height=compute_tree_height_heuristic(bots.len());
 
@@ -156,22 +153,22 @@ impl<A:AxisTrait,N:Copy,G:GenerateAabb+Copy> DynTree2<A,N,G>{
     }
 
     ///Create a tree visitor that moves all the elements out.
-    pub fn into_iterr(self)->NdIterMove<N,BBox<G::Num,G>>{
+    pub fn into_iterr(self)->NdIterMove<N,BBox<Num,T>>{
         self.tree.into_iterr()
     }
 
     ///Create a mutable tree visitor.
-    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,BBox<G::Num,G>>{
+    pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,BBox<Num,T>>{
         self.tree.get_iter_mut()
     }
 
     ///Create an immutable tree visitor.
-    pub fn get_iter<'b>(&'b self)->NdIter<'b,N,BBox<G::Num,G>>{
+    pub fn get_iter<'b>(&'b self)->NdIter<'b,N,BBox<Num,T>>{
         self.tree.get_iter()
     }
 
     ///Returns the bots to their original ordering.
-    pub fn into_iter_orig_order(self)->impl ExactSizeIterator<Item=BBox<G::Num,G>>{
+    pub fn into_iter_orig_order(self)->impl ExactSizeIterator<Item=BBox<Num,T>>{
     
         let mut ret:Vec<BBox<G::Num,G>>=(0..self.mover.0.len()).map(|_|{
             unsafe{std::mem::uninitialized()}
@@ -198,7 +195,7 @@ impl<A:AxisTrait,N:Copy,G:GenerateAabb+Copy> DynTree2<A,N,G>{
     }
 
     ///Transform the current tree to have a different extra component to each node.
-    pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,BBox<G::Num,G>>{
+    pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,BBox<Num,T>>{
         let (mover,fb)={
             let axis=self.tree.get_axis();
             
@@ -253,6 +250,79 @@ impl<A:AxisTrait,N:Copy,G:GenerateAabb+Copy> DynTree2<A,N,G>{
         recc(self.get_iter().with_depth(Depth(0)),&mut counter,height);
 
         unimplemented!("Not yet implemented");
+    }
+}
+*/
+
+pub mod fast_alloc{
+    use super::*;
+    pub fn new<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
+        let height=compute_tree_height_heuristic(bots.len());
+
+        pub struct Cont2<N:NumTrait>{
+            rect:Rect<N>,
+            pub index:u32
+        }
+        impl<N:NumTrait> HasAabb for Cont2<N>{
+            type Num=N;
+            fn get(&self)->&Rect<N>{
+                &self.rect
+            }
+        }
+
+        let num_bots=bots.len();
+        let max=std::u32::MAX;
+        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
+
+
+        let mut conts:Vec<Cont2<Num>>=bots.iter().enumerate().map(|(index,k)|{
+            Cont2{rect:aabb_create(k),index:index as u32}
+        }).collect();
+        
+        {
+            let (mut tree2,_bag)=KdTree::new::<par::Parallel,TreeTimerEmpty>(axis,&mut conts,height);
+            
+            
+            let mover={
+
+                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
+                    node.range.iter()
+                }).map(|a|a.index).collect();
+
+                Mover(kk)
+            };
+            
+
+            let height=tree2.get_tree().get_height();                
+            let num_nodes=tree2.get_tree().get_nodes().len();
+
+
+            let tree={
+                let ii=tree2.get_tree_mut().create_down_mut().map(|node,eextra|{
+                    let l=tree_alloc::LeafConstructor{misc:n,it:node.range.iter_mut().map(|b|{
+                        BBox{rect:b.rect,val:bots[b.index as usize]}
+                    })};
+
+                    let extra=match eextra{
+                        Some(())=>{
+                            Some(tree_alloc::ExtraConstructor{
+                                comp:Some(node.div)
+                            })
+                        },
+                        None=>{
+                            None
+                        }
+                    };
+
+                    (l,extra)
+                });
+
+                TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots)
+            };
+
+            let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
+            DynTree{mover,tree:fb}
+        }
     }
 }
 
