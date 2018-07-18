@@ -113,6 +113,15 @@ pub trait HasAabb{
 }
 
 
+///By implementing this, the aabb returned by this object must be such that
+///the left and right x vales are the same and the left and right y values are the same.
+pub trait IsPoint{
+  type Num:NumTrait;
+  fn get_center(&self)->[Self::Num;2];
+}
+
+
+
 //Pub so benches can access
 #[cfg(test)]
 mod test_support;
