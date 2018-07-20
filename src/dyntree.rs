@@ -7,11 +7,15 @@ use compt::CTreeIterator;
 use axgeom::*;
 
 
+///A wrapper type around a type T and bounding box where the bounding box is hidden.
+///This is what is inserted into the tree. This way the user 
+///cannot modify the bounding box since it is hidden, with only read access.
 #[derive(Copy,Clone)]
 pub struct BBox<N:NumTrait,T>{
     rect:Rect<N>,
     pub inner:T
 }
+
 impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     type Num=N;
     fn get(&self)->&Rect<Self::Num>{
@@ -26,7 +30,7 @@ impl<N:NumTrait,T:IsPoint<Num=N>> IsPoint for BBox<N,T>{
     }
 }
 
-pub mod fast_alloc{
+mod fast_alloc{
     use super::*;
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F)->(DynTree<A,N,BBox<Num,T>>,K::Bag){   
         let height=compute_tree_height_heuristic(bots.len());
@@ -93,7 +97,11 @@ pub mod fast_alloc{
             };
 
             let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
-            (DynTree{mover,tree:fb},_bag)
+            let tree=DynTree{mover,tree:fb};
+
+
+            debug_assert!(tree.are_invariants_met().is_ok());
+            (tree,_bag)
         }
     }
 }
@@ -130,15 +138,15 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
     pub fn into_fast_order(self)->impl ExactSizeIterator<Item=T>{
         let mut ret=Vec::with_capacity(self.mover.0.len());
         
-
-        for ((node,_),mov) in self.tree.get_iter().dfs_preorder_iter().zip(self.mover.0.iter()){
-            for bot in node.range.iter(){
-                ret.push(*bot);
-            }
+        for &bot in self.tree.get_iter().dfs_preorder_iter().flat_map(|(node,_)|{
+            node.range.iter()
+        }){
+            ret.push(bot)
         }
         assert_eq!(ret.len(),self.mover.0.len());
         ret.into_iter()
     }
+
     ///Returns the bots to their original ordering.
     pub fn into_iter_orig_order(self)->impl ExactSizeIterator<Item=T>{
         
@@ -193,8 +201,10 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
         DynTree{mover,tree:fb}
     }
 }
-impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
 
+impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
+
+    ///Iterate over al the bots in the tree. The order in which they are iterated is not important.
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
     pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut T>{
@@ -208,15 +218,19 @@ impl<A:AxisTrait,N:Copy,T:HasAabb> DynTree<A,N,T>{
     }
     
     
-    ///Compute a metric to determine how healthy the tree is based on how many bots
-    ///live in higher nodes verses lower nodes. Ideally all bots would live in leaves.
-    pub fn compute_tree_health(&self)->f64{
-        unimplemented!();
+    ///Return the fraction of bots that are in each level of the tree.
+    ///The first element is the number of bots in the root level.
+    ///The last number is the fraction in the lowest level of the tree.
+    ///Ideally the fraction of bots in the lower level of the tree is high.
+    pub fn compute_tree_health(&self)->Vec<f64>{
+        tree_health::compute_tree_health(self)
     }
 
-    ///If this function does not panic, then this tree's invariants are being met.
-    pub fn debug_assert_invariants(&self){
-        unimplemented!();
+    ///Returns Ok, then this tree's invariants are being met.
+    ///Should always return true, unless the user corrupts the trees memory
+    ///or if the contract of the HasAabb trait are not upheld.
+    pub fn are_invariants_met(&self)->Result<(),()>{
+        assert_invariants::are_invariants_met(self)
     }
     ///Get the axis of the starting divider.
     ///If this were the x axis, for example, the first dividing line would be from top to bottom,

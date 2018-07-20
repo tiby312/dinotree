@@ -1,22 +1,24 @@
-  ///Compute a metric to determine how healthy the tree is based on how many bots
-    ///live in higher nodes verses lower nodes. Ideally all bots would live in leaves.
-    pub fn compute_tree_health(&self)->f64{
-        
-        fn recc<N,T:HasAabb>(a:LevelIter<NdIter<N,T>>,counter:&mut usize,height:usize){
-            let ((depth,nn),next)=a.next();
-            match next{
-                Some((_extra,left,right))=>{
-                    *counter+=nn.range.len()*(height-1-depth.0);
-                    recc(left,counter,height);
-                    recc(right,counter,height);
-                },
-                None=>{
-                }
-            }
-        }
-        let height=self.get_height();
-        let mut counter=0;
-        recc(self.get_iter().with_depth(Depth(0)),&mut counter,height);
+use super::*;
+use axgeom::AxisTrait;
+use compt::CTreeIterator;
+use is_sorted::IsSorted;
 
-        unimplemented!("Not yet implemented");
+
+
+
+///Returns the fraction of bots that are in each level of the tree.
+pub fn compute_tree_health<A:AxisTrait,N,T:HasAabb>(tree:&DynTree<A,N,T>)->Vec<f64>{
+    
+    let mut ratios=vec![0.0;tree.get_height()];
+
+    tree.get_iter().with_depth(compt::Depth(0)).dfs_preorder(|(depth,node),extra|{
+        ratios[depth.0]+=node.range.len() as f64;
+    });
+
+    let total=tree.get_num_bots() as f64;
+    for b in ratios.iter_mut(){
+        *b=*b/total;
     }
+
+    return ratios;
+}

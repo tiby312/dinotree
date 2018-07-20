@@ -6,6 +6,7 @@ extern crate axgeom;
 extern crate compt;
 extern crate rayon;
 extern crate pdqselect;
+extern crate is_sorted;
 #[cfg(test)]
 extern crate rand;
 #[cfg(test)]
@@ -44,6 +45,9 @@ mod base_kdtree;
 ///Provides low level functionality to construct a dyntree.
 mod tree_alloc;
 
+mod assert_invariants;
+
+mod tree_health;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
@@ -88,15 +92,12 @@ pub use dyntree::DynTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::NdIter;
 pub use tree_alloc::NdIterMut;
-//pub use tree_alloc::NdIterMove;
-pub use dyntree::fast_alloc;
-//pub use dyntree::DynTree2;
 pub use dyntree::BBox;
-//pub use dyntree::GenerateAabb;
+
 
 ///Marker trait.
 ///Elements that are inserted into the tree must have a bounding box.
-///Additionally to implemnting get(), implementors must move their 
+///Additionally to implemnting get(), implementors must not change their 
 ///bounding boxes while inserted into the tree.
 ///So the Rect returns by get(), must always be the same once the object is inserted
 ///into the tree.
@@ -113,8 +114,7 @@ pub trait HasAabb{
 }
 
 
-///By implementing this, the aabb returned by this object must be such that
-///the left and right x vales are the same and the left and right y values are the same.
+///Marker trait to indicate that this object is a point.
 pub trait IsPoint{
   type Num:NumTrait;
   fn get_center(&self)->[Self::Num;2];
@@ -122,7 +122,6 @@ pub trait IsPoint{
 
 
 
-//Pub so benches can access
 #[cfg(test)]
 mod test_support;
 

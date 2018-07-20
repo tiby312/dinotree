@@ -9,6 +9,7 @@ rand = "0.3"
 rustc-test = "0.3.0"
 
 [dependencies]
+is_sorted = "0.1.0"
 rayon = "1.0.1"
 pdqselect = "0.1.0"
 compt = {git ="https://github.com/tiby312/compt.git"}
