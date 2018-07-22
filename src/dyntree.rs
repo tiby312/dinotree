@@ -93,7 +93,7 @@ mod fast_alloc{
                     (l,extra)
                 });
 
-                TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots)
+                TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots)
             };
 
             let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
@@ -130,7 +130,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
     }
 
     pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let a=fast_alloc::new::<par::Parallel,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create);
+        let a=fast_alloc::new::<par::Sequential,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create);
         (a.0,(a.1).into_iter())
         
     }
@@ -185,7 +185,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
                 (l,extra)
             });
             
-            let tree=TreeAllocDstDfsOrder::new(ii,num_nodes,num_bots);
+            let tree=TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots);
             (mover,DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree})
         };
 

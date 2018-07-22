@@ -173,7 +173,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
 
 
 ///The slice that is passed MUST NOT BE ZERO LENGTH!!!
-pub unsafe fn create_cont_non_zero_unchecked<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>{
+unsafe fn create_cont_non_zero_unchecked<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>{
   
      let left=match middle.iter().min_by(|a,b|{
         a.get().get_range(axis).left.cmp(&b.get().get_range(axis).left)
@@ -190,96 +190,4 @@ pub unsafe fn create_cont_non_zero_unchecked<A:AxisTrait,T:HasAabb>(axis:A,middl
      };
 
      axgeom::Range{left:left.get().get_range(axis).left,right:right.get().get_range(axis).right}    
-}
-
-mod rect_make{
-    use super::*;
-    /*
-    #[cfg(test)]
-    mod test{
-        use super::*;
-        use test_support::*;
-        use test_support;
-        use support::*;
-        use test::black_box;
-        use test::Bencher;
-        use oned::*;
-        use axgeom;
-        struct Bot{
-            id:usize
-        }
-
-        #[bench]
-        fn bench_rect_par(b:&mut Bencher){
-
-            let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
-
-            let mut bots=Vec::new();
-            for id in 0..100000{
-                let ppp=p.random_point();
-                let k=test_support::create_rect_from_point(ppp);
-                bots.push(BBox::new(Bot{id},k)); 
-            }
-            
-            b.iter(||{
-                black_box(create_container_rect_par::<axgeom::XAXIS_S,_>(&mut bots));
-            });
-            
-        }
-
-        #[bench]
-        fn bench_rect(b:&mut Bencher){
-
-            let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
-
-            let mut bots=Vec::new();
-            for id in 0..100000{
-                let ppp=p.random_point();
-                let k=test_support::create_rect_from_point(ppp);
-                bots.push(BBox::new(Bot{id},k)); 
-            }
-            
-            b.iter(||{
-                black_box(create_container_rect::<axgeom::XAXIS_S,_>(&mut bots));
-            });
-            
-        }
-
-
-        pub fn create_container_rect_par<A:AxisTrait,T:HasAabb>(middile:&[T])->axgeom::Range<T::Num>{
-            use rayon::prelude::*;
-
-            {
-                let res=middile.split_first();
-
-                match res{
-                    Some((first,rest))=>{
-
-                        let first_ra=first.get().get_range2::<A>().clone();
-                        
-                        use smallvec::SmallVec;
-                        let mut vecs:SmallVec<[&[T];16]> =rest.chunks(2000).collect();
-
-                        let res:axgeom::Range<T::Num>=
-                            vecs.par_iter().map(|a|{create_container::<A,T>(a,first_ra)}).
-                            reduce(||first_ra,|a,b|merge(a,b));
-                        res
-                    },
-                    None=>{
-                        
-                        let d=std::default::Default::default();
-                        axgeom::Range{start:d,end:d}
-                    }
-
-                }
-            }
-        }
-
-        fn merge<T:NumTrait>(mut a:axgeom::Range<T>,b:axgeom::Range<T>)->axgeom::Range<T>{
-            a.grow_to_fit(&b);
-            a
-        }
-    }
-    */
-    
 }
