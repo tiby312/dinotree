@@ -61,7 +61,7 @@ mod fast_alloc{
             
             let mover={
 
-                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
+                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter(height).flat_map(|(node,_extra)|{
                     node.range.iter()
                 }).map(|a|a.index).collect();
 
@@ -124,46 +124,37 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         fast_alloc::new::<par::Sequential,treetimer::TreeTimerEmpty,_,_,_,_,_>(axis,n,bots,aabb_create).0
     }
 
-    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
-        fast_alloc::new::<par::Parallel,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create).0
+    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+        let a=fast_alloc::new::<par::Parallel,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create);
+        (a.0,(a.1).into_iter())
     }
 
-    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
-        fast_alloc::new::<par::Parallel,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create).0
+    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+        let a=fast_alloc::new::<par::Parallel,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create);
+        (a.0,(a.1).into_iter())
+        
     }
 }
 
+
 impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
     
-    pub fn into_fast_order(self)->impl ExactSizeIterator<Item=T>{
-        let mut ret=Vec::with_capacity(self.mover.0.len());
-        
-        for &bot in self.tree.get_iter().dfs_preorder_iter().flat_map(|(node,_)|{
-            node.range.iter()
-        }){
-            ret.push(bot)
-        }
-        assert_eq!(ret.len(),self.mover.0.len());
-        ret.into_iter()
-    }
 
     ///Returns the bots to their original ordering.
-    pub fn into_iter_orig_order(self)->impl ExactSizeIterator<Item=T>{
+    pub fn apply_orig_order<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
         
-        let mut ret=Vec::with_capacity(self.mover.0.len());
-        unsafe{ret.set_len(self.mover.0.len())};
-
+        assert_eq!(bots.len(),self.get_num_bots());
+        let height=self.get_height();
         let mut counter=0;
 
-        for (bot,mov) in self.tree.get_iter().dfs_preorder_iter().flat_map(|(node,_)|{
+        for (bot,mov) in self.tree.get_iter().dfs_preorder_iter(height).flat_map(|(node,_)|{
             node.range.iter()
         }).zip(self.mover.0.iter()){
-            ret[*mov as usize]=*bot;
+            let target=&mut bots[*mov as usize];
+            conv(bot,target);
             counter+=1;
         }
         assert_eq!(counter,self.mover.0.len());
-        ret.into_iter()
-
     }
 
     ///Transform the current tree to have a different extra component to each node.
@@ -208,13 +199,14 @@ impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
     pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut T>{
-        self.get_iter_mut().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut())
+        let height=self.get_height();
+        self.get_iter_mut().dfs_preorder_iter(height).flat_map(|(a,_)|a.range.iter_mut())
     }
 
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
     pub fn iter_every_bot<'a>(&'a self)->impl Iterator<Item=&'a T>{
-        self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
+        self.get_iter().dfs_preorder_iter(self.get_height()).flat_map(|(a,_)|a.range.iter())
     }
     
     
@@ -222,7 +214,7 @@ impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
     ///The first element is the number of bots in the root level.
     ///The last number is the fraction in the lowest level of the tree.
     ///Ideally the fraction of bots in the lower level of the tree is high.
-    pub fn compute_tree_health(&self)->Vec<f64>{
+    pub fn compute_tree_health(&self)->tree_health::LevelRatioIterator<N,T>{
         tree_health::compute_tree_health(self)
     }
 

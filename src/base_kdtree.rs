@@ -12,18 +12,15 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
     pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
         
         let mut ttree=compt::dfs_order::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
-            //Get rid of zero initialization???
             let rest=&mut [];
-            //let co=self::rect_make::create_container_rect::<A,_>(rest);
+            //Get rid of zero initialization???
             let div=unsafe{std::mem::uninitialized()};
             Node2{div,range:rest}
             
         },height);
 
         let bag={
-            //let level=ttree.get_level_desc();
             let j=ttree.create_down_mut().with_depth(Depth(0));
-            //let j=compt::LevelIter::new(ttree.create_down_mut(),level);
             let t=K::new(height);
 
             //on xps13 5 seems good
@@ -103,16 +100,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             }
             else
             {
-                let closure = |a: &T, b: &T| -> std::cmp::Ordering {
 
-                    let arr=a.get().get_range(div_axis);
-                    let brr=b.get().get_range(div_axis);
-              
-                    if arr.left > brr.left{
-                        return std::cmp::Ordering::Greater;
-                    
-                    }
-                    std::cmp::Ordering::Less
+                let closure = |a: &T, b: &T| -> std::cmp::Ordering {
+                    oned::compare_bots(div_axis,a,b)
                 };
 
                 let k={
@@ -120,7 +110,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                     pdqselect::select_by(rest, mm, closure);
                     &rest[mm]
                 };
-                //Some(k)
+
                 k.get().get_range(div_axis).left
             };
 
@@ -131,8 +121,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             //If this were not true, there is no guarentee that the middile bin has bots in it even
             //though we did pick a divider.
             let binned=oned::bin_middle_left_right(div_axis,&med,rest);
-            //TODO turn into debug assert
-            assert!(binned.middle.len()!=0);
+            
+            debug_assert!(binned.middle.len()!=0);
             
             
                     
@@ -147,14 +137,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             let (ta,tb)=timer_log.next();
 
             let (nj,ba,bb)=if !dlevel.should_switch_to_sequential(level){
-                //println!("Parallel! {:?}",level.0);
                 let ((nj,ba),bb)={
-                    
                     let af=move || {
-
+                        //We already know that the middile is non zero in length.
+                        let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
+                        
                         sweeper_update(div_axis.next(),binned_middle);
-                        //TODO use unsafe unwrap?
-                        let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
                         let n:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
                     
                         let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
@@ -168,22 +156,40 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
                 }; 
                 (nj,ba,bb)
             }else{
-                //println!("Sequential {:?}",level.0);
+                //We already know that the middile is non zero in length.
+                let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
+                
                 sweeper_update(div_axis.next(),binned_middle);
-                //TODO use unsafe???
-                let container_box=rect_make::create_container_rect(div_axis,binned_middle).unwrap();
                 let nj=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
                 let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
                 let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
                 (nj,ba,bb)
             };
-
-            //Its uninitialized.
-            std::mem::forget(&*nn);
             *nn=nj;
             K::combine(ba,bb)
         }
     }
+}
+
+
+///The slice that is passed MUST NOT BE ZERO LENGTH!!!
+pub unsafe fn create_cont_non_zero_unchecked<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>{
+  
+     let left=match middle.iter().min_by(|a,b|{
+        a.get().get_range(axis).left.cmp(&b.get().get_range(axis).left)
+     }){
+        Some(x)=>x,
+        None=>std::hint::unreachable_unchecked()
+     };
+
+     let right=match middle.iter().max_by(|a,b|{
+        a.get().get_range(axis).right.cmp(&b.get().get_range(axis).right)
+     }){
+        Some(x)=>x,
+        None=>std::hint::unreachable_unchecked()
+     };
+
+     axgeom::Range{left:left.get().get_range(axis).left,right:right.get().get_range(axis).right}    
 }
 
 mod rect_make{
@@ -276,35 +282,4 @@ mod rect_make{
     }
     */
     
-
-    pub fn create_container_rect<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
-        
-        {
-            let res=middile.split_first();
-
-            match res{
-                Some((first,rest))=>{
-
-                    let first_ra=first.get().get_range(axis).clone();
-                    
-                    Some(create_container(axis,rest,first_ra))
-                },
-                None=>{
-                    None
-                    //panic!("trying to create container rect of empty list!");
-                    //let d=std::default::Default::default();
-                    //axgeom::Range{start:d,end:d}
-                }
-
-            }
-        }
-    }
-    fn create_container<A:AxisTrait,T:HasAabb>(axis:A,rest:&[T],mut container_rect:axgeom::Range<T::Num>)->axgeom::Range<T::Num>{
-        
-        for i in rest{
-            container_rect.grow_to_fit(i.get().get_range(axis));
-        }
-        container_rect
-   
-    }
 }

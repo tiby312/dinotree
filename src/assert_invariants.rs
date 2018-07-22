@@ -59,7 +59,7 @@ fn inner<A:AxisTrait,N,T:HasAabb>(axis:A,iter:compt::LevelIter<NdIter<N,T>>)->Re
                 },
                 None=>{
                     assert2!(nn.range.is_empty());
-                    for ((_depth,n),e) in left.dfs_preorder_iter().chain(right.dfs_preorder_iter()){
+                    for ((_depth,n),e) in left.dfs_preorder_iter(0).chain(right.dfs_preorder_iter(0)){
                         assert2!(e.is_none());
                         assert2!(n.range.is_empty());
                     }

@@ -32,7 +32,6 @@ mod inner_prelude{
 
 ///Contains tree level by level timing collection code. Not intended to be used directly by the user.
 ///Used by algorithms that operate on the tree. 
-#[doc(hidden)]
 pub mod treetimer;
 
 ///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.

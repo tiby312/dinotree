@@ -51,7 +51,6 @@ enum Node2<N,T:HasAabb>{
 
 
 //Unsafely implement sync. even though contains do not impelemnt sync.
-//This is safe to do because TODO reason??
 unsafe impl<N,T:HasAabb> Sync for Node2<N,T>{}
 unsafe impl<N:Send,T:HasAabb+Send> Send for Node2<N,T>{}
 
@@ -76,9 +75,6 @@ struct NodeDstDyn<N,T:HasAabb>{
 }
 
 unsafe impl<N:Send,T:HasAabb+Send> Send for NodeDstDyn<N,T>{}
-//unsafe impl<N:Sync,T:HasAabb+Sync> Sync for NodeDstDyn<N,T>{}
-//Unsafely implement sync. even though contains do not impelemnt sync.
-//This is safe to do because TODO reason??
 unsafe impl<N,T:HasAabb> Sync for NodeDstDyn<N,T>{}
 
 

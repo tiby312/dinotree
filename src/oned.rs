@@ -512,11 +512,7 @@ pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
 
     let (rest,right)=bots.split_at_mut(left_end);
     let (middle,left)=rest.split_at_mut(middle_end);
-//println!("num_bots={:?}",(left.len(),middile.len(),right.len()));
-    
     debug_assert!(left.len()+right.len()+middle.len()==bot_len);
-    //debug_assert!(bot_len==index_at,"{:?} ,{:?}",bot_len,index_at);
-
     Binned{left:left,middle:middle,right:right}
 }
 
@@ -541,15 +537,16 @@ pub fn is_sorted<A:AxisTrait,I:HasAabb>(axis:A,collision_botids:&[I]){
 }
 */
 
+pub fn compare_bots<T:HasAabb>(axis:impl AxisTrait,a:&T,b:&T)->std::cmp::Ordering{
+    let (p1,p2)=(a.get().get_range(axis).left,b.get().get_range(axis).left);
+    if p1 > p2 {
+        return std::cmp::Ordering::Greater;
+    }
+    std::cmp::Ordering::Less
+}
+
 ///Sorts the bots.
 pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
-    let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
-        let (p1,p2)=(a.get().get_range(axis).left,b.get().get_range(axis).left);
-        if p1 > p2 {
-            return std::cmp::Ordering::Greater;
-        }
-        std::cmp::Ordering::Less
-    };
 
     for i in 0..values.len() {
         for j in (0..i).rev() {
@@ -557,7 +554,7 @@ pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
                 let a=values.get_unchecked_mut(j) as *mut I;
                 let b=values.get_unchecked_mut(j+1) as *mut I;
             
-                if sclosure(&*a,&*b)==std::cmp::Ordering::Greater {
+                if compare_bots(axis,&*a,&*b)==std::cmp::Ordering::Greater {
                     std::ptr::swap(a,b)
                 } else {
                     break
@@ -570,51 +567,10 @@ pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
 pub fn sweeper_update<I:HasAabb,A:AxisTrait>(axis:A,collision_botids: &mut [I]) {
 
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {
-        let (p1,p2)=(a.get().get_range(axis).left,b.get().get_range(axis).left);
-        if p1 > p2 {
-            return std::cmp::Ordering::Greater;
-        }
-        std::cmp::Ordering::Less
+        compare_bots(axis,a,b)
     };
-    /*
-    if JJ::new().is_parallel(){
-        //let p=collision_botids.par_iter_mut();
-        //p.par_sort_unstable_by(sclosure);
-        struct Bo<'a,I:HasAabb+'a>(&'a mut [I]);
-
-        impl<'a,I:HasAabb+'a> ParallelSliceMut<I> for Bo<'a,I>{
-            fn as_parallel_slice_mut(&mut self) -> &mut [I]{
-                self.0
-            }
-        }
-
-        Bo(collision_botids).par_sort_unstable_by(sclosure);
-
-    }else{
-        */
-        /*
-        fn selection_sort<T,B:Ord,F:FnMut(&T)->B>(array: &mut [T],mut func:F) {
-            let len = array.len();
-            for i in 0..len {
-
-                let min = i+array[i..].iter().enumerate().min_by_key(|x| func(x.1))
-                                  .unwrap().0;
-                array.swap(min, i);
-            }
-        }
-
-        //use selection sort to minimize number of swaps since we are sorting
-        //large objects.
-        let ss=|a:&I|->I::Num{
-            let p1=Accessor::<A>::get(a.get()).left();
-            p1
-        };
-        selection_sort(collision_botids,ss);
-        */
-        
-        collision_botids.sort_unstable_by(sclosure);
-    //}
-    //debug_assert!(Self::assert_sorted(collision_botids,accessor));
+ 
+    collision_botids.sort_unstable_by(sclosure);
 }
 
 #[test]

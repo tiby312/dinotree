@@ -1,6 +1,22 @@
  use super::*;
 
 
+pub struct TreeTimeResultIterator(
+    std::vec::IntoIter<f64>
+);
+impl std::iter::FusedIterator for TreeTimeResultIterator{}
+impl std::iter::ExactSizeIterator for TreeTimeResultIterator{}
+impl Iterator for TreeTimeResultIterator{
+    type Item=f64;
+    fn next(&mut self)->Option<Self::Item>{
+        self.0.next()
+    }
+    fn size_hint(&self)->(usize,Option<usize>){
+        self.0.size_hint()
+    }
+}
+
+
 ///Used for debugging performance. The user does not need to worry about this.
 ///It is exposesed so that the algorithms that operate on this tree may also use this funcionality.
 pub trait TreeTimerTrait:Sized+Send{
@@ -41,8 +57,8 @@ pub struct Bag{
     a:Vec<f64>
 }
 impl Bag{
-    pub fn into_vec(self)->Vec<f64>{
-        self.a
+    pub fn into_iter(self)->TreeTimeResultIterator{
+        TreeTimeResultIterator(self.a.into_iter())
     }
 }
 
