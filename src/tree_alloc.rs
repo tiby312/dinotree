@@ -5,9 +5,13 @@ use HasAabb;
 use std::marker::PhantomData;
 
 pub use self::new::*;
+
+
 mod new{
+    use std::ptr::Unique;
     //TODO give compiler more information about aliasing somehow????????????
-    
+  
+
     #[repr(C)]
     struct ReprMut<T>{
         ptr:*mut T,
@@ -44,12 +48,17 @@ mod new{
         pub div:N,
         pub cont:axgeom::Range<N> 
     }
-    struct Marker([u8]);
+
+
+    //This works by inferring the type based on the height.
+    //Depending on the height, we will transmute a pointer to this marker type
+    //to either a nonleaf or leaf type.
+    struct Marker<N,T:HasAabb>(PhantomData<(N,T)>,[u8]);
 
 
     use super::*;
     struct NodeDstDyn<N,T:HasAabb>{
-        pub next_nodes:[*mut Marker;2],
+        pub next_nodes:(Unique<Marker<N,T>>,Unique<Marker<N,T>>),
         pub comp:FullComp<T::Num>,
         pub node:NodeDyn<N,T>
     }
@@ -58,17 +67,16 @@ mod new{
     /// Tree Iterator that returns a reference to each node.
     /// It also returns the non-leaf specific data when it applies.
     pub struct NdIter<'a,N:'a,T:HasAabb+'a>{
-        ptr:*const Marker,
+        ptr:&'a Unique<Marker<N,T>>,
         height:usize,
-        depth:usize,
-        _p:PhantomData<&'a (N,T)>
+        depth:usize
     }
 
     impl<'a,N:'a,T:HasAabb+'a> NdIter<'a,N,T>{
         ///It is safe to borrow the iterator and then produce mutable references from that
         ///as long as by the time the borrow ends, all the produced references also go away.
         pub fn create_wrap<'b>(&'b mut self)->NdIter<'b,N,T>{
-            NdIter{ptr:self.ptr,height:self.height,depth:self.depth,_p:PhantomData}
+            NdIter{ptr:self.ptr,height:self.height,depth:self.depth}
         }
     }
 
@@ -78,7 +86,7 @@ mod new{
         fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
             let height=self.height;
             if self.depth<self.height-1{
-                let node:&'a NodeDstDyn<N,T>=unsafe{std::mem::transmute(self.ptr)};
+                let node:&'a NodeDstDyn<N,T>=unsafe{std::mem::transmute(*self.ptr)};
 
                 let nn=if node.node.range.is_empty(){
                     None
@@ -86,36 +94,30 @@ mod new{
                     Some(&node.comp)
                 };
 
-                let stuff=(nn,NdIter{ptr:node.next_nodes[0],depth:self.depth+1,height,_p:PhantomData},
-                NdIter{ptr:node.next_nodes[1],depth:self.depth+1,height,_p:PhantomData});
+                let stuff=(nn,NdIter{ptr:&node.next_nodes.0,depth:self.depth+1,height},
+                NdIter{ptr:&node.next_nodes.1,depth:self.depth+1,height});
                 (&node.node,Some(stuff))
             }else{
-                let node:&'a NodeDyn<N,T>=unsafe{std::mem::transmute(self.ptr)};
+                let node:&'a NodeDyn<N,T>=unsafe{std::mem::transmute(*self.ptr)};
                 (node,None)
             }
             
         }
     }
-    unsafe impl<'a,N:Send,T:HasAabb+Send> Send for NdIter<'a,N,T>{}
-    unsafe impl<'a,N:Sync,T:HasAabb+Sync> Sync for NdIter<'a,N,T>{}
-
-    unsafe impl<'a,N:Send,T:HasAabb+Send> Send for NdIterMut<'a,N,T>{}
-    unsafe impl<'a,N:Sync,T:HasAabb+Sync> Sync for NdIterMut<'a,N,T>{}
-
+    
     /// Tree Iterator that returns a reference to each node.
     /// It also returns the non-leaf specific data when it applies.
     pub struct NdIterMut<'a,N:'a,T:HasAabb+'a>{
-        ptr:*mut Marker,
+        ptr:&'a mut Unique<Marker<N,T>>,
         height:usize,
-        depth:usize,
-        _p:PhantomData<&'a mut (N,T)>
+        depth:usize
     }
 
     impl<'a,N:'a,T:HasAabb+'a> NdIterMut<'a,N,T>{
         ///It is safe to borrow the iterator and then produce mutable references from that
         ///as long as by the time the borrow ends, all the produced references also go away.
         pub fn create_wrap_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
-            NdIterMut{ptr:self.ptr,height:self.height,depth:self.depth,_p:PhantomData}
+            NdIterMut{ptr:self.ptr,height:self.height,depth:self.depth}
         }
     }
 
@@ -125,7 +127,7 @@ mod new{
         fn next(self)->(Self::Item,Option<(Self::Extra,Self,Self)>){
             let height=self.height;
             if self.depth<self.height-1{
-                let node:&'a mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(self.ptr)};
+                let node:&'a mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(*self.ptr)};
 
                 let nn=if node.node.range.is_empty(){
                     None
@@ -133,11 +135,11 @@ mod new{
                     Some(&node.comp)
                 };
 
-                let stuff=(nn,NdIterMut{ptr:node.next_nodes[0],depth:self.depth+1,height,_p:PhantomData},
-                NdIterMut{ptr:node.next_nodes[1],depth:self.depth+1,height,_p:PhantomData});
+                let stuff=(nn,NdIterMut{ptr:&mut node.next_nodes.0,depth:self.depth+1,height},
+                NdIterMut{ptr:&mut node.next_nodes.1,depth:self.depth+1,height});
                 (&mut node.node,Some(stuff))
             }else{
-                let node:&'a mut NodeDyn<N,T>=unsafe{std::mem::transmute(self.ptr)};
+                let node:&'a mut NodeDyn<N,T>=unsafe{std::mem::transmute(*self.ptr)};
                 (node,None)
             }
             
@@ -146,16 +148,10 @@ mod new{
 
 
     pub struct TreeAllocDstDfsOrder<N,T:HasAabb>{
-        _vec:Option<Vec<u8>>,
-        root:*mut Marker,
-        height:usize,
-        _p:PhantomData<(N,T)>
+        _vec:Vec<u8>,
+        root:Unique<Marker<N,T>>,
+        height:usize
     }
-
-    unsafe impl<N:Send,T:HasAabb+Send> Send for TreeAllocDstDfsOrder<N,T>{}
-    unsafe impl<N:Sync,T:HasAabb+Sync> Sync for TreeAllocDstDfsOrder<N,T>{}
-    use std::rc::Rc;
-
 
     #[derive(Debug)]
     struct SizRet{
@@ -166,11 +162,11 @@ mod new{
     impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
         pub fn get_iter_mut<'b>(&'b mut self)->NdIterMut<'b,N,T>{
-            NdIterMut{ptr:self.root,depth:0,height:self.height,_p:PhantomData}
+            NdIterMut{ptr:&mut self.root,depth:0,height:self.height}
         }
 
         pub fn get_iter<'b>(&'b self)->NdIter<'b,N,T>{
-            NdIter{ptr:self.root,depth:0,height:self.height,_p:PhantomData}
+            NdIter{ptr:&self.root,depth:0,height:self.height}
         }
 
         //fn compute_alignment_and_size()->(usize,usize){
@@ -241,7 +237,7 @@ mod new{
                 _alignment:usize
             }
             impl Counter{
-                fn add_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->std::ptr::NonNull<NodeDyn<N,T>>{
+                fn add_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->Unique<NodeDyn<N,T>>{
                     let len=constructor.it.len();
                     let dst:&mut NodeDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                     
@@ -251,10 +247,10 @@ mod new{
                     dst.misc=constructor.misc;
 
                     self.counter=unsafe{&mut *(self.counter).add(std::mem::size_of_val(dst))};
-                    unsafe{std::ptr::NonNull::new_unchecked(dst)}
+                    unsafe{Unique::new_unchecked(dst)}
                 
                 }
-                fn add_non_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>,cc:ExtraConstructor<T::Num>)->std::ptr::NonNull<NodeDstDyn<N,T>>{
+                fn add_non_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>,cc:ExtraConstructor<T::Num>)->Unique<NodeDstDyn<N,T>>{
                     let len=constructor.it.len();
                     let dst:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                     
@@ -276,7 +272,7 @@ mod new{
 
                     self.counter=unsafe{&mut *(self.counter).add(std::mem::size_of_val(dst))};
 
-                    unsafe{std::ptr::NonNull::new_unchecked(dst)}
+                    unsafe{Unique::new_unchecked(dst)}
                 }
             }
 
@@ -288,11 +284,11 @@ mod new{
             assert_eq!(cc.counter as usize,start_addr as *mut u8 as usize+cap);
 
 
-            return TreeAllocDstDfsOrder{_vec:Some(vec),root,height,_p:PhantomData};
+            return TreeAllocDstDfsOrder{_vec:vec,root:unsafe{Unique::new_unchecked(root)},height};
 
 
             fn recc<N,T:HasAabb,I:ExactSizeIterator<Item=T>>
-                (it:impl CTreeIterator<Item=LeafConstructor<N,T,I>,Extra=ExtraConstructor<T::Num>>,counter:&mut Counter)->*mut Marker{
+                (it:impl CTreeIterator<Item=LeafConstructor<N,T,I>,Extra=ExtraConstructor<T::Num>>,counter:&mut Counter)->*mut Marker<N,T>{
                 
                 let (nn,rest)=it.next();
                 
@@ -306,15 +302,17 @@ mod new{
 
                         let right=recc(right,counter);
                         
-                        unsafe{node.as_mut()}.next_nodes=[left as *mut Marker,right as *mut Marker];
+                        let ll=unsafe{Unique::new_unchecked(left)};
+                        let rr=unsafe{Unique::new_unchecked(right)};
+                        unsafe{node.as_mut()}.next_nodes=(ll,rr);
 
                     
-                        node.as_ptr() as *mut Marker
+                        node.as_ptr() as *mut Marker<N,T>
                     },
                     None=>{
                         let mut node=counter.add_leaf_node(nn);
                         
-                        node.as_ptr() as *mut Marker
+                        node.as_ptr() as *mut Marker<N,T>
                     }
                 };   
             }

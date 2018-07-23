@@ -1,5 +1,5 @@
 //! Provides the dinotree data structure and ways to traverse it.
-
+ #![feature(ptr_internals)]
  #![feature(align_offset)]
 #![feature(iterator_step_by)]
 #![feature(test)]
