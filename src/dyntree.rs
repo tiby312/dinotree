@@ -61,7 +61,7 @@ mod fast_alloc{
             
             let mover={
 
-                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter(height).flat_map(|(node,_extra)|{
+                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
                     node.range.iter()
                 }).map(|a|a.index).collect();
 
@@ -100,7 +100,7 @@ mod fast_alloc{
             let tree=DynTree{mover,tree:fb};
 
 
-            debug_assert!(tree.are_invariants_met().is_ok());
+            //debug_assert!(tree.are_invariants_met().is_ok());
             (tree,_bag)
         }
     }
@@ -144,10 +144,9 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
     pub fn apply_orig_order<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
         
         assert_eq!(bots.len(),self.get_num_bots());
-        let height=self.get_height();
         let mut counter=0;
 
-        for (bot,mov) in self.tree.get_iter().dfs_preorder_iter(height).flat_map(|(node,_)|{
+        for (bot,mov) in self.tree.get_iter().dfs_preorder_iter().flat_map(|(node,_)|{
             node.range.iter()
         }).zip(self.mover.0.iter()){
             let target=&mut bots[*mov as usize];
@@ -193,20 +192,29 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
     }
 }
 
+
+impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T> where T::Num : std::fmt::Debug{
+    ///Returns Ok, then this tree's invariants are being met.
+    ///Should always return true, unless the user corrupts the trees memory
+    ///or if the contract of the HasAabb trait are not upheld.
+    pub fn are_invariants_met(&self)->Result<(),()>{
+        assert_invariants::are_invariants_met(self)
+    }
+}
+
 impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
 
     ///Iterate over al the bots in the tree. The order in which they are iterated is not important.
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
     pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut T>{
-        let height=self.get_height();
-        self.get_iter_mut().dfs_preorder_iter(height).flat_map(|(a,_)|a.range.iter_mut())
+        self.get_iter_mut().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut())
     }
 
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
     pub fn iter_every_bot<'a>(&'a self)->impl Iterator<Item=&'a T>{
-        self.get_iter().dfs_preorder_iter(self.get_height()).flat_map(|(a,_)|a.range.iter())
+        self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
     }
     
     
@@ -218,12 +226,7 @@ impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
         tree_health::compute_tree_health(self)
     }
 
-    ///Returns Ok, then this tree's invariants are being met.
-    ///Should always return true, unless the user corrupts the trees memory
-    ///or if the contract of the HasAabb trait are not upheld.
-    pub fn are_invariants_met(&self)->Result<(),()>{
-        assert_invariants::are_invariants_met(self)
-    }
+
     ///Get the axis of the starting divider.
     ///If this were the x axis, for example, the first dividing line would be from top to bottom,
     ///partitioning the bots by their x values.
@@ -250,6 +253,9 @@ impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
     ///Returns the number of bots that are in the tree.
     pub fn get_num_bots(&self)->usize{
         self.tree.num_bots
+    }
+    pub fn get_num_nodes(&self)->usize{
+        self.tree.num_nodes
     }
 }
 

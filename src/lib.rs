@@ -2,6 +2,7 @@
  #![feature(ptr_internals)]
  #![feature(align_offset)]
 #![feature(iterator_step_by)]
+#![feature(trusted_len)]
 #![feature(test)]
 extern crate axgeom;
 extern crate compt;
@@ -108,6 +109,7 @@ pub use dyntree::BBox;
 ///This case is true for DynTreeExt.
 ///Its suggested that the user use visilibty to hide the underlying aabb from being modified during
 ///the query of the tree.
+///TODO mark as unsafe trait???
 pub trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
@@ -119,9 +121,4 @@ pub trait IsPoint{
   type Num:NumTrait;
   fn get_center(&self)->[Self::Num;2];
 }
-
-
-
-#[cfg(test)]
-mod test_support;
 

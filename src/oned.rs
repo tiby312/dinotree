@@ -11,7 +11,7 @@ pub struct Binned<'a,T:'a>{
 }
 
 
-
+/*
 #[test]
 fn test_binning(){
     use test_support::*;
@@ -51,6 +51,7 @@ fn test_binning(){
         assert!(r.start<=div && r.end>=div);
     }
 }
+*/
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right

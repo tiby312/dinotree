@@ -5,7 +5,7 @@ pub struct TreeTimeResultIterator(
     std::vec::IntoIter<f64>
 );
 impl std::iter::FusedIterator for TreeTimeResultIterator{}
-impl std::iter::ExactSizeIterator for TreeTimeResultIterator{}
+unsafe impl std::iter::TrustedLen for TreeTimeResultIterator{}
 impl Iterator for TreeTimeResultIterator{
     type Item=f64;
     fn next(&mut self)->Option<Self::Item>{
