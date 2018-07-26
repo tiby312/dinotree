@@ -30,4 +30,26 @@ fn test(){
 	assert_eq!(tree.get_iter_mut().dfs_preorder_iter().size_hint().0,num_nodes);
 
 	assert_eq!(tree.get_iter().bfs_iter().size_hint().0,num_nodes);
+
+
+	recc(tree.get_iter_mut());
+	//recursively check that the length is correct at each node.
+	fn recc(a:NdIterMut<(),BBox<isize,usize>>){
+		let (_nn,rest)=a.next();
+		match rest{
+			Some((_extra,mut left,mut right))=>{
+				{
+					let left=left.create_wrap_mut();
+					let right=right.create_wrap_mut();
+					assert_length(left.dfs_preorder_iter());
+					assert_length(right.dfs_preorder_iter());
+				}
+				recc(left);
+				recc(right);
+			},
+			None=>{
+
+			}
+		}
+	}
 }
