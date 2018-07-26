@@ -34,14 +34,21 @@ mod new{
     ///The common struct between leaf nodes and non leaf nodes.
     ///It is a dynamically sized type.
     pub struct NodeDyn<N,T:HasAabb>{
+        ///Some tree query algorithms need memory on a per node basis.
+        ///By embedding the memory directly in the tree we gain very good memory locality.
         pub misc:N,
+        
+        ///The list of bots. Sorted along the alternate axis for that level of the tree.
         pub range:[T]
     }
 
     ///A struct that contains data that only non leaf nodes contain.
     #[derive(Copy,Clone)]
     pub struct FullComp<N:NumTrait>{
+        ///The position of the splitting line for this node.
         pub div:N,
+        ///The 1d bounding box for this node. All bots that intersect the splitting line are 
+        ///within this bounding box.
         pub cont:axgeom::Range<N> 
     }
 

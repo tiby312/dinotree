@@ -16,7 +16,7 @@ pub struct BBox<N:NumTrait,T>{
     pub inner:T
 }
 
-impl<N:NumTrait,T> HasAabb for BBox<N,T>{
+unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     type Num=N;
     fn get(&self)->&Rect<Self::Num>{
         &self.rect
@@ -39,7 +39,7 @@ mod fast_alloc{
             rect:Rect<N>,
             pub index:u32
         }
-        impl<N:NumTrait> HasAabb for Cont2<N>{
+        unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
             type Num=N;
             fn get(&self)->&Rect<N>{
                 &self.rect

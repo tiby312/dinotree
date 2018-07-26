@@ -49,6 +49,7 @@ mod tree_alloc;
 mod assert_invariants;
 
 mod tree_health;
+pub use tree_health::LevelRatioIterator;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
@@ -65,6 +66,9 @@ mod tools;
 ///Returns the height of a dyn tree for a given number of bots.
 ///The height is chosen such that the leaf nodes will have a small amount of bots.
 ///If we had a node per bot, the tree would be too big. 
+///
+///This is provided so that users can allocate enough space for all the nodes
+///before the tree is constructed, perhaps for some graphics buffer.
 pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
     //we want each node to have space for around 300 bots.
@@ -82,6 +86,9 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 
 ///The underlying number type used for the dinotree.
+///It is auto implemented by all types that satisfy the type constraints.
+///Notice that no arithmatic is possible. The tree is constructed
+///using only comparisons and copying.
 pub trait NumTrait:Ord+Copy+Send+Sync{}
 
 impl<T> NumTrait for T
@@ -96,21 +103,19 @@ pub use tree_alloc::NdIterMut;
 pub use dyntree::BBox;
 
 
-///Marker trait.
-///Elements that are inserted into the tree must have a bounding box.
-///Additionally to implemnting get(), implementors must not change their 
-///bounding boxes while inserted into the tree.
-///So the Rect returns by get(), must always be the same once the object is inserted
-///into the tree.
+///Marker trait to signify that this object has an axis aligned bounding box.
+///Additionally the aabb must not change while the object is contained in the tree.
 ///Not doing so would violate invariants of the tree, and would thus make all the 
 ///query algorithms performed on the tree would not be correct.
-///In some cases, violating this rule might even lead to undefined behavior.
-///Some algorithms traverse the tree reading the elements aabb, while the user has a mutable reference to an element.
-///This case is true for DynTreeExt.
-///Its suggested that the user use visilibty to hide the underlying aabb from being modified during
-///the query of the tree.
-///TODO mark as unsafe trait???
-pub trait HasAabb{
+///
+///Not only will the algorithms not be correct, but undefined behavior may be introduced.
+///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
+///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
+///
+///The user is suggested to not ever implemented this. Instead use the DynTree builder.
+///The builder will construct a tree of elements wrapped in a Bounding Box where the aabb
+///is protected from being modified via visibility.
+pub unsafe trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
