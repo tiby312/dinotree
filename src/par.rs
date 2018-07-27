@@ -2,7 +2,7 @@ use rayon;
 use compt::Depth;
 
 pub trait Joiner:Send+Sync+Copy+Clone{
-    fn new(d:Depth)->Self;
+    //fn new(d:Depth)->Self;
     fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB);
     //fn is_parallel(&self)->bool;
     fn into_seq(&self)->Sequential;
@@ -11,11 +11,13 @@ pub trait Joiner:Send+Sync+Copy+Clone{
 
 #[derive(Copy,Clone)]
 pub struct Parallel(pub Depth);
-impl Joiner for Parallel{
-    fn new(d:Depth)->Self{
+impl Parallel{
+    pub fn new(d:Depth)->Self{
       Parallel(d)
     }
-
+}
+impl Joiner for Parallel{
+  
     fn into_seq(&self)->Sequential{
       Sequential
     }
@@ -34,9 +36,7 @@ impl Joiner for Parallel{
 #[derive(Copy,Clone)]
 pub struct Sequential;
 impl Joiner for Sequential{
-    fn new(_:Depth)->Self{
-      Sequential
-    }
+
     fn into_seq(&self)->Sequential{
       Sequential
     }

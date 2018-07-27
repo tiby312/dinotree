@@ -32,8 +32,8 @@ impl<N:NumTrait,T:IsPoint<Num=N>> IsPoint for BBox<N,T>{
 
 mod fast_alloc{
     use super::*;
-    pub fn new<JJ:par::Joiner,K:TreeTimerTrait,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F)->(DynTree<A,N,BBox<Num,T>>,K::Bag){   
-        let height=compute_tree_height_heuristic(bots.len());
+    pub fn new<JJ:par::Joiner,K:TreeTimerTrait,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:K,height:usize,par:JJ)->(DynTree<A,N,BBox<Num,T>>,K::Bag){   
+        
 
         pub struct Cont2<N:NumTrait>{
             rect:Rect<N>,
@@ -55,54 +55,47 @@ mod fast_alloc{
             Cont2{rect:aabb_create(k),index:index as u32}
         }).collect();
         
-        {
-            let (mut tree2,_bag)=KdTree::new::<JJ,K>(axis,&mut conts,height);
-            
-            
-            let mover={
-
-                let kk:Vec<u32>=tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
-                    node.range.iter()
-                }).map(|a|a.index).collect();
-
-                Mover(kk)
-            };
-            
-
-            let height=tree2.get_tree().get_height();                
-            let num_nodes=tree2.get_tree().get_nodes().len();
+    
+        let (mut tree2,_bag)=KdTree::new(axis,&mut conts,height,ka,par);
+        
+        let mover=Mover(tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
+            node.range.iter()
+        }).map(|a|a.index).collect());
 
 
-            let tree={
-                let ii=tree2.get_tree_mut().create_down_mut().map(|node,eextra|{
-                    let l=tree_alloc::LeafConstructor{misc:n,it:node.range.iter_mut().map(|b|{
-                        BBox{rect:b.rect,inner:bots[b.index as usize]}
-                    })};
+        let height=tree2.get_tree().get_height();                
+        let num_nodes=tree2.get_tree().get_nodes().len();
 
-                    let extra=match eextra{
-                        Some(())=>{
-                            Some(tree_alloc::ExtraConstructor{
-                                comp:Some(node.div)
-                            })
-                        },
-                        None=>{
-                            None
-                        }
-                    };
 
-                    (l,extra)
-                });
+        let ii=tree2.get_tree_mut().create_down_mut().map(|node,eextra|{
+            let l=tree_alloc::LeafConstructor{misc:n,it:node.range.iter_mut().map(|b|{
+                BBox{rect:b.rect,inner:bots[b.index as usize]}
+            })};
 
-                TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots)
+            let extra=match eextra{
+                Some(())=>{
+                    Some(tree_alloc::ExtraConstructor{
+                        comp:Some(node.div)
+                    })
+                },
+                None=>{
+                    None
+                }
             };
 
-            let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
-            let tree=DynTree{mover,tree:fb};
+            (l,extra)
+        });
+
+        let tree = TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots);
+        
+
+        let fb=DynTreeRaw{axis,height,num_nodes,num_bots,alloc:tree};
+        let tree=DynTree{mover,tree:fb};
 
 
-            //debug_assert!(tree.are_invariants_met().is_ok());
-            (tree,_bag)
-        }
+        //debug_assert!(tree.are_invariants_met().is_ok());
+        (tree,_bag)
+        
     }
 }
 
@@ -117,22 +110,56 @@ pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
     
 
-    pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
-        fast_alloc::new::<par::Parallel,treetimer::TreeTimerEmpty,_,_,_,_,_>(axis,n,bots,aabb_create).0
+    pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{  
+        let height=compute_tree_height_heuristic(bots.len()); 
+        let ka=TreeTimerEmpty;
+
+
+        //on xps13 5 seems good
+        const DEPTH_SEQ:usize=6;
+
+        let gg=if height<=DEPTH_SEQ{
+            0
+        }else{
+            height-DEPTH_SEQ
+        };
+        
+        let dlevel=par::Parallel::new(Depth(gg));
+
+        fast_alloc::new(axis,n,bots,aabb_create,ka,height,dlevel).0
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
-        fast_alloc::new::<par::Sequential,treetimer::TreeTimerEmpty,_,_,_,_,_>(axis,n,bots,aabb_create).0
+        let height=compute_tree_height_heuristic(bots.len()); 
+        let ka=TreeTimerEmpty;
+        fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
     pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let a=fast_alloc::new::<par::Parallel,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create);
+        let height=compute_tree_height_heuristic(bots.len()); 
+        let ka=TreeTimer2::new(height);
+
+
+        //on xps13 5 seems good
+        const DEPTH_SEQ:usize=6;
+
+        let gg=if height<=DEPTH_SEQ{
+            0
+        }else{
+            height-DEPTH_SEQ
+        };
+        
+        let dlevel=par::Parallel::new(Depth(gg));
+
+
+        let a=fast_alloc::new(axis,n,bots,aabb_create,ka,height,dlevel);
         (a.0,(a.1).into_iter())
     }
 
     pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let a=fast_alloc::new::<par::Sequential,treetimer::TreeTimer2,_,_,_,_,_>(axis,n,bots,aabb_create);
-        (a.0,(a.1).into_iter())
-        
+        let height=compute_tree_height_heuristic(bots.len()); 
+        let ka=TreeTimer2::new(height);
+        let a=fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential);
+        (a.0,(a.1).into_iter())   
     }
 }
 

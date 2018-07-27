@@ -9,7 +9,7 @@ pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
 
 impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize) -> (KdTree<'a,A,T>,K::Bag) {
+    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize,t:K,par:JJ) -> (KdTree<'a,A,T>,K::Bag) {
         
         let mut ttree=compt::dfs_order::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
             let rest=&mut [];
@@ -21,22 +21,10 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
         let bag={
             let j=ttree.create_down_mut().with_depth(Depth(0));
-            let t=K::new(height);
 
-            //on xps13 5 seems good
-            const DEPTH_SEQ:usize=6;
-
-            let gg=if height<=DEPTH_SEQ{
-                0
-            }else{
-                height-DEPTH_SEQ
-            };
-            
-            let dlevel=JJ::new(Depth(gg));
-            self::recurse_rebal::<A,T,JJ,K>(axis,dlevel,rest,j,t)
+            self::recurse_rebal::<A,T,JJ,K>(axis,par,rest,j,t)
         };
-
-
+        
         (KdTree{tree:ttree,_p:PhantomData},bag)
     }
 

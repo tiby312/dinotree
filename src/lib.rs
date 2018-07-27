@@ -26,15 +26,11 @@ mod inner_prelude{
   pub use par;
   pub use axgeom::AxisTrait;
   pub use std::marker::PhantomData;
-  pub use treetimer::*;
+  pub use compt::timer::*;
   pub use NumTrait;
   pub use *;
   pub use tree_alloc::NodeDyn;
 }
-
-///Contains tree level by level timing collection code. Not intended to be used directly by the user.
-///Used by algorithms that operate on the tree. 
-pub mod treetimer;
 
 ///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
 ///Used by algorithms that operate on the tree.
@@ -59,8 +55,6 @@ mod dyntree;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
-///Contains misc tools
-mod tools;
 
 
 ///Returns the height of a dyn tree for a given number of bots.
