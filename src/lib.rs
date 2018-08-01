@@ -1,6 +1,6 @@
 //! Provides the dinotree data structure and ways to traverse it.
- #![feature(ptr_internals)]
- #![feature(align_offset)]
+#![feature(ptr_internals)]
+#![feature(align_offset)]
 #![feature(iterator_step_by)]
 #![feature(trusted_len)]
 #![feature(test)]
@@ -106,9 +106,9 @@ pub use dyntree::BBox;
 ///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
 ///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
 ///
-///The user is suggested to not ever implemented this. Instead use the DynTree builder.
-///The builder will construct a tree of elements wrapped in a Bounding Box where the aabb
-///is protected from being modified via visibility.
+///The trait is marked as unsafe. The user is suggested to use the DynTree builder.
+///The builder will safely construct a tree of elements wrapped in a Bounding Box where the aabb
+///is protected from being modified via visibility. The trait is still useful to keep the querying algorithms generic.
 pub unsafe trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
