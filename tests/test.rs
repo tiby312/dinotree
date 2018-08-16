@@ -12,6 +12,45 @@ fn assert_length<I:std::iter::TrustedLen>(it:I){
 	assert_eq!(it.count(),len);
 }
 
+
+#[test]
+fn test_zero_sized(){
+	let bots=vec![();1];
+
+	let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+        axgeom::Rect::new(0isize,0,0,0)
+    });
+
+    let n=tree.get_iter().next();
+    assert_eq!(n.1.is_none(),true);
+    assert_eq!(n.0.range.len(),1);
+
+}
+
+#[test]
+fn test_one(){
+	let bots=vec![0usize;1];
+
+	let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+        axgeom::Rect::new(0isize,0,0,0)
+    });
+
+    let n=tree.get_iter().next();
+    assert_eq!(n.1.is_none(),true);
+    assert_eq!(n.0.range.len(),1);
+}
+#[test]
+fn test_empty(){
+	let bots:Vec<()>=Vec::new();
+
+	let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+        axgeom::Rect::new(0isize,0,0,0)
+    });
+
+    let n=tree.get_iter().next();
+    assert_eq!(n.0.range.len(),0);
+}
+
 #[test]
 fn test(){
 

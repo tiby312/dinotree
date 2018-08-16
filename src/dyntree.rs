@@ -16,6 +16,16 @@ pub struct BBox<N:NumTrait,T>{
     pub inner:T
 }
 
+use std::fmt::Formatter;
+use std::fmt::Debug;
+use std::error::Error;
+impl<N:NumTrait+Debug,T:Debug> Debug for BBox<N,T>{
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result{
+        self.rect.fmt(f)?;
+        self.inner.fmt(f)
+    }
+}
+
 unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     type Num=N;
     fn get(&self)->&Rect<Self::Num>{
@@ -102,6 +112,10 @@ mod fast_alloc{
 
 
 /// The tree this crate revoles around.
+///
+/// The user supplies a list of objects to insert along with a way to create a bounding box for each object.
+/// Then the tree is constructed. 
+///
 pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
     mover:Mover,
     tree:DynTreeRaw<A,N,T>,
