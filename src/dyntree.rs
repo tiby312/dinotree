@@ -5,7 +5,7 @@ use tree_alloc::NdIterMut;
 use tree_alloc::NdIter;
 use compt::CTreeIterator;
 use axgeom::*;
-
+use TreeHeightHeur;
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
 ///This is what is inserted into the tree. This way the user 
@@ -116,6 +116,20 @@ mod fast_alloc{
 /// The user supplies a list of objects to insert along with a way to create a bounding box for each object.
 /// Then the tree is constructed. 
 ///
+/// The bots are unsafely copied into a tree, and then usafely copied back out. The algorithm ensures
+/// That even though the ordering is different, this is a bijection between the two sets.
+/// So we can safely hide this unsafety from the user.
+/// The bots are copied back in the trees drop() method. If the user panics inside of a callback function,
+/// The changes to the bots up until that more during the traversal of the tree will take effect when the 
+/// trees drop() occurrs.
+///
+/// Unsafety is used to construct the special variable node size tree structure that is populated with dsts.
+///
+/// The mutable reference to each element in the callback functions do not point to elements
+/// in the user supplied slice of elements. The elements are internally unsafely copied directly into a tree structure
+/// and then unsafely copied back into the slice at the end. So do not try storing the mutable references as pointers
+/// in the callback functions since they would point to unallocated memory once the tree is destroyed.
+///
 pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
     mover:Mover,
     tree:DynTreeRaw<A,N,T>,
@@ -123,6 +137,7 @@ pub struct DynTree<A:AxisTrait,N,T:HasAabb>{
 
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
     
+
 
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{  
         let height=compute_tree_height_heuristic(bots.len()); 
@@ -148,8 +163,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
-    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let height=compute_tree_height_heuristic(bots.len()); 
+    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,heur:impl TreeHeightHeur)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+        let height=heur.compute_tree_height_heuristic(bots.len()); 
         let ka=TreeTimer2::new(height);
 
 
@@ -169,8 +184,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         (a.0,(a.1).into_iter())
     }
 
-    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let height=compute_tree_height_heuristic(bots.len()); 
+    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,heur:impl TreeHeightHeur)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+        let height=heur.compute_tree_height_heuristic(bots.len()); 
         let ka=TreeTimer2::new(height);
         let a=fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential);
         (a.0,(a.1).into_iter())   

@@ -58,6 +58,11 @@ mod oned;
 
 
 
+pub trait TreeHeightHeur{
+    fn compute_tree_height_heuristic(&self,num_bots:usize)->usize;
+}
+
+
 ///Returns the height of a dyn tree for a given number of bots.
 ///The height is chosen such that the leaf nodes will have a small amount of bots.
 ///If we had a node per bot, the tree would be too big. 
@@ -69,9 +74,8 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    const NUM_PER_NODE: usize = 12;  
+    const NUM_PER_NODE: usize = 20;  
 
-    //8 is worse than 20 which is worse than 12 on android. sticking with 12
     if num_bots <= NUM_PER_NODE {
         return 1;
     } else {
