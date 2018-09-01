@@ -69,17 +69,17 @@ pub trait TreeHeightHeur{
 ///
 ///This is provided so that users can allocate enough space for all the nodes
 ///before the tree is constructed, perhaps for some graphics buffer.
-pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
+pub fn compute_tree_height_heuristic(num_bots: usize,num_per_node:usize) -> usize {
     
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    const NUM_PER_NODE: usize = 20;  
+    //const NUM_PER_NODE: usize = 20;  
 
-    if num_bots <= NUM_PER_NODE {
+    if num_bots <= num_per_node {
         return 1;
     } else {
-        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
+        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
     }
 }
 

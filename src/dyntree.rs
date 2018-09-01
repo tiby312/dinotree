@@ -140,7 +140,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
 
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{  
-        let height=compute_tree_height_heuristic(bots.len()); 
+        let height=compute_tree_height_heuristic(bots.len(),22); 
         let ka=TreeTimerEmpty;
 
 
@@ -158,7 +158,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,dlevel).0
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
-        let height=compute_tree_height_heuristic(bots.len()); 
+        let height=compute_tree_height_heuristic(bots.len(),22); 
         let ka=TreeTimerEmpty;
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
