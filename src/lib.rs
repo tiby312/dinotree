@@ -62,24 +62,44 @@ pub trait TreeHeightHeur{
     fn compute_tree_height_heuristic(&self,num_bots:usize)->usize;
 }
 
+pub struct DefaultHeightHeur;
 
+impl TreeHeightHeur for DefaultHeightHeur{
+  fn compute_tree_height_heuristic(&self,num_bots:usize)->usize{
+      compute_tree_height_heuristic(num_bots)
+  }
+}
+
+pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
+    
+    //we want each node to have space for around 300 bots.
+    //there are 2^h nodes.
+    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+    //const NUM_PER_NODE: usize = 22;  
+
+    if num_bots <= num_per_node {
+        return 1;
+    } else {
+        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
+    }
+}
 ///Returns the height of a dyn tree for a given number of bots.
 ///The height is chosen such that the leaf nodes will have a small amount of bots.
 ///If we had a node per bot, the tree would be too big. 
 ///
 ///This is provided so that users can allocate enough space for all the nodes
 ///before the tree is constructed, perhaps for some graphics buffer.
-pub fn compute_tree_height_heuristic(num_bots: usize,num_per_node:usize) -> usize {
+pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    //const NUM_PER_NODE: usize = 20;  
+    const NUM_PER_NODE: usize = 22;  
 
-    if num_bots <= num_per_node {
+    if num_bots <= NUM_PER_NODE {
         return 1;
     } else {
-        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
+        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
     }
 }
 
