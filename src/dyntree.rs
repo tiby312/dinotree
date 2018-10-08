@@ -5,7 +5,7 @@ use tree_alloc::NdIterMut;
 use tree_alloc::NdIter;
 use compt::CTreeIterator;
 use axgeom::*;
-use TreeHeightHeur;
+//use TreeHeightHeur;
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
 ///This is what is inserted into the tree. This way the user 
@@ -163,8 +163,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
-    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,heur:impl TreeHeightHeur)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let height=heur.compute_tree_height_heuristic(bots.len()); 
+    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+        //let height=heur.compute_tree_height_heuristic(bots.len()); 
         let ka=TreeTimer2::new(height);
 
 
@@ -184,8 +184,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         (a.0,(a.1).into_iter())
     }
 
-    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,heur:impl TreeHeightHeur)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
-        let height=heur.compute_tree_height_heuristic(bots.len()); 
+    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+        //let height=heur.compute_tree_height_heuristic(bots.len()); 
         let ka=TreeTimer2::new(height);
         let a=fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential);
         (a.0,(a.1).into_iter())   

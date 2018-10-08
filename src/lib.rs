@@ -58,24 +58,12 @@ mod oned;
 
 
 
-pub trait TreeHeightHeur{
-    fn compute_tree_height_heuristic(&self,num_bots:usize)->usize;
-}
-
-pub struct DefaultHeightHeur;
-
-impl TreeHeightHeur for DefaultHeightHeur{
-  fn compute_tree_height_heuristic(&self,num_bots:usize)->usize{
-      compute_tree_height_heuristic(num_bots)
-  }
-}
-
 pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
     
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    //const NUM_PER_NODE: usize = 22;  
+    
 
     if num_bots <= num_per_node {
         return 1;
@@ -94,7 +82,12 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    const NUM_PER_NODE: usize = 22;  
+
+    //the sort() method in the rust lib core reduces to insertion sort at 20 elements.
+    //lets make the same heuristic. This best possible value is highly machine dependant. 
+    //For example, the optimal value for my dell precision laptop seems to be 220, but 
+    //for many laptops would be sub optimal.
+    const NUM_PER_NODE: usize = 220; //22 better for xps 13?  
 
     if num_bots <= NUM_PER_NODE {
         return 1;
