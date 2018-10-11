@@ -42,7 +42,7 @@ impl<N:NumTrait,T:IsPoint<Num=N>> IsPoint for BBox<N,T>{
 
 mod fast_alloc{
     use super::*;
-    pub fn new<JJ:par::Joiner,K:TreeTimerTrait,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:K,height:usize,par:JJ)->(DynTree<A,N,BBox<Num,T>>,K::Bag){   
+    pub fn new<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:K,height:usize,par:JJ)->(DynTree<A,N,BBox<Num,T>>,K){   
         
 
         pub struct Cont2<N:NumTrait>{
@@ -141,7 +141,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{  
         let height=compute_tree_height_heuristic(bots.len()); 
-        let ka=TreeTimerEmpty;
+        let ka=SplitterEmpty;
 
 
         //on xps13 5 seems good
@@ -159,13 +159,13 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
         let height=compute_tree_height_heuristic(bots.len()); 
-        let ka=TreeTimerEmpty;
+        let ka=SplitterEmpty;
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
-    pub fn with_debug(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+    pub fn new_adv<K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
         //let height=heur.compute_tree_height_heuristic(bots.len()); 
-        let ka=TreeTimer2::new(height);
+        //let ka=TreeTimer2::new(height);
 
 
         //on xps13 5 seems good
@@ -180,15 +180,17 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         let dlevel=par::Parallel::new(Depth(gg));
 
 
-        let a=fast_alloc::new(axis,n,bots,aabb_create,ka,height,dlevel);
-        (a.0,(a.1).into_iter())
+        let a=fast_alloc::new(axis,n,bots,aabb_create,splitter,height,dlevel);
+        a
+        //(a.0,(a.1).into_iter())
     }
 
-    pub fn with_debug_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize)->(DynTree<A,N,BBox<Num,T>>,TreeTimeResultIterator){   
+    pub fn new_adv_seq<K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
         //let height=heur.compute_tree_height_heuristic(bots.len()); 
-        let ka=TreeTimer2::new(height);
-        let a=fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential);
-        (a.0,(a.1).into_iter())   
+        //let ka=TreeTimer2::new(height);
+        let a=fast_alloc::new(axis,n,bots,aabb_create,splitter,height,par::Sequential);
+        a
+        //(a.0,(a.1).into_iter())   
     }
 }
 

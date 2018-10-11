@@ -9,7 +9,7 @@ pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
 
 impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,K:TreeTimerTrait>(axis:A,rest:&'a mut [T],height:usize,t:K,par:JJ) -> (KdTree<'a,A,T>,K::Bag) {
+    pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:K,par:JJ) -> (KdTree<'a,A,T>,K) {
         
         let mut ttree=compt::dfs_order::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
             let rest=&mut [];
@@ -22,7 +22,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
         let bag={
             let j=ttree.create_down_mut().with_depth(Depth(0));
 
-            self::recurse_rebal::<A,T,JJ,K>(axis,par,rest,j,t)
+            self::recurse_rebal::<A,T,JJ,K>(axis,par,rest,j,splitter)
         };
         
         (KdTree{tree:ttree,_p:PhantomData},bag)
@@ -53,15 +53,16 @@ pub struct Node2<'a,T:HasAabb+'a>{
 }
 
 
-fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
+
+
+
+fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>,
-    mut timer_log:K)->K::Bag{
+    splitter:K)->K{
 
-    timer_log.start();
-    
     let ((level,nn),restt)=down.next();
 
     match restt{
@@ -69,7 +70,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             //We are guarenteed that the leaf nodes have at most 10 bots
             //since we divide based off of the median, and picked the height
             //such that the leaves would have at most 10.
-            oned::sweeper_update_leaf(div_axis.next(),rest);
+            oned::sweeper_update(div_axis.next(),rest);
             
             //Unsafely leave the dividers of leaf nodes uninitialized.
             //nn.divider=std::default::Default::default();
@@ -77,14 +78,15 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             //nn.div=None;
 
             nn.range=rest;
-            timer_log.leaf_finish()
+
+            splitter //TODO is this okay?
         },
         Some(((),lleft,rright))=>{
             let lleft:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=lleft;
             let rright:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=rright;
             
             let med = if rest.len() == 0{
-                return timer_log.leaf_finish();
+                return splitter; //TODO is this okay?
             }
             else
             {
@@ -121,40 +123,28 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:TreeTimerTrait>(
             let binned_left=left;
             let binned_middle=middle;
             let binned_right=right;                
+
+            //We already know that the middile is non zero in length.
+            let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
             
-            let (ta,tb)=timer_log.next();
-
-            let (nj,ba,bb)=if !dlevel.should_switch_to_sequential(level){
-                let ((nj,ba),bb)={
-                    let af=move || {
-                        //We already know that the middile is non zero in length.
-                        let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
-                        
-                        sweeper_update(div_axis.next(),binned_middle);
-                        let n:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
-                    
-                        let k=self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,ta);
-                        (n,k)
-                    };
-
-                    let bf=move || {
-                        self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,tb)
-                    };
-                    rayon::join(af,bf)
-                }; 
-                (nj,ba,bb)
-            }else{
-                //We already know that the middile is non zero in length.
-                let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
-                
-                sweeper_update(div_axis.next(),binned_middle);
-                let nj=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
-                let ba=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,ta);
-                let bb=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,tb);
-                (nj,ba,bb)
-            };
+            sweeper_update(div_axis.next(),binned_middle);
+            let nj:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
             *nn=nj;
-            K::combine(ba,bb)
+
+            if !dlevel.should_switch_to_sequential(level){
+                let (splitter1,splitter2)=splitter.div(IsParallel::Parallel);
+
+                let af=move || {self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,splitter1)};
+                let bf=move || {self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,splitter2)};
+                let (splitter1,splitter2)=rayon::join(af,bf);
+                splitter1.add(splitter2,IsParallel::Parallel)
+            }else{
+                let (splitter1,splitter2)=splitter.div(IsParallel::Sequential);
+
+                let splitter1=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,splitter1);
+                let splitter2=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,splitter2);
+                splitter1.add(splitter2,IsParallel::Sequential)
+            }
         }
     }
 }

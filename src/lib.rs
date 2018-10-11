@@ -57,13 +57,27 @@ mod dyntree;
 mod oned;
 
 
+pub trait Splitter:Sized{
+    fn div(self,IsParallel)->(Self,Self);
+    fn add(self,Self,IsParallel)->Self;
+}
+
+pub struct SplitterEmpty;
+pub enum IsParallel{
+  Parallel,
+  Sequential
+
+}
+impl Splitter for SplitterEmpty{
+  fn div(self,a:IsParallel)->(Self,Self){(SplitterEmpty,SplitterEmpty)}
+  fn add(self,_:Self,a:IsParallel)->Self{SplitterEmpty}
+}
 
 pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
     
     //we want each node to have space for around 300 bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-    
 
     if num_bots <= num_per_node {
         return 1;
@@ -71,23 +85,27 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
         return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
     }
 }
+
 ///Returns the height of a dyn tree for a given number of bots.
-///The height is chosen such that the leaf nodes will have a small amount of bots.
+///The height is chosen such that the nodes will each have a small amount of bots.
 ///If we had a node per bot, the tree would be too big. 
-///
+///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
 ///This is provided so that users can allocate enough space for all the nodes
 ///before the tree is constructed, perhaps for some graphics buffer.
 pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
-    //we want each node to have space for around 300 bots.
+    //we want each node to have space for around num_per_node bots.
     //there are 2^h nodes.
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
 
-    //the sort() method in the rust lib core reduces to insertion sort at 20 elements.
-    //lets make the same heuristic. This best possible value is highly machine dependant. 
-    //For example, the optimal value for my dell precision laptop seems to be 220, but 
-    //for many laptops would be sub optimal.
-    const NUM_PER_NODE: usize = 220; //22 better for xps 13?  
+
+    //Make this number too small, and the tree will have too many levels,
+    //and too much time will be spent recursing.
+    //Make this number too high, and you will lose the properties of a tree,
+    //and you will end up with just sweep and prune.
+    //This number was chosen emprically from running the dinotree_alg_data project,
+    //on two different machines.
+    const NUM_PER_NODE: usize = 220;  
 
     if num_bots <= NUM_PER_NODE {
         return 1;
