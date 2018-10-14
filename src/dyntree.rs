@@ -145,7 +145,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
 
         //on xps13 5 seems good
-        const DEPTH_SEQ:usize=6;
+        const DEPTH_SEQ:usize=1;
 
         let gg=if height<=DEPTH_SEQ{
             0
@@ -163,18 +163,18 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
-    pub fn new_adv<K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
+    pub fn new_adv<K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DynTree<A,N,BBox<Num,T>>,K){   
         //let height=heur.compute_tree_height_heuristic(bots.len()); 
         //let ka=TreeTimer2::new(height);
 
 
         //on xps13 5 seems good
-        const DEPTH_SEQ:usize=6;
+        //const DEPTH_SEQ:usize=6;
 
-        let gg=if height<=DEPTH_SEQ{
+        let gg=if height<=height_switch_seq{
             0
         }else{
-            height-DEPTH_SEQ
+            height-height_switch_seq
         };
         
         let dlevel=par::Parallel::new(Depth(gg));
