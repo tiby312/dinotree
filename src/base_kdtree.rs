@@ -61,7 +61,8 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
     dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>,
-    splitter:K)->K{
+    mut splitter:K)->K{
+    splitter.node_start();
 
     let ((level,nn),restt)=down.next();
 
@@ -78,7 +79,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             //nn.div=None;
 
             nn.range=rest;
-
+            splitter.node_end();
             splitter //TODO is this okay?
         },
         Some(((),lleft,rright))=>{
@@ -86,6 +87,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             let rright:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=rright;
             
             let med = if rest.len() == 0{
+                splitter.node_end();
                 return splitter; //TODO is this okay?
             }
             else
@@ -131,20 +133,18 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             let nj:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
             *nn=nj;
 
-            if !dlevel.should_switch_to_sequential(level){
-                let (splitter1,splitter2)=splitter.div(IsParallel::Parallel);
+            let (splitter1,splitter2)=splitter.div();
 
+            let (splitter1,splitter2)=if !dlevel.should_switch_to_sequential(level){
                 let af=move || {self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,splitter1)};
                 let bf=move || {self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,splitter2)};
-                let (splitter1,splitter2)=rayon::join(af,bf);
-                splitter1.add(splitter2,IsParallel::Parallel)
+                rayon::join(af,bf)
             }else{
-                let (splitter1,splitter2)=splitter.div(IsParallel::Sequential);
-
-                let splitter1=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,splitter1);
-                let splitter2=self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,splitter2);
-                splitter1.add(splitter2,IsParallel::Sequential)
-            }
+                (self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,splitter1),
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,splitter2))
+            };
+            splitter1.add(splitter2)
+            
         }
     }
 }

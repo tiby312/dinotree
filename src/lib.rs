@@ -58,19 +58,19 @@ mod oned;
 
 
 pub trait Splitter:Sized{
-    fn div(self,IsParallel)->(Self,Self);
-    fn add(self,Self,IsParallel)->Self;
+    fn div(self)->(Self,Self);
+    fn add(self,Self)->Self;
+    fn node_start(&mut self);
+    fn node_end(&mut self);
 }
 
 pub struct SplitterEmpty;
-pub enum IsParallel{
-  Parallel,
-  Sequential
 
-}
 impl Splitter for SplitterEmpty{
-  fn div(self,a:IsParallel)->(Self,Self){(SplitterEmpty,SplitterEmpty)}
-  fn add(self,_:Self,a:IsParallel)->Self{SplitterEmpty}
+  fn div(self)->(Self,Self){(SplitterEmpty,SplitterEmpty)}
+  fn add(self,_:Self)->Self{SplitterEmpty}
+  fn node_start(&mut self){}
+  fn node_end(&mut self){}
 }
 
 pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {

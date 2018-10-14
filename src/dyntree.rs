@@ -185,12 +185,30 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         //(a.0,(a.1).into_iter())
     }
 
-    pub fn new_adv_seq<K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
-        //let height=heur.compute_tree_height_heuristic(bots.len()); 
-        //let ka=TreeTimer2::new(height);
-        let a=fast_alloc::new(axis,n,bots,aabb_create,splitter,height,par::Sequential);
-        a
-        //(a.0,(a.1).into_iter())   
+    pub fn new_adv_seq<K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
+
+        pub struct SplitterWrapper<T>(
+            pub T,
+        );
+
+        impl<T:Splitter> Splitter for SplitterWrapper<T>{
+            fn div(self)->(Self,Self){
+                let (a,b)=self.0.div();
+                (SplitterWrapper(a),SplitterWrapper(b))
+            }
+            fn add(self,a:Self)->Self{
+                let a=self.0.add(a.0);
+                SplitterWrapper(a)
+            }
+            fn node_start(&mut self){self.0.node_start()}
+            fn node_end(&mut self){self.0.node_end()}
+        }        
+        unsafe impl<T> Send for SplitterWrapper<T>{}
+        unsafe impl<T> Sync for SplitterWrapper<T>{}
+
+    
+        let (a,b)=fast_alloc::new(axis,n,bots,aabb_create,SplitterWrapper(splitter),height,par::Sequential);
+        (a,b.0)
     }
 }
 
