@@ -145,7 +145,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
 
         //on xps13 5 seems good
-        const DEPTH_SEQ:usize=1;
+        const DEPTH_SEQ:usize=2;
 
         let gg=if height<=DEPTH_SEQ{
             0
