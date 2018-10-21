@@ -47,7 +47,7 @@ impl<N:NumTrait,T:IsPoint<Num=N>> IsPoint for BBox<N,T>{
     }
 }
 
-mod fast_alloc{
+pub mod fast_alloc{
     use super::*;
     pub fn new<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:K,height:usize,par:JJ)->(DynTree<A,N,BBox<Num,T>>,K){   
         
@@ -175,75 +175,11 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
-    pub fn new_adv<K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DynTree<A,N,BBox<Num,T>>,K){   
-        //let height=heur.compute_tree_height_heuristic(bots.len()); 
-        //let ka=TreeTimer2::new(height);
-
-
-        //on xps13 5 seems good
-        //const DEPTH_SEQ:usize=6;
-
-        let gg=if height<=height_switch_seq{
-            0
-        }else{
-            height-height_switch_seq
-        };
-        
-        let dlevel=par::Parallel::new(Depth(gg));
-
-
-        let a=fast_alloc::new(axis,n,bots,aabb_create,splitter,height,dlevel);
-        a
-        //(a.0,(a.1).into_iter())
-    }
-
-    pub fn new_adv_seq<K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
-
-        pub struct SplitterWrapper<T>(
-            pub T,
-        );
-
-        impl<T:Splitter> Splitter for SplitterWrapper<T>{
-            fn div(self)->(Self,Self){
-                let (a,b)=self.0.div();
-                (SplitterWrapper(a),SplitterWrapper(b))
-            }
-            fn add(self,a:Self)->Self{
-                let a=self.0.add(a.0);
-                SplitterWrapper(a)
-            }
-            fn node_start(&mut self){self.0.node_start()}
-            fn node_end(&mut self){self.0.node_end()}
-        }        
-        unsafe impl<T> Send for SplitterWrapper<T>{}
-        unsafe impl<T> Sync for SplitterWrapper<T>{}
-
-    
-        let (a,b)=fast_alloc::new(axis,n,bots,aabb_create,SplitterWrapper(splitter),height,par::Sequential);
-        (a,b.0)
-    }
 }
 
 
 impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
     
-
-    ///Returns the bots to their original ordering.
-    pub fn apply_orig_order<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
-        
-        assert_eq!(bots.len(),self.get_num_bots());
-        let mut counter=0;
-
-        for (bot,mov) in self.tree.get_iter().dfs_preorder_iter().flat_map(|(node,_)|{
-            node.range.iter()
-        }).zip(self.mover.0.iter()){
-            let target=&mut bots[*mov as usize];
-            conv(bot,target);
-            counter+=1;
-        }
-        assert_eq!(counter,self.mover.0.len());
-    }
-
     ///Transform the current tree to have a different extra component to each node.
     pub fn with_extra<N2:Copy>(self,n2:N2)->DynTree<A,N2,T>{
         let (mover,fb)={
@@ -281,40 +217,116 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DynTree<A,N,T>{
 }
 
 
-impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T> where T::Num : std::fmt::Debug{
-    ///Returns Ok, then this tree's invariants are being met.
-    ///Should always return true, unless the user corrupts the trees memory
-    ///or if the contract of the HasAabb trait are not upheld.
-    pub fn are_invariants_met(&self)->Result<(),()>{
-        assert_invariants::are_invariants_met(self)
+
+pub(crate) mod iter_mut{
+    use super::*;
+
+    pub fn convert<'a,N:'a,T:HasAabb+'a>(a:(&'a mut NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>))->std::slice::IterMut<'a,T>{
+        a.0.range.iter_mut()
     }
+    
+    pub type FF<'a,N:'a,T:HasAabb+'a>=fn(  (&'a mut NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>) ) -> std::slice::IterMut<'a,T>;
+    
+    pub struct DynTreeIterMut<'a,N:'a,T:HasAabb+'a>{
+        pub(crate) length:usize,
+        pub(crate) it:std::iter::FlatMap<
+            compt::DfsPreorderIter<NdIterMut<'a,N,T>>,
+            std::slice::IterMut<'a,T>,
+            FF<'a,N,T>
+        >
+    }
+    impl<'a,N,T:HasAabb> Iterator for DynTreeIterMut<'a,N,T>{
+        type Item=&'a mut T;
+        fn next(&mut self)->Option<Self::Item>{
+            self.it.next()
+        }
+        fn size_hint(&self)->(usize,Option<usize>){
+            (self.length,Some(self.length))
+        }
+    }
+
+    impl<'a,N,T:HasAabb> std::iter::FusedIterator for DynTreeIterMut<'a,N,T>{}
+    impl<'a,N,T:HasAabb> std::iter::ExactSizeIterator for DynTreeIterMut<'a,N,T>{}
+    unsafe impl<'a,N,T:HasAabb> std::iter::TrustedLen for DynTreeIterMut<'a,N,T>{}
 }
+
+
+
+pub(crate) mod iter_const{
+    use super::*;
+
+    pub fn convert<'a,N:'a,T:HasAabb+'a>(a:(&'a NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>))->std::slice::Iter<'a,T>{
+        a.0.range.iter()
+    }
+    
+    pub type FF<'a,N:'a,T:HasAabb+'a>=fn(  (&'a NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>) ) -> std::slice::Iter<'a,T>;
+    
+    pub struct DynTreeIter<'a,N:'a,T:HasAabb+'a>{
+        pub(crate) length:usize,
+        pub(crate) it:std::iter::FlatMap<
+            compt::DfsPreorderIter<NdIter<'a,N,T>>,
+            std::slice::Iter<'a,T>,
+            FF<'a,N,T>
+        >
+    }
+    impl<'a,N,T:HasAabb> Iterator for DynTreeIter<'a,N,T>{
+        type Item=&'a T;
+        fn next(&mut self)->Option<Self::Item>{
+            self.it.next()
+        }
+        fn size_hint(&self)->(usize,Option<usize>){
+            (self.length,Some(self.length))
+        }
+    }
+
+    impl<'a,N,T:HasAabb> std::iter::FusedIterator for DynTreeIter<'a,N,T>{}
+    impl<'a,N,T:HasAabb> std::iter::ExactSizeIterator for DynTreeIter<'a,N,T>{}
+    unsafe impl<'a,N,T:HasAabb> std::iter::TrustedLen for DynTreeIter<'a,N,T>{}
+}
+
+
 
 impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
 
+    ///Returns the bots to their original ordering.
+    pub fn apply_orig_order<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
+        
+        assert_eq!(bots.len(),self.get_num_bots());
+        let mut counter=0;
+
+        for (bot,mov) in self.iter_every_bot().zip(self.mover.0.iter()){
+            let target=&mut bots[*mov as usize];
+            conv(bot,target);
+            counter+=1;
+        }
+        assert_eq!(counter,self.mover.0.len());
+    }
     ///Iterate over al the bots in the tree. The order in which they are iterated is not important.
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
-    pub fn iter_every_bot_mut<'a>(&'a mut self)->impl Iterator<Item=&'a mut T>{
-        self.get_iter_mut().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut())
+    pub fn iter_every_bot_mut<'a>(&'a mut self)->iter_mut::DynTreeIterMut<'a,N,T>{
+        /*
+        fn convert<'a,N:'a,T:HasAabb+'a>(a:(&'a mut NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>))->std::slice::IterMut<'a,T>{
+            a.0.range.iter_mut()
+        }
+
+        self.get_iter_mut().dfs_preorder_iter().flat_map(convert)
+        */
+        let length=self.tree.get_num_bots();
+        let it=self.get_iter_mut().dfs_preorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
+        iter_mut::DynTreeIterMut{length,it}
     }
 
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
-    pub fn iter_every_bot<'a>(&'a self)->impl Iterator<Item=&'a T>{
-        self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
+    pub fn iter_every_bot<'a>(&'a self)->iter_const::DynTreeIter<'a,N,T>{
+        //self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
+        let length=self.tree.get_num_bots();
+        let it=self.get_iter().dfs_preorder_iter().flat_map(iter_const::convert as iter_const::FF<N,T>);
+        iter_const::DynTreeIter{length,it}
+
     }
     
-    
-    ///Return the fraction of bots that are in each level of the tree.
-    ///The first element is the number of bots in the root level.
-    ///The last number is the fraction in the lowest level of the tree.
-    ///Ideally the fraction of bots in the lower level of the tree is high.
-    pub fn compute_tree_health(&self)->tree_health::LevelRatioIterator<N,T>{
-        tree_health::compute_tree_health(self)
-    }
-
-
     ///Get the axis of the starting divider.
     ///If this were the x axis, for example, the first dividing line would be from top to bottom,
     ///partitioning the bots by their x values.

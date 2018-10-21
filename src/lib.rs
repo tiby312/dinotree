@@ -52,10 +52,15 @@ pub use tree_health::LevelRatioIterator;
 ///Main property is that the nodes and the bots are all copied into one
 ///segment of memory. 
 mod dyntree;
+pub use dyntree::iter_const::DynTreeIter;
+pub use dyntree::iter_mut::DynTreeIterMut;
+
+
 
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
+pub mod advanced;
 
 pub trait Splitter:Sized{
     fn div(self)->(Self,Self);
