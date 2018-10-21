@@ -26,6 +26,13 @@ impl<N:NumTrait+Debug,T:Debug> Debug for BBox<N,T>{
     }
 }
 
+impl<N:NumTrait,T> BBox<N,T>{
+    pub unsafe fn new(rect:Rect<N>,inner:T)->BBox<N,T>{
+        BBox{rect,inner}
+    }
+
+}
+
 unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     type Num=N;
     fn get(&self)->&Rect<Self::Num>{
@@ -111,6 +118,8 @@ mod fast_alloc{
 
 
 
+
+
 /// The tree this crate revoles around.
 ///
 /// The user supplies a list of objects to insert along with a way to create a bounding box for each object.
@@ -157,6 +166,9 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,dlevel).0
     }
+
+
+
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
         let height=compute_tree_height_heuristic(bots.len()); 
         let ka=SplitterEmpty;

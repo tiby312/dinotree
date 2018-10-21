@@ -136,6 +136,7 @@ pub use dyntree::BBox;
 
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
+///If two HasAabb objects have aabb's that do not intersect, they must be different objects.
 ///Additionally the aabb must not change while the object is contained in the tree.
 ///Not doing so would violate invariants of the tree, and would thus make all the 
 ///query algorithms performed on the tree would not be correct.
@@ -152,6 +153,25 @@ pub unsafe trait HasAabb{
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
 
+
+///A bots aabb is normally only used for collision detection. 
+///So when you are iterating through all the bots for other purposes having the aabb as a member variable is just
+///hurting your spacial locality.
+///So the dinotree api is flexible enough that you can have the aabb in the bot if you so choose, but you can alternatively 
+///only provide a way to generate aabb as the dinotree is created.
+///If you generate the aabbs as they are inserted into the tree, less memory is used overall.
+///
+///It is important that the aabb of the bot generated follows the following rule:
+///*If a bot A's aabb does not intersect a bots B's aabb, then A!=B.
+///
+///If this rule is violated the user may end up with two mutable references to the same objects.
+/*
+pub unsafe trait AabbGenerator{
+   type Num:NumTrait;
+   type T;
+   fn create(&self,bot:&Self::T)->axgeom::Rect<Self::Num>;
+}
+*/
 
 ///Marker trait to indicate that this object is a point.
 pub trait IsPoint{
