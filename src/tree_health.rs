@@ -37,7 +37,8 @@ impl<'a,N:'a,T:HasAabb+'a> Iterator for LevelRatioIterator<'a,N,T>{
         }
     }
     fn size_hint(&self)->(usize,Option<usize>){
-        (self.height,Some(self.height))
+        let length=self.height-self.prev_depth.0;
+        (length,Some(length))
     }
 }
 

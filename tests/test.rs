@@ -52,6 +52,42 @@ fn test_empty(){
 }
 
 #[test]
+fn test_iter(){
+	let bots=vec![0usize;1234];
+
+    let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+        axgeom::Rect::new(0isize,0,0,0)
+    });
+
+
+    let mut last=None;
+    for b in tree.iter_every_bot(){
+    	match last{
+    		None=>{
+    			last=Some(b as *const BBox<isize,usize>)
+    		},
+    		Some(ll)=>{
+    			let bb=b as *const BBox<isize,usize>;
+    			assert!((ll as usize)<(bb as usize));
+    			last=Some(bb)
+    		}
+    	}
+    }	
+}
+
+#[test]
+fn test_iter2(){
+	let bots=vec![0usize;1234];
+
+    let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+        axgeom::Rect::new(0isize,0,0,0)
+    });
+
+    let num_bots=bots.len();
+    assert_eq!(tree.iter_every_bot().count(),num_bots);
+	
+}
+#[test]
 fn test(){
 
 	let bots=vec![0usize;1234];
@@ -59,7 +95,7 @@ fn test(){
     let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
         axgeom::Rect::new(0isize,0,0,0)
     });
-	tree.are_invariants_met().unwrap();
+    dinotree_inner::advanced::are_invariants_met(&tree).unwrap();
 
 	assert_length(tree.get_iter_mut().dfs_preorder_iter());
 	assert_length(tree.get_iter().dfs_preorder_iter());

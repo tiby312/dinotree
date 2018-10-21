@@ -75,7 +75,7 @@ pub mod fast_alloc{
     
         let (mut tree2,_bag)=KdTree::new(axis,&mut conts,height,ka,par);
         
-        let mover=Mover(tree2.get_tree().create_down().dfs_preorder_iter().flat_map(|(node,_extra)|{
+        let mover=Mover(tree2.get_tree().create_down().dfs_inorder_iter().flat_map(|(node,_extra)|{
             node.range.iter()
         }).map(|a|a.index).collect());
 
@@ -229,8 +229,9 @@ pub(crate) mod iter_mut{
     
     pub struct DynTreeIterMut<'a,N:'a,T:HasAabb+'a>{
         pub(crate) length:usize,
+        pub(crate) num:usize,
         pub(crate) it:std::iter::FlatMap<
-            compt::DfsPreorderIter<NdIterMut<'a,N,T>>,
+            compt::DfsInOrderIter<NdIterMut<'a,N,T>>,
             std::slice::IterMut<'a,T>,
             FF<'a,N,T>
         >
@@ -238,10 +239,12 @@ pub(crate) mod iter_mut{
     impl<'a,N,T:HasAabb> Iterator for DynTreeIterMut<'a,N,T>{
         type Item=&'a mut T;
         fn next(&mut self)->Option<Self::Item>{
+            //self.length-=1;
+            self.num+=1;
             self.it.next()
         }
         fn size_hint(&self)->(usize,Option<usize>){
-            (self.length,Some(self.length))
+            (self.length-self.num,Some(self.length-self.num))
         }
     }
 
@@ -263,8 +266,9 @@ pub(crate) mod iter_const{
     
     pub struct DynTreeIter<'a,N:'a,T:HasAabb+'a>{
         pub(crate) length:usize,
+        pub(crate) num:usize,
         pub(crate) it:std::iter::FlatMap<
-            compt::DfsPreorderIter<NdIter<'a,N,T>>,
+            compt::DfsInOrderIter<NdIter<'a,N,T>>,
             std::slice::Iter<'a,T>,
             FF<'a,N,T>
         >
@@ -272,10 +276,12 @@ pub(crate) mod iter_const{
     impl<'a,N,T:HasAabb> Iterator for DynTreeIter<'a,N,T>{
         type Item=&'a T;
         fn next(&mut self)->Option<Self::Item>{
+            //self.length-=1;
+            self.num+=1;
             self.it.next()
         }
         fn size_hint(&self)->(usize,Option<usize>){
-            (self.length,Some(self.length))
+            (self.length-self.num,Some(self.length-self.num))
         }
     }
 
@@ -313,8 +319,8 @@ impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
         self.get_iter_mut().dfs_preorder_iter().flat_map(convert)
         */
         let length=self.tree.get_num_bots();
-        let it=self.get_iter_mut().dfs_preorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
-        iter_mut::DynTreeIterMut{length,it}
+        let it=self.get_iter_mut().dfs_inorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
+        iter_mut::DynTreeIterMut{length,it,num:0}
     }
 
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
@@ -322,8 +328,8 @@ impl<A:AxisTrait,N,T:HasAabb> DynTree<A,N,T>{
     pub fn iter_every_bot<'a>(&'a self)->iter_const::DynTreeIter<'a,N,T>{
         //self.get_iter().dfs_preorder_iter().flat_map(|(a,_)|a.range.iter())
         let length=self.tree.get_num_bots();
-        let it=self.get_iter().dfs_preorder_iter().flat_map(iter_const::convert as iter_const::FF<N,T>);
-        iter_const::DynTreeIter{length,it}
+        let it=self.get_iter().dfs_inorder_iter().flat_map(iter_const::convert as iter_const::FF<N,T>);
+        iter_const::DynTreeIter{length,it,num:0}
 
     }
     
