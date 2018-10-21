@@ -4,7 +4,7 @@ use axgeom::Rect;
 
 use dyntree::fast_alloc;
 
-pub fn new_adv<A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<T::Num>,height:usize,splitter:K,height_switch_seq:usize)->(DynTree<A,N,BBox<T::Num,T>>,K){   
+pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DynTree<A,N,BBox<Num,T>>,K){   
     //let height=heur.compute_tree_height_heuristic(bots.len()); 
     //let ka=TreeTimer2::new(height);
 
@@ -26,7 +26,7 @@ pub fn new_adv<A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter+Send>(axis:A,n:N,bot
     //(a.0,(a.1).into_iter())
 }
 
-pub fn new_adv_seq<A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<T::Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<T::Num,T>>,K){   
+pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
 
     pub struct SplitterWrapper<T>(
         pub T,
