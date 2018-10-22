@@ -27,7 +27,7 @@ mod inner_prelude{
   pub use par;
   pub use axgeom::AxisTrait;
   pub use std::marker::PhantomData;
-  pub use compt::timer::*;
+  //pub use compt::timer::*;
   pub use NumTrait;
   pub use *;
   pub use tree_alloc::NodeDyn;
@@ -60,66 +60,10 @@ pub use dyntree::iter_mut::DynTreeIterMut;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
+///Contains a more complicated api that allows the users to create trees with more control.
+///Also provides some debugging functions.
 pub mod advanced;
 
-pub trait Splitter:Sized{
-    fn div(self)->(Self,Self);
-    fn add(self,Self)->Self;
-    fn node_start(&mut self);
-    fn node_end(&mut self);
-}
-
-pub struct SplitterEmpty;
-
-impl Splitter for SplitterEmpty{
-  fn div(self)->(Self,Self){(SplitterEmpty,SplitterEmpty)}
-  fn add(self,_:Self)->Self{SplitterEmpty}
-  fn node_start(&mut self){}
-  fn node_end(&mut self){}
-}
-
-pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
-    
-    //we want each node to have space for around 300 bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-
-    if num_bots <= num_per_node {
-        return 1;
-    } else {
-        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
-    }
-}
-
-///Returns the height of a dyn tree for a given number of bots.
-///The height is chosen such that the nodes will each have a small amount of bots.
-///If we had a node per bot, the tree would be too big. 
-///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
-///This is provided so that users can allocate enough space for all the nodes
-///before the tree is constructed, perhaps for some graphics buffer.
-pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
-    
-    //we want each node to have space for around num_per_node bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-
-
-    //Make this number too small, and the tree will have too many levels,
-    //and too much time will be spent recursing.
-    //Make this number too high, and you will lose the properties of a tree,
-    //and you will end up with just sweep and prune.
-    //This number was chosen emprically from running the dinotree_alg_data project,
-    //on two different machines.
-    //const NUM_PER_NODE: usize = 32;  
-    const NUM_PER_NODE: usize = 20;  
-
-
-    if num_bots <= NUM_PER_NODE {
-        return 1;
-    } else {
-        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
-    }
-}
 
 
 ///The underlying number type used for the dinotree.

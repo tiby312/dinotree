@@ -1,4 +1,5 @@
 use inner_prelude::*;
+use advanced::Splitter;
 
 ///A KdTree construction
 ///This is like DynTree except the size of every node is constant.

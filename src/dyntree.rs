@@ -5,6 +5,7 @@ use tree_alloc::NdIterMut;
 use tree_alloc::NdIter;
 use compt::CTreeIterator;
 use axgeom::*;
+use advanced::Splitter;
 //use TreeHeightHeur;
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
@@ -149,8 +150,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
 
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{  
-        let height=compute_tree_height_heuristic(bots.len()); 
-        let ka=SplitterEmpty;
+        let height=advanced::compute_tree_height_heuristic(bots.len()); 
+        let ka=advanced::SplitterEmpty;
 
 
         //on xps13 5 seems good
@@ -170,8 +171,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DynTree<A,N,BBox<Num,T>>{
 
 
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DynTree<A,N,BBox<Num,T>>{   
-        let height=compute_tree_height_heuristic(bots.len()); 
-        let ka=SplitterEmpty;
+        let height=advanced::compute_tree_height_heuristic(bots.len()); 
+        let ka=advanced::SplitterEmpty;
         fast_alloc::new(axis,n,bots,aabb_create,ka,height,par::Sequential).0
     }
 
@@ -227,6 +228,7 @@ pub(crate) mod iter_mut{
     
     pub type FF<'a,N:'a,T:HasAabb+'a>=fn(  (&'a mut NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>) ) -> std::slice::IterMut<'a,T>;
     
+    ///Iterator over all the elements in the tree in dfs in order- not the original order.
     pub struct DynTreeIterMut<'a,N:'a,T:HasAabb+'a>{
         pub(crate) length:usize,
         pub(crate) num:usize,
@@ -264,6 +266,7 @@ pub(crate) mod iter_const{
     
     pub type FF<'a,N:'a,T:HasAabb+'a>=fn(  (&'a NodeDyn<N, T>,Option<Option<&'a FullComp<T::Num>>>) ) -> std::slice::Iter<'a,T>;
     
+    ///Iterator over all the elements in the tree in dfs in order- not the original order.
     pub struct DynTreeIter<'a,N:'a,T:HasAabb+'a>{
         pub(crate) length:usize,
         pub(crate) num:usize,
