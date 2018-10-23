@@ -4,6 +4,70 @@ use axgeom::Rect;
 
 use dyntree::fast_alloc;
 
+use std::time::Instant;
+
+fn into_secs(elapsed:std::time::Duration)->f64{
+    let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
+    sec
+}
+
+///Measure the time each level of a recursive algorithm takes that supports the Splitter trait.
+///Note that the number of elements in the returned Vec could be less than the height of the tree.
+///This can happen if the recursive algorithm does not recurse all the way to the leafs because it
+///deemed it not necessary.
+pub struct LevelTimer{
+    levels:Vec<f64>,
+    time:Option<Instant>,
+}
+
+impl LevelTimer{
+    pub fn new()->LevelTimer{
+        
+        LevelTimer{levels:Vec::new(),time:None}
+    }
+    pub fn into_inner(self)->Vec<f64>{
+        self.levels
+    }
+    fn node_end_common(&mut self){
+
+        let time=self.time.unwrap();
+
+        let elapsed=time.elapsed();
+        self.levels.push(into_secs(elapsed));
+        self.time=None;
+    }
+}
+impl Splitter for LevelTimer{
+    fn div(mut self)->(Self,Self){
+        self.node_end_common();
+
+        let length=self.levels.len();
+
+        (self,LevelTimer{levels:std::iter::repeat(0.0).take(length).collect(),time:None})
+    }
+    fn add(mut self,a:Self)->Self{
+
+        let (smaller,mut larger)=if self.levels.len()<a.levels.len(){
+            (self,a)
+        }else{
+            (a,self)
+        };
+
+
+        for (a,b) in larger.levels.iter_mut().zip(smaller.levels.iter()){
+            *a+=*b;
+        }
+        larger
+    }
+    fn node_start(&mut self){
+        assert!(self.time.is_none());
+        self.time=Some(Instant::now());
+    }
+    fn node_end(&mut self){
+        self.node_end_common();
+    } 
+}
+
 
 ///Outputs the height given an desirned number of bots per node.
 pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {

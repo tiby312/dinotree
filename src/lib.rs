@@ -102,7 +102,7 @@ pub unsafe trait HasAabb{
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
 
-
+/*
 ///A bots aabb is normally only used for collision detection. 
 ///So when you are iterating through all the bots for other purposes having the aabb as a member variable is just
 ///hurting your spacial locality.
@@ -111,10 +111,10 @@ pub unsafe trait HasAabb{
 ///If you generate the aabbs as they are inserted into the tree, less memory is used overall.
 ///
 ///It is important that the aabb of the bot generated follows the following rule:
-///*If a bot A's aabb does not intersect a bots B's aabb, then A!=B.
+///If a bot A's aabb does not intersect a bots B's aabb, then A!=B.
 ///
 ///If this rule is violated the user may end up with two mutable references to the same objects.
-/*
+
 pub unsafe trait AabbGenerator{
    type Num:NumTrait;
    type T;
