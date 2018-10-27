@@ -121,6 +121,7 @@ pub mod fast_alloc{
 
 
 
+
 /// The tree this crate revoles around.
 ///
 /// The user supplies a list of objects to insert along with a way to create a bounding box for each object.

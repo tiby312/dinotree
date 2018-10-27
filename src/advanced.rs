@@ -115,7 +115,7 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 
 
-///A trait that gives the user callbacks at significant moments during recursion of the tree.
+///A trait that gives the user callbacks at events in a recursive algorithm on the tree.
 ///The main motivation behind this trait was to track the time spent taken at each level of the tree
 ///during construction.
 pub trait Splitter:Sized{

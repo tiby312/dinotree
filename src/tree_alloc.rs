@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 
 pub use self::new::*;
 
+use std::iter::TrustedLen;
 
 mod new{
     use std::ptr::Unique;
@@ -26,7 +27,7 @@ mod new{
         pub comp:Option<FullComp<N>>
     }
 
-    pub struct LeafConstructor<N,T:HasAabb,I:ExactSizeIterator<Item=T>>{
+    pub struct LeafConstructor<N,T:HasAabb,I:TrustedLen<Item=T>>{
         pub misc:N,
         pub it:I
     }
@@ -212,8 +213,8 @@ mod new{
         }
 
 
-        pub fn new<I:ExactSizeIterator<Item=T>>(it:impl CTreeIterator<Item=LeafConstructor<N,T,I>,Extra=ExtraConstructor<T::Num>>,height:usize,num_nodes:usize,num_bots:usize)->TreeAllocDstDfsOrder<N,T>{
-
+        pub fn new<I:TrustedLen<Item=T>>(it:impl CTreeIterator<Item=LeafConstructor<N,T,I>,Extra=ExtraConstructor<T::Num>>,height:usize,num_nodes:usize,num_bots:usize)->TreeAllocDstDfsOrder<N,T>{
+            
             let s=Self::compute_alignment_and_size();
             let SizRet{alignment,size_of_non_leaf,size_of_leaf}=s;
             let num_non_leafs=num_nodes/2;
@@ -249,8 +250,9 @@ mod new{
                 _alignment:usize
             }
             impl Counter{
-                fn add_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->Unique<NodeDyn<N,T>>{
-                    let len=constructor.it.len();
+                fn add_leaf_node<N,T:HasAabb,I:TrustedLen<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>)->Unique<NodeDyn<N,T>>{
+                    let len=constructor.it.size_hint().0;
+
                     let dst:&mut NodeDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                     
                     for (a,b) in dst.range.iter_mut().zip(constructor.it){
@@ -262,8 +264,9 @@ mod new{
                     unsafe{Unique::new_unchecked(dst)}
                 
                 }
-                fn add_non_leaf_node<N,T:HasAabb,I:ExactSizeIterator<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>,cc:ExtraConstructor<T::Num>)->Unique<NodeDstDyn<N,T>>{
-                    let len=constructor.it.len();
+                fn add_non_leaf_node<N,T:HasAabb,I:TrustedLen<Item=T>>(&mut self,constructor:LeafConstructor<N,T,I>,cc:ExtraConstructor<T::Num>)->Unique<NodeDstDyn<N,T>>{
+                    let len=constructor.it.size_hint().0;
+                    
                     let dst:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                     
                     for (a,b) in dst.node.range.iter_mut().zip(constructor.it){
@@ -299,7 +302,7 @@ mod new{
             return TreeAllocDstDfsOrder{_vec:vec,root,height};
 
 
-            fn recc<N,T:HasAabb,I:ExactSizeIterator<Item=T>>
+            fn recc<N,T:HasAabb,I:TrustedLen<Item=T>>
                 (it:impl CTreeIterator<Item=LeafConstructor<N,T,I>,Extra=ExtraConstructor<T::Num>>,counter:&mut Counter)->Unique<Marker<N,T>>{
                 
                 let (nn,rest)=it.next();
