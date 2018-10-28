@@ -53,14 +53,6 @@ pub struct FullComp<N:NumTrait>{
     pub cont:axgeom::Range<N> 
 }
 
-impl<N:NumTrait> std::default::Default for FullComp<N>{
-    fn default()->Self{
-        let d=std::default::Default::default();
-        FullComp{div:d,cont:axgeom::Range{left:d,right:d}}
-    }
-
-}
-
 
 //This works by inferring the type based on the height.
 //Depending on the height, we will transmute a pointer to this marker type

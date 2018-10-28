@@ -66,7 +66,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             oned::sweeper_update(div_axis.next(),rest);
             
             nn.range=rest;
-            nn.div=std::default::Default::default();
+            //nn.div=std::default::Default::default();
             
             splitter.node_end();
             splitter
@@ -76,12 +76,13 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             //let rright:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>=rright;
             
             let med = if rest.len() == 0{
-                
+                /*
                 //Initialize the nodes under this one
                 for ((_,nn),_) in lleft.dfs_inorder_iter().chain(rright.dfs_inorder_iter()){
                     nn.range=&mut [];
                     nn.div=std::default::Default::default();
                 }
+                */
                 
                 splitter.node_end();
                 return splitter;

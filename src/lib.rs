@@ -42,6 +42,10 @@
 //! 
 //! Every 'o' has a pointer to the left and right children 'x' s.
 //! ~~~~
+//!
+//! TODO talk to unsafety. How some nodes will be left uninitialized, but this is okay since the user
+//! cannot access them using the Vistr and VistrMut visitors.
+//!
 
 #![feature(specialization)]
 #![feature(ptr_internals)]
@@ -99,10 +103,10 @@ pub mod advanced;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait:Ord+Copy+Send+Sync+std::default::Default{}
+pub trait NumTrait:Ord+Copy+Send+Sync{}
 
 impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync+std::default::Default{}
+where T: Ord+Copy+Send+Sync{}
 
 
 pub use tree_alloc::FullComp;
@@ -114,7 +118,10 @@ pub use dyntree::BBox;
 
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
-///If two HasAabb objects have aabb's that do not intersect, they must be different objects.
+///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
+///to each simultaneously. Not upholding this contract can result to undefined behavior so this trait
+///is marked unsafe.
+///
 ///Additionally the aabb must not change while the object is contained in the tree.
 ///Not doing so would violate invariants of the tree, and would thus make all the 
 ///query algorithms performed on the tree would not be correct.
@@ -123,7 +130,7 @@ pub use dyntree::BBox;
 ///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
 ///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
 ///
-///The trait is marked as unsafe. The user is suggested to use the DynTree builder.
+///The trait is marked as unsafe. The user is suggested to use the DinoTree builder.
 ///The builder will safely construct a tree of elements wrapped in a Bounding Box where the aabb
 ///is protected from being modified via visibility. The trait is still useful to keep the querying algorithms generic.
 pub unsafe trait HasAabb{
