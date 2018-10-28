@@ -1,11 +1,11 @@
 use super::*;
 use axgeom::AxisTrait;
-use compt::CTreeIterator;
+use compt::Visitor;
 use is_sorted::IsSorted;
 
 
-pub fn are_invariants_met<A:AxisTrait,N,T:HasAabb>(tree:&DynTree<A,N,T>)->Result<(),()> where T::Num : std::fmt::Debug{
-    inner(tree.get_axis(),tree.get_iter().with_depth(compt::Depth(0)))
+pub fn are_invariants_met<A:AxisTrait,N,T:HasAabb>(tree:&DinoTree<A,N,T>)->Result<(),()> where T::Num : std::fmt::Debug{
+    inner(tree.axis(),tree.vistr().with_depth(compt::Depth(0)))
 }
 
 fn a_bot_has_value<N:NumTrait>(it:impl Iterator<Item=N>,val:N)->bool{
@@ -17,7 +17,7 @@ fn a_bot_has_value<N:NumTrait>(it:impl Iterator<Item=N>,val:N)->bool{
     return false;
 }
 
-fn inner<A:AxisTrait,N,T:HasAabb>(axis:A,iter:compt::LevelIter<NdIter<N,T>>)->Result<(),()> where T::Num : std::fmt::Debug{
+fn inner<A:AxisTrait,N,T:HasAabb>(axis:A,iter:compt::LevelIter<Vistr<N,T>>)->Result<(),()> where T::Num : std::fmt::Debug{
     
     macro_rules! assert2{
         ($bla:expr)=>{

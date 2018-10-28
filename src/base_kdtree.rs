@@ -4,7 +4,7 @@ use advanced::Splitter;
 ///A KdTree construction
 ///This is like DynTree except the size of every node is constant.
 pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
-    tree: compt::dfs_order::GenTreeDfsOrder<Node2<'a,T>>,
+    tree: compt::dfs_order::CompleteTree<Node2<'a,T>>,
     _p:PhantomData<A>
 }
 
@@ -12,7 +12,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
     pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:K,par:JJ) -> (KdTree<'a,A,T>,K) {
         
-        let mut ttree=compt::dfs_order::GenTreeDfsOrder::from_dfs_inorder(&mut ||{
+        let mut ttree=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
             let rest=&mut [];
             //Get rid of zero initialization???
             let div=unsafe{std::mem::uninitialized()};
@@ -33,10 +33,10 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
 
 impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
 
-    pub fn get_tree(&self)->&compt::dfs_order::GenTreeDfsOrder<Node2<'a,T>>{
+    pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,T>>{
         &self.tree
     }
-    pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::GenTreeDfsOrder<Node2<'a,T>>{
+    pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,T>>{
         &mut self.tree
     }
 }
@@ -61,7 +61,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
     rest:&'b mut [T],
-    down:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>,
+    down:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>,
     mut splitter:K)->K{
     splitter.node_start();
 
@@ -74,22 +74,26 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             //such that the leaves would have at most 10.
             oned::sweeper_update(div_axis.next(),rest);
             
-            //Unsafely leave the dividers of leaf nodes uninitialized.
-            //nn.divider=std::default::Default::default();
-            //nn.container_box=rect_make::create_container_rect::<A,_>(rest);
-            //nn.div=None;
-
             nn.range=rest;
+            nn.div=std::default::Default::default();
+            
             splitter.node_end();
-            splitter //TODO is this okay?
+            splitter
         },
         Some(((),lleft,rright))=>{
-            let lleft:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=lleft;
-            let rright:compt::LevelIter<compt::dfs_order::DownTMut<Node2<'b,T>>>=rright;
+            //let lleft:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>=lleft;
+            //let rright:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>=rright;
             
             let med = if rest.len() == 0{
+                
+                //Initialize the nodes under this one
+                for ((_,nn),_) in lleft.dfs_inorder_iter().chain(rright.dfs_inorder_iter()){
+                    nn.range=&mut [];
+                    nn.div=std::default::Default::default();
+                }
+                
                 splitter.node_end();
-                return splitter; //TODO is this okay?
+                return splitter;
             }
             else
             {

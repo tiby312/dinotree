@@ -17,7 +17,7 @@ fn assert_length<I:std::iter::TrustedLen>(it:I){
 fn test_zero_sized(){
 	let bots=vec![();1];
 
-	let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+	let tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
         axgeom::Rect::new(0isize,0,0,0)
     });
 
@@ -31,7 +31,7 @@ fn test_zero_sized(){
 fn test_one(){
 	let bots=vec![0usize;1];
 
-	let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+	let tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
         axgeom::Rect::new(0isize,0,0,0)
     });
 
@@ -39,11 +39,37 @@ fn test_one(){
     assert_eq!(n.1.is_none(),true);
     assert_eq!(n.0.range.len(),1);
 }
+
+
+#[test]
+fn test_many(){
+    let bots=vec![0usize;1000];
+
+    let tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+        axgeom::Rect::new(0isize,0,0,0)
+    });
+
+    assert_eq!(tree.get_iter().dfs_inorder_iter().count(),tree.get_num_nodes());
+    
+    let mut num_div=0;
+    for (_,b) in tree.get_iter().dfs_inorder_iter(){
+        if let Some(nonleaf)=b{
+            if let Some(non_empty)=nonleaf{
+                num_div+=1;
+                assert_eq!(non_empty.div,0);   
+            }
+        }
+
+    }
+    assert_eq!(num_div,1);
+}
+
+
 #[test]
 fn test_empty(){
 	let bots:Vec<()>=Vec::new();
 
-	let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+	let tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
         axgeom::Rect::new(0isize,0,0,0)
     });
 
@@ -55,7 +81,7 @@ fn test_empty(){
 fn test_iter(){
 	let bots=vec![0usize;1234];
 
-    let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+    let tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
         axgeom::Rect::new(0isize,0,0,0)
     });
 
@@ -79,7 +105,7 @@ fn test_iter(){
 fn test_iter2(){
 	let bots=vec![0usize;1234];
 
-    let mut tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
+    let tree=DynTree::new(axgeom::YAXISS,(),&bots,|_b|{
         axgeom::Rect::new(0isize,0,0,0)
     });
 

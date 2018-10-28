@@ -1,8 +1,6 @@
 use inner_prelude::*;
 use HasAabb;
 
-
-
 ///The results of the binning process.
 pub struct Binned<'a,T:'a>{
     pub middle:&'a mut [T],
@@ -10,48 +8,6 @@ pub struct Binned<'a,T:'a>{
     pub right:&'a mut [T],
 }
 
-
-/*
-#[test]
-fn test_binning(){
-    use test_support::*;
-    use support::*;
-
-
-    let mut p=PointGenerator::new(&test_support::make_rect((0,1000),(0,1000)),&[100,42,6]);
-
-    struct BBot(BBox<isize,Bot>);
-    impl HasAabb for BBot{
-        type Num=isize;
-        fn get(&self)->&axgeom::Rect<Self::Num>{
-            &self.0.rect.0
-        }
-    }
-
-    let mut bots=Vec::new();
-    for id in 0..100000{
-        let ppp=p.random_point();
-        let k=test_support::create_rect_from_point(ppp);
-        bots.push(BBot(BBox::new(Bot{id,col:Vec::new()},k))); 
-    }
-
-    let div=500;
-    let binned=bin_middile_left_right::<axgeom::XAXISS,_>(&div,&mut bots);
-
-    for b in binned.left{
-        assert!(b.0.rect.0.get_range(axgeom::XAXISS::get()).end<div);
-    }
-
-    for b in binned.right{
-        assert!(b.0.rect.0.get_range(axgeom::XAXISS::get()).start>div);
-    }
-
-    for b in binned.middile{
-        let r=b.0.rect.0.get_range(axgeom::XAXISS::get());
-        assert!(r.start<=div && r.end>=div);
-    }
-}
-*/
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
@@ -75,8 +31,6 @@ pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
                     //left
                     bots.swap(index_at,left_end);
                     bots.swap(left_end,middle_end);
-                    //swap_unchecked(bots,index_at,left_end);
-                    //swap_unchecked(bots,left_end,middile_end);
                     middle_end+=1;
                     left_end+=1;  
                 },
@@ -84,7 +38,6 @@ pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
                 std::cmp::Ordering::Greater=>{
                     //middile
                     bots.swap(index_at,left_end);
-                    //swap_unchecked(bots,index_at,left_end);
                     left_end+=1;
                 },
                 std::cmp::Ordering::Less=>{
@@ -109,7 +62,7 @@ pub fn compare_bots<T:HasAabb>(axis:impl AxisTrait,a:&T,b:&T)->std::cmp::Orderin
     }
     std::cmp::Ordering::Less
 }
-
+/*
 ///Sorts the bots.
 pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
 
@@ -128,6 +81,7 @@ pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
         }
     }
 }
+*/
 ///Sorts the bots.
 pub fn sweeper_update<I:HasAabb,A:AxisTrait>(axis:A,collision_botids: &mut [I]) {
 
@@ -138,22 +92,7 @@ pub fn sweeper_update<I:HasAabb,A:AxisTrait>(axis:A,collision_botids: &mut [I]) 
     collision_botids.sort_unstable_by(sclosure);
 }
 
-#[test]
-fn selection_sort(){
-        fn selection_sort<T,B:Ord,F:FnMut(&T)->B>(array: &mut [T],mut func:F) {
-            let len = array.len();
-            for i in 0..len {
 
-                let min = i+array[i..].iter().enumerate().min_by_key(|x| func(x.1))
-                                  .unwrap().0;
-                println!("min={:?}",min);
-                array.swap(min, i);
-            }
-        }
-    let mut a=[5,3,2,1,4];
-    selection_sort(&mut a,|a|*a);
-    assert_eq!(a,[1,2,3,4,5]);    
-}
 /*
     #[cfg(test)]
     mod test{

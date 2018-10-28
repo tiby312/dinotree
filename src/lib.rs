@@ -1,8 +1,7 @@
-//! Provides the dinotree data structure and ways to traverse it.
+//! Provides the dinotree data structure and ways to traverse it. Algorithms that work on this tree can use this crate.
 
 #![feature(ptr_internals)]
 #![feature(align_offset)]
-#![feature(iterator_step_by)]
 #![feature(trusted_len)]
 #![feature(test)]
 extern crate axgeom;
@@ -23,7 +22,7 @@ mod inner_prelude{
   pub use axgeom::Range;
   pub use *;
   pub use oned::sweeper_update;
-  pub use compt::CTreeIterator;
+  pub use compt::Visitor;
   pub use par;
   pub use axgeom::AxisTrait;
   pub use std::marker::PhantomData;
@@ -52,8 +51,8 @@ pub use tree_health::LevelRatioIterator;
 ///Main property is that the nodes and the bots are all copied into one
 ///segment of memory. 
 mod dyntree;
-pub use dyntree::iter_const::DynTreeIter;
-pub use dyntree::iter_mut::DynTreeIterMut;
+pub use dyntree::iter_const::TreeIter;
+pub use dyntree::iter_mut::TreeIterMut;
 
 
 
@@ -70,17 +69,17 @@ pub mod advanced;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait:Ord+Copy+Send+Sync{}
+pub trait NumTrait:Ord+Copy+Send+Sync+std::default::Default{}
 
 impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync{}
+where T: Ord+Copy+Send+Sync+std::default::Default{}
 
 
 pub use tree_alloc::FullComp;
-pub use dyntree::DynTree;
+pub use dyntree::DinoTree;
 pub use tree_alloc::NodeDyn;
-pub use tree_alloc::NdIter;
-pub use tree_alloc::NdIterMut;
+pub use tree_alloc::Vistr;
+pub use tree_alloc::VistrMut;
 pub use dyntree::BBox;
 
 

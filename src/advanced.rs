@@ -45,7 +45,7 @@ impl Splitter for LevelTimer{
 
         (self,LevelTimer{levels:std::iter::repeat(0.0).take(length).collect(),time:None})
     }
-    fn add(mut self,a:Self)->Self{
+    fn add(self,a:Self)->Self{
 
         let (smaller,mut larger)=if self.levels.len()<a.levels.len(){
             (self,a)
@@ -146,7 +146,7 @@ impl Splitter for SplitterEmpty{
 
 
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
-pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DynTree<A,N,BBox<Num,T>>,K){   
+pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DinoTree<A,N,BBox<Num,T>>,K){   
     
     let gg=if height<=height_switch_seq{
         0
@@ -160,7 +160,7 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:
 }
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
-pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DynTree<A,N,BBox<Num,T>>,K){   
+pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DinoTree<A,N,BBox<Num,T>>,K){   
 
     pub struct SplitterWrapper<T>(
         pub T,
@@ -190,7 +190,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N
 ///Returns Ok, then this tree's invariants are being met.
 ///Should always return true, unless the user corrupts the trees memory
 ///or if the contract of the HasAabb trait are not upheld.
-pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DynTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
+pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
     assert_invariants::are_invariants_met(tree)
 }
 
@@ -199,6 +199,6 @@ pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DynTree<A,N,T
 ///The first element is the number of bots in the root level.
 ///The last number is the fraction in the lowest level of the tree.
 ///Ideally the fraction of bots in the lower level of the tree is high.
-pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DynTree<A,N,T>)->tree_health::LevelRatioIterator<N,T>{
+pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->tree_health::LevelRatioIterator<N,T>{
     tree_health::compute_tree_health(tree)
 }
