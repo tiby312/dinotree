@@ -31,13 +31,11 @@ xrxrxrxrxr xrxrxrxrxr iiiii-> create tree
 
 new:
 
-memory space usage ver3:
 
 xxxxx ->user provides bots
 
 xxxxx iririririr -> at this stage sort 
 
-xxxxx iririririr xrxrxrxrxr -> create tree
+xrxrxrxrxr iiii
 
-xxxxx iiiii xrxrxrxrxr ->get rid of inner tree and convert it into the index.
-
+xxxxx iiiii

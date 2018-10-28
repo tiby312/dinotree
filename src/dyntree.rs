@@ -75,36 +75,51 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
 
     let (mut tree2,_bag)=DinoTreeInner::new(axis,&mut conts,height,ka,par);
     
-    let mover:Vec<u32>=tree2.tree.vistr().dfs_inorder_iter().flat_map(|(node,_extra)|{
-        node.range.iter()
-    }).map(|a|a.index).collect();
-
 
     let height=tree2.tree.get_height();                
     let num_nodes=tree2.tree.get_nodes().len();
 
+    let alloc={
+        let ii=tree2.tree.vistr_mut().map(|node,eextra|{
+            let l=tree_alloc::NodeConstructor{misc:n,it:node.range.iter_mut().map(|b|{
+                BBox{rect:b.rect,inner:bots[b.index as usize]}
+            })};
 
-    let ii=tree2.tree.vistr_mut().map(|node,eextra|{
-        let l=tree_alloc::NodeConstructor{misc:n,it:node.range.iter_mut().map(|b|{
-            BBox{rect:b.rect,inner:bots[b.index as usize]}
-        })};
+            let extra=match eextra{
+                Some(())=>{
+                    Some(tree_alloc::ExtraConstructor{
+                        comp:Some(node.div)
+                    })
+                },
+                None=>{
+                    None
+                }
+            };
 
-        let extra=match eextra{
-            Some(())=>{
-                Some(tree_alloc::ExtraConstructor{
-                    comp:Some(node.div)
-                })
-            },
-            None=>{
-                None
+            (l,extra)
+        });
+
+        TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots)
+    };
+
+    /*
+    //TODO optimization:drain tree into mover.
+    let mover:Vec<u32>=tree2.tree.vistr().dfs_inorder_iter().flat_map(|(node,_extra)|{
+        node.range.iter()
+    }).map(|a|a.index).collect();
+    */
+
+    let mover={
+        let mut nodes=tree2.tree.into_nodes();
+        let mut mover=Vec::with_capacity(num_bots);
+        for node in nodes.drain(..){
+            for a in node.range.iter(){
+                mover.push(a.index);
             }
-        };
+        }
+        mover
+    };
 
-        (l,extra)
-    });
-
-
-    let alloc = TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots);
     let tree=DinoTree{mover,alloc,axis,height,num_nodes,num_bots};
 
 
