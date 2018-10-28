@@ -1,16 +1,13 @@
 //!
 //! Provides the dinotree data structure and ways to traverse it. Algorithms that work on this tree can use this crate.
+//! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr nd VistrMut visitors.
 //!
 //!
-//! ```
+//! ~~~~
 //! 2d Tree Divider Representation:
-//! Divider placement is placed at the median at each level.
-//! Axis alternates every level.
-//! Nodes that itersect a divider belong to that node.
-//! 
 //!
 //!
-//!    o o ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┃         ┇         o
+//!    oo  ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┃         ┇         o
 //!  ┈┈┈┈┈┈┇     o      o     ┃     o   ┇   o                 o
 //!  ───────o─────────────────┃         o┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 //!                ┇       o  o   o     ┇
@@ -24,6 +21,11 @@
 //!          o     ┇   o      ┃        o       ┇   o
 //!                ┇          ┃                ┇
 //!
+//! Axis alternates every level.
+//! Divider placement is placed at the median at each level.
+//! Nodes that itersect a divider belong to that node.
+//! Every divider keeps track of how thick a line would have to be
+//! to cover all the bots it owns.
 //!
 //! Compact Data layout:
 //!
@@ -31,21 +33,22 @@
 //!     xo...    |           xo.....
 //!  x..|    x...|      x....|      x....
 //!  |  |    |   |      |    |      | 
-//! 
+//!  ------------------------------------
+//!
 //! where:
 //! x=data every node has (e.g. number of aabb objects).
 //! o=data only non leaf nodes have (e.g. divider location).
 //! .=a aabb object. Notice nodes can each have a different number of aabb objects.
 //! 
 //! Every 'o' has a pointer to the left and right children 'x' s.
-//! ```
-//! 
-//! 
+//! ~~~~
 
+#![feature(specialization)]
 #![feature(ptr_internals)]
 #![feature(align_offset)]
 #![feature(trusted_len)]
 #![feature(test)]
+
 extern crate axgeom;
 extern crate compt;
 extern crate rayon;
@@ -141,12 +144,3 @@ pub unsafe trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
-
-/*
-///Marker trait to indicate that this object is a point.
-pub trait IsPoint{
-  type Num:NumTrait;
-  fn get_center(&self)->[Self::Num;2];
-}
-*/
-

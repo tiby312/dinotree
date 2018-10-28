@@ -2,9 +2,8 @@
 use inner_prelude::*;
 use axgeom::Rect;
 
-use dyntree::fast_alloc;
-
 use std::time::Instant;
+use dyntree::new_inner;
 
 fn into_secs(elapsed:std::time::Duration)->f64{
     let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
@@ -156,7 +155,7 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:
     
     let dlevel=par::Parallel::new(Depth(gg));
 
-    fast_alloc::new(axis,n,bots,aabb_create,splitter,height,dlevel)    
+    new_inner(axis,n,bots,aabb_create,splitter,height,dlevel)    
 }
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
@@ -182,7 +181,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N
     unsafe impl<T> Sync for SplitterWrapper<T>{}
 
 
-    let (a,b)=fast_alloc::new(axis,n,bots,aabb_create,SplitterWrapper(splitter),height,par::Sequential);
+    let (a,b)=new_inner(axis,n,bots,aabb_create,SplitterWrapper(splitter),height,par::Sequential);
     (a,b.0)
 }
 

@@ -3,14 +3,14 @@ use advanced::Splitter;
 
 ///A KdTree construction
 ///This is like DynTree except the size of every node is constant.
-pub struct KdTree<'a,A:AxisTrait,T:HasAabb+'a> {
-    tree: compt::dfs_order::CompleteTree<Node2<'a,T>>,
-    _p:PhantomData<A>
+pub struct DinoTreeInner<'a,A:AxisTrait,T:HasAabb+'a> {
+    pub tree: compt::dfs_order::CompleteTree<Node2<'a,T>>,
+    pub axis:A
 }
 
-impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
+impl<'a,A:AxisTrait,T:HasAabb+Send+'a> DinoTreeInner<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:K,par:JJ) -> (KdTree<'a,A,T>,K) {
+    pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:K,par:JJ) -> (DinoTreeInner<'a,A,T>,K) {
         
         let mut ttree=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
             let rest=&mut [];
@@ -21,25 +21,16 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> KdTree<'a,A,T>{
         },height);
 
         let bag={
-            let j=ttree.create_down_mut().with_depth(Depth(0));
+            let j=ttree.vistr_mut().with_depth(Depth(0));
 
             self::recurse_rebal::<A,T,JJ,K>(axis,par,rest,j,splitter)
         };
         
-        (KdTree{tree:ttree,_p:PhantomData},bag)
+        (DinoTreeInner{tree:ttree,axis},bag)
     }
 
 }
 
-impl<'a,A:AxisTrait,T:HasAabb+'a> KdTree<'a,A,T>{
-
-    pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,T>>{
-        &self.tree
-    }
-    pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,T>>{
-        &mut self.tree
-    }
-}
 
 pub struct Node2<'a,T:HasAabb+'a>{ 
 

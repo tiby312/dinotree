@@ -182,11 +182,11 @@ struct SizRet{
 }
 impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
-    pub fn get_iter_mut<'b>(&'b mut self)->VistrMut<'b,N,T>{
+    pub fn vistr_mut<'b>(&'b mut self)->VistrMut<'b,N,T>{
         VistrMut{ptr:&mut self.root,depth:0,height:self.height}
     }
 
-    pub fn get_iter<'b>(&'b self)->Vistr<'b,N,T>{
+    pub fn vistr<'b>(&'b self)->Vistr<'b,N,T>{
         Vistr{ptr:&self.root,depth:0,height:self.height}
     }
 
