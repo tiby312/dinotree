@@ -231,6 +231,36 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
 
 
 
+
+
+use self::customlength::CustomLength;
+mod customlength{
+    pub struct CustomLength<I:Iterator>{
+        length:usize,
+        num:usize,
+        it:I
+    }
+    impl<I:Iterator> CustomLength<I>{
+        pub unsafe fn new(it:I,length:usize)->CustomLength<I>{
+            CustomLength{length,num:0,it}
+        }
+    }
+    impl<I:Iterator> Iterator for CustomLength<I>{
+        type Item=I::Item;
+        fn next(&mut self)->Option<Self::Item>{
+            self.num+=1;
+            self.it.next()
+        }
+        fn size_hint(&self)->(usize,Option<usize>){
+            (self.length-self.num,Some(self.length-self.num))
+        }
+    }
+    impl<I:std::iter::FusedIterator> std::iter::FusedIterator for CustomLength<I>{}
+    impl<I:Iterator> std::iter::ExactSizeIterator for CustomLength<I>{}
+    unsafe impl<I:Iterator> std::iter::TrustedLen for CustomLength<I>{}
+}
+
+
 pub(crate) mod iter_mut{
     use super::*;
 
@@ -242,22 +272,18 @@ pub(crate) mod iter_mut{
     
     ///Iterator over all the elements in the tree in dfs in order- not the original order.
     pub struct TreeIterMut<'a,N:'a,T:HasAabb+'a>{
-        pub(crate) length:usize,
-        pub(crate) num:usize,
-        pub(crate) it:std::iter::FlatMap<
+        pub(crate) it:CustomLength<std::iter::FlatMap<
             compt::DfsInOrderIter<VistrMut<'a,N,T>>,
             std::slice::IterMut<'a,T>,
-            FF<'a,N,T>
-        >
+            FF<'a,N,T>>>
     }
     impl<'a,N,T:HasAabb> Iterator for TreeIterMut<'a,N,T>{
         type Item=&'a mut T;
         fn next(&mut self)->Option<Self::Item>{
-            self.num+=1;
             self.it.next()
         }
         fn size_hint(&self)->(usize,Option<usize>){
-            (self.length-self.num,Some(self.length-self.num))
+            self.it.size_hint()
         }
     }
 
@@ -279,23 +305,18 @@ pub(crate) mod iter_const{
     
     ///Iterator over all the elements in the tree in dfs in order- not the original order.
     pub struct TreeIter<'a,N:'a,T:HasAabb+'a>{
-        pub(crate) length:usize,
-        pub(crate) num:usize,
-        pub(crate) it:std::iter::FlatMap<
+        pub(crate) it:CustomLength<std::iter::FlatMap<
             compt::DfsInOrderIter<Vistr<'a,N,T>>,
             std::slice::Iter<'a,T>,
-            FF<'a,N,T>
-        >
+            FF<'a,N,T>>>
     }
     impl<'a,N,T:HasAabb> Iterator for TreeIter<'a,N,T>{
         type Item=&'a T;
         fn next(&mut self)->Option<Self::Item>{
-            //self.length-=1;
-            self.num+=1;
             self.it.next()
         }
         fn size_hint(&self)->(usize,Option<usize>){
-            (self.length-self.num,Some(self.length-self.num))
+            self.it.size_hint()
         }
     }
 
@@ -330,7 +351,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     pub fn iter_mut<'a>(&'a mut self)->iter_mut::TreeIterMut<'a,N,T>{
         let length=self.num_bots();
         let it=self.vistr_mut().dfs_inorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
-        iter_mut::TreeIterMut{length,it,num:0}
+        iter_mut::TreeIterMut{it:unsafe{CustomLength::new(it,length)}}
     }
 
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
@@ -338,7 +359,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     pub fn iter<'a>(&'a self)->iter_const::TreeIter<'a,N,T>{
         let length=self.num_bots();
         let it=self.vistr().dfs_inorder_iter().flat_map(iter_const::convert as iter_const::FF<N,T>);
-        iter_const::TreeIter{length,it,num:0}
+        iter_const::TreeIter{it:unsafe{CustomLength::new(it,length)}}
 
     }
     
