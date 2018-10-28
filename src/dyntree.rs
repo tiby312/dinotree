@@ -39,13 +39,14 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
         &self.rect
     }
 }
-
+/*
 impl<N:NumTrait,T:IsPoint<Num=N>> IsPoint for BBox<N,T>{
     type Num=N;
     fn get_center(&self)->[Self::Num;2]{
         self.inner.get_center()
     }
 }
+*/
 
 pub mod fast_alloc{
     use super::*;

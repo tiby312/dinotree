@@ -1,19 +1,46 @@
-
-```
-             xo.....
-    xo...    |           xo.....
- x..|    x...|      x....|      x....
- |  |    |   |      |    |      | 
-
-where:
-x=data every node has.
-o=data only non leaf nodes have
-.=a aabb object. Notice has nodes can each have different a different amount of aabb object.
-
-every 'o' has a pointer to the left and right 'x' s.
-```
-
+//!
 //! Provides the dinotree data structure and ways to traverse it. Algorithms that work on this tree can use this crate.
+//!
+//!
+//! ```
+//! 2d Tree Divider Representation:
+//! Divider placement is placed at the median at each level.
+//! Axis alternates every level.
+//! Nodes that itersect a divider belong to that node.
+//! 
+//!
+//!
+//!    o o ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┃         ┇         o
+//!  ┈┈┈┈┈┈┇     o      o     ┃     o   ┇   o       
+//!  ───────o─────────────────┃         o┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+//!                ┇       o  o   o     ┇
+//!        o       ┇    o     ┃┈┈┈┈┈o┈┈┈┇       o
+//!                ┇   o      ┃         o             o
+//!                ┇┈┈┈┈┈┈┈┈┈┈┃         ┇
+//!      o         o    o     ┃───────o──────────────────
+//!                ┇          ┃                ┇   o
+//!  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇      o   o   o            ┇┈┈┈┈┈┈┈┈┈
+//!     o          ┇          ┃┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇
+//!          o     ┇   o      ┃        o       ┇   o
+//!                ┇          ┃                ┇
+//!
+//!
+//! Compact Data layout:
+//!
+//!              xo.....
+//!     xo...    |           xo.....
+//!  x..|    x...|      x....|      x....
+//!  |  |    |   |      |    |      | 
+//! 
+//! where:
+//! x=data every node has (e.g. number of aabb objects).
+//! o=data only non leaf nodes have (e.g. divider location).
+//! .=a aabb object. Notice nodes can each have a different number of aabb objects.
+//! 
+//! Every 'o' has a pointer to the left and right children 'x' s.
+//! ```
+//! 
+//! 
 
 #![feature(ptr_internals)]
 #![feature(align_offset)]
@@ -117,28 +144,10 @@ pub unsafe trait HasAabb{
 }
 
 /*
-///A bots aabb is normally only used for collision detection. 
-///So when you are iterating through all the bots for other purposes having the aabb as a member variable is just
-///hurting your spacial locality.
-///So the dinotree api is flexible enough that you can have the aabb in the bot if you so choose, but you can alternatively 
-///only provide a way to generate aabb as the dinotree is created.
-///If you generate the aabbs as they are inserted into the tree, less memory is used overall.
-///
-///It is important that the aabb of the bot generated follows the following rule:
-///If a bot A's aabb does not intersect a bots B's aabb, then A!=B.
-///
-///If this rule is violated the user may end up with two mutable references to the same objects.
-
-pub unsafe trait AabbGenerator{
-   type Num:NumTrait;
-   type T;
-   fn create(&self,bot:&Self::T)->axgeom::Rect<Self::Num>;
-}
-*/
-
 ///Marker trait to indicate that this object is a point.
 pub trait IsPoint{
   type Num:NumTrait;
   fn get_center(&self)->[Self::Num;2];
 }
+*/
 
