@@ -113,9 +113,7 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
         let mut nodes=tree2.tree.into_nodes();
         let mut mover=Vec::with_capacity(num_bots);
         for node in nodes.drain(..){
-            for a in node.range.iter(){
-                mover.push(a.index);
-            }
+            mover.extend(node.range.iter().map(|a|a.index));
         }
         mover
     };
