@@ -154,6 +154,8 @@ pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 
 
+    ///Safe to assume aabb_create is called for each bot in the slice in order.
+    ///Parallelization is done using rayon crate.
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{  
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let ka=advanced::SplitterEmpty;
@@ -171,6 +173,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 
         new_inner(axis,n,bots,aabb_create,ka,height,dlevel).0
     }
+
 
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
         let height=advanced::compute_tree_height_heuristic(bots.len()); 

@@ -3,23 +3,23 @@
 //! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr nd VistrMut visitors.
 //!
 //!
-//! ~~~~
+//! ~~~~text
 //! 2d Tree Divider Representation:
 //!
 //!
-//!    oo  ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┃         ┇         o
-//!  ┈┈┈┈┈┈┇     o      o     ┃     o   ┇   o                 o
+//!    o   ┆┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┃         ┆         o
+//!  ┈┈┈┈┈┈┆     o      o     ┃     o   ┆   o                 o
 //!  ───────o─────────────────┃         o┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-//!                ┇       o  o   o     ┇
-//!        o       ┇    o     ┃┈┈┈┈┈o┈┈┈┇       o
-//!                ┇   o      ┃         o             o
-//!                ┇┈┈┈┈┈┈┈┈┈┈┃         ┇                   o
+//!                ┆       o  o   o     ┆
+//!        o       ┆    o     ┃┈┈┈┈┈o┈┈┈┆       o
+//!                ┆   o      ┃         o             o
+//!                ┆┈┈┈┈┈┈┈┈┈┈┃         ┆                   o
 //!      o         o    o     ┃───────o────────────────────────
-//!                ┇          ┃                ┇   o
-//!  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇      o   o   o            ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-//!     o          ┇          ┃┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇         o
-//!          o     ┇   o      ┃        o       ┇   o
-//!                ┇          ┃                ┇
+//!                ┆          ┃                ┆   o
+//!  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┆      o   o   o            ┆┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+//!     o          ┆          ┃┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┆         o
+//!          o     ┆   o      ┃        o       ┆   o
+//!                ┆          ┃                ┆
 //!
 //! Axis alternates every level.
 //! Divider placement is placed at the median at each level.
