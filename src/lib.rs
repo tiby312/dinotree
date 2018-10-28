@@ -1,3 +1,18 @@
+
+```
+             xo.....
+    xo...    |           xo.....
+ x..|    x...|      x....|      x....
+ |  |    |   |      |    |      | 
+
+where:
+x=data every node has.
+o=data only non leaf nodes have
+.=a aabb object. Notice has nodes can each have different a different amount of aabb object.
+
+every 'o' has a pointer to the left and right 'x' s.
+```
+
 //! Provides the dinotree data structure and ways to traverse it. Algorithms that work on this tree can use this crate.
 
 #![feature(ptr_internals)]
