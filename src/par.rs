@@ -1,10 +1,8 @@
-use rayon;
 use compt::Depth;
 
+///Indicates if we are low enough into the tree that we should switch to a sequential version of the
+///algorithm.
 pub trait Joiner:Send+Sync+Copy+Clone{
-    //fn new(d:Depth)->Self;
-    fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB);
-    //fn is_parallel(&self)->bool;
     fn into_seq(&self)->Sequential;
     fn should_switch_to_sequential(&self,a:Depth)->bool;
 }
@@ -12,6 +10,7 @@ pub trait Joiner:Send+Sync+Copy+Clone{
 #[derive(Copy,Clone)]
 pub struct Parallel(pub Depth);
 impl Parallel{
+    ///The height at which to switch to sequential.
     pub fn new(d:Depth)->Self{
       Parallel(d)
     }
@@ -23,13 +22,7 @@ impl Joiner for Parallel{
     }
 
     fn should_switch_to_sequential(&self,a:Depth)->bool{
-      //Seems like 6 is ideal for my dell xps laptop
-      //8 is best on my android phone.
       a.0>=(self.0).0
-    }
-
-    fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
-      rayon::join(oper_a, oper_b)
     }
 }
 
@@ -43,11 +36,5 @@ impl Joiner for Sequential{
 
     fn should_switch_to_sequential(&self,_a:Depth)->bool{
        true
-    }
-
-    fn join<A:FnOnce() -> RA + Send,RA:Send,B:FnOnce() -> RB + Send,RB:Send>(oper_a: A, oper_b: B) -> (RA, RB)   {
-        let a = oper_a();
-        let b = oper_b();
-        (a, b)
     }
 }

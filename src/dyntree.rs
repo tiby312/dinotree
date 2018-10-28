@@ -4,7 +4,6 @@ use HasAabb;
 use tree_alloc::VistrMut;
 use tree_alloc::Vistr;
 use compt::Visitor;
-use axgeom::*;
 use advanced::Splitter;
 
 

@@ -125,7 +125,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             //We already know that the middile is non zero in length.
             let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
             
-            sweeper_update(div_axis.next(),binned_middle);
+            oned::sweeper_update(div_axis.next(),binned_middle);
             let nj:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
             *nn=nj;
 

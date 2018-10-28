@@ -54,32 +54,18 @@ extern crate compt;
 extern crate rayon;
 extern crate pdqselect;
 extern crate is_sorted;
-#[cfg(test)]
-extern crate rand;
+
 #[cfg(test)]
 extern crate test;
-extern crate smallvec;
-
 
 mod inner_prelude{
-  pub use compt::LevelIter;
-  pub use compt::Depth;
-  pub use axgeom::Range;
+  pub use compt::*;
+  pub use axgeom::*;
   pub use *;
-  pub use oned::sweeper_update;
-  pub use compt::Visitor;
-  pub use par;
-  pub use axgeom::AxisTrait;
-  pub use std::marker::PhantomData;
-  //pub use compt::timer::*;
-  pub use NumTrait;
-  pub use *;
-  pub use tree_alloc::NodeDyn;
 }
 
 ///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
 ///Used by algorithms that operate on the tree.
-#[doc(hidden)]
 pub mod par;
 
 ///Contains rebalancing code.
