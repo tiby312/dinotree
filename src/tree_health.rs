@@ -4,7 +4,7 @@ use compt::Visitor;
 
 ///Outputs the ratio of the number of bots at the current level compared to the total number of bots in the tree.
 ///Starts at the root level and ends with the leaf level.
-pub struct LevelRatioIterator<'a,N:'a,T:HasAabb+'a>{
+struct LevelRatioIterator<'a,N:'a,T:HasAabb+'a>{
     height:usize,
     total_bots:usize,
     itt:compt::BfsIter<compt::LevelIter<Vistr<'a,N,T>>>,
@@ -43,9 +43,10 @@ impl<'a,N:'a,T:HasAabb+'a> Iterator for LevelRatioIterator<'a,N,T>{
 }
 
 ///Returns the fraction of bots that are in each level of the tree.
-pub fn compute_tree_health<A:AxisTrait,N,T:HasAabb>(tree:&DinoTree<A,N,T>)->LevelRatioIterator<N,T>{
+pub fn compute_tree_health<A:AxisTrait,N,T:HasAabb>(tree:&DinoTree<A,N,T>)->Vec<f64>{
     let itt=tree.vistr().with_depth(compt::Depth(0)).bfs_iter();
     let height=tree.height();
     let total_bots=tree.num_bots();
-    LevelRatioIterator{total_bots,height,itt,acc:0,prev_depth:compt::Depth(42)}
+    let i=LevelRatioIterator{total_bots,height,itt,acc:0,prev_depth:compt::Depth(42)};
+    i.collect()
 }

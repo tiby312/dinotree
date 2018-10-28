@@ -199,6 +199,6 @@ pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,
 ///The first element is the number of bots in the root level.
 ///The last number is the fraction in the lowest level of the tree.
 ///Ideally the fraction of bots in the lower level of the tree is high.
-pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->tree_health::LevelRatioIterator<N,T>{
+pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->Vec<f64>{
     tree_health::compute_tree_health(tree)
 }

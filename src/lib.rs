@@ -11,16 +11,16 @@
 //!
 //!
 //!    o o ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┃         ┇         o
-//!  ┈┈┈┈┈┈┇     o      o     ┃     o   ┇   o       
-//!  ───────o─────────────────┃         o┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+//!  ┈┈┈┈┈┈┇     o      o     ┃     o   ┇   o                 o
+//!  ───────o─────────────────┃         o┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 //!                ┇       o  o   o     ┇
 //!        o       ┇    o     ┃┈┈┈┈┈o┈┈┈┇       o
 //!                ┇   o      ┃         o             o
-//!                ┇┈┈┈┈┈┈┈┈┈┈┃         ┇
-//!      o         o    o     ┃───────o──────────────────
+//!                ┇┈┈┈┈┈┈┈┈┈┈┃         ┇                   o
+//!      o         o    o     ┃───────o────────────────────────
 //!                ┇          ┃                ┇   o
-//!  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇      o   o   o            ┇┈┈┈┈┈┈┈┈┈
-//!     o          ┇          ┃┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇
+//!  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇      o   o   o            ┇┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+//!     o          ┇          ┃┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┇         o
 //!          o     ┇   o      ┃        o       ┇   o
 //!                ┇          ┃                ┇
 //!
@@ -87,7 +87,6 @@ mod tree_alloc;
 mod assert_invariants;
 
 mod tree_health;
-pub use tree_health::LevelRatioIterator;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
