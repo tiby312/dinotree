@@ -1,6 +1,6 @@
 # memory usage
 
-
+~~~~text
 x=object (without its aabb)
 i=index of an aabb object
 r=aabb
@@ -19,5 +19,5 @@ xxxxx xrxrxrxrxr iiiii ->remove inner tree. Now the tree is setup and ready to b
 
 xxxxx -> dinotree is destroyed leaving just the original slice.
 
-
+~~~~
 
