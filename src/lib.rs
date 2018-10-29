@@ -1,7 +1,8 @@
 //!
-//! Provides the dinotree data structure and ways to traverse it. Algorithms that work on this tree can use this crate.
+//! Provides the dinotree data structure and ways to traverse it.
 //! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr nd VistrMut visitors.
 //!
+//! # Overview
 //!
 //! ~~~~text
 //! 2d Tree Divider Representation:
@@ -43,8 +44,17 @@
 //! Every 'o' has a pointer to the left and right children 'x' s.
 //! ~~~~
 //!
-//! TODO talk to unsafety. How some nodes will be left uninitialized, but this is okay since the user
-//! cannot access them using the Vistr and VistrMut visitors.
+//! # Unsafety
+//!
+//! Unsafety is used to construct the tree in contiguous memory despite nodes having each having different sizes.
+//!
+//! The HasAabb trait is marked as unsafe. See its description. 
+//!
+//! Parts of the tree may be unsafely uninitialized, but their access is inhibited from the safe Vistr and VistrMut api. The Vistr and VistrMut Visitors will
+//! return an Option for their NonLeafNode item. A value of none indicates that that node and all nodes beneath it do
+//! not have any aabb objects. In such cases, there is no median from which to create a divider.
+//! Internally, these nodes are not initialized since the construction algorithm stops recursing once
+//! there are no more aabb objects to be added to a node.
 //!
 
 #![feature(specialization)]
@@ -73,7 +83,7 @@ mod inner_prelude{
 pub mod par;
 
 ///Contains rebalancing code.
-mod base_kdtree;
+mod dinotree_inner;
 ///Provides low level functionality to construct a dyntree.
 mod tree_alloc;
 
@@ -84,9 +94,9 @@ mod tree_health;
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
 ///segment of memory. 
-mod dyntree;
-pub use dyntree::iter_const::TreeIter;
-pub use dyntree::iter_mut::TreeIterMut;
+mod dinotree;
+pub use dinotree::iter_const::TreeIter;
+pub use dinotree::iter_mut::TreeIterMut;
 
 
 
@@ -110,11 +120,11 @@ where T: Ord+Copy+Send+Sync{}
 
 
 pub use tree_alloc::FullComp;
-pub use dyntree::DinoTree;
+pub use dinotree::DinoTree;
 pub use tree_alloc::NodeDyn;
 pub use tree_alloc::Vistr;
 pub use tree_alloc::VistrMut;
-pub use dyntree::BBox;
+pub use dinotree::BBox;
 
 
 ///Marker trait to signify that this object has an axis aligned bounding box.

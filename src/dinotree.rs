@@ -1,5 +1,5 @@
 use inner_prelude::*;
-use base_kdtree::DinoTreeInner;
+use dinotree_inner::DinoTreeInner;
 use HasAabb;
 use tree_alloc::VistrMut;
 use tree_alloc::Vistr;
@@ -20,6 +20,7 @@ use std::fmt::Formatter;
 use std::fmt::Debug;
 
 impl<N:NumTrait+Debug,T:Debug> Debug for BBox<N,T>{
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result{
         self.rect.fmt(f)?;
         self.inner.fmt(f)
@@ -27,6 +28,9 @@ impl<N:NumTrait+Debug,T:Debug> Debug for BBox<N,T>{
 }
 
 impl<N:NumTrait,T> BBox<N,T>{
+    ///Unsafe since the user create to boxes whose rectangles do not intersect,
+    ///but whose contents point to a shared resource thus violating the contract of HasAabb.
+    #[inline]
     pub unsafe fn new(rect:Rect<N>,inner:T)->BBox<N,T>{
         BBox{rect,inner}
     }
@@ -35,6 +39,7 @@ impl<N:NumTrait,T> BBox<N,T>{
 
 unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     type Num=N;
+    #[inline]
     fn get(&self)->&Rect<Self::Num>{
         &self.rect
     }
@@ -151,7 +156,8 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
 /// their position in the list and store those as pairs.
 ///
 /// The type parameter N is a user defined struct that every element of the tree will have purely for use
-/// in user defined algorithms.
+/// in user defined algorithms. This is useful for algorithms that might need to store data on a node by node basis.
+/// Having the data be directly in the tree instead of a seperate data structure improvies memory locality for the algorithm.
 ///
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     mover:Vec<u32>, //Used to return the aabb objects back to their original position
@@ -168,11 +174,12 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 
     ///Safe to assume aabb_create is called for each bot in the slice in order.
     ///Parallelization is done using rayon crate.
+    #[inline]
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{  
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let ka=advanced::SplitterEmpty;
 
-        //on xps13 5 seems good
+        //See the data project for reasoning behind this value.
         const DEPTH_SEQ:usize=2;
 
         let gg=if height<=DEPTH_SEQ{
@@ -186,7 +193,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         new_inner(axis,n,bots,aabb_create,ka,height,dlevel).0
     }
 
-
+    #[inline]
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let ka=advanced::SplitterEmpty;
@@ -330,7 +337,8 @@ pub(crate) mod iter_const{
 impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
 
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
-    ///to make the changes you made while querying the tree be copied back into the original list.
+    ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
+    #[inline]
     pub fn apply<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
         
         assert_eq!(bots.len(),self.num_bots());
@@ -348,14 +356,15 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
     ///Instead, prefer to iterate through all the bots before the tree is constructed.
     ///But this is useful if you need to iterate over all the bots aabbs.
+    #[inline]
     pub fn iter_mut<'a>(&'a mut self)->iter_mut::TreeIterMut<'a,N,T>{
         let length=self.num_bots();
         let it=self.vistr_mut().dfs_inorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
         iter_mut::TreeIterMut{it:unsafe{CustomLength::new(it,length)}}
     }
 
-    ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
-    ///Instead, prefer to iterate through all the bots before the tree is constructed.
+    ///See iter_mut
+    #[inline]
     pub fn iter<'a>(&'a self)->iter_const::TreeIter<'a,N,T>{
         let length=self.num_bots();
         let it=self.vistr().dfs_inorder_iter().flat_map(iter_const::convert as iter_const::FF<N,T>);
@@ -366,29 +375,37 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Get the axis of the starting divider.
     ///If this were the x axis, for example, the first dividing line would be from top to bottom,
     ///partitioning the bots by their x values.
+    #[inline]
     pub fn axis(&self)->A{
         self.axis
     }
 
     ///Get the height of the tree.
+    #[inline]
     pub fn height(&self)->usize{
         self.height
     }
 
     ///Create a mutable tree visitor.
+    #[inline]
     pub fn vistr_mut<'b>(&'b mut self)->VistrMut<'b,N,T>{
         self.alloc.vistr_mut()
     }
 
     ///Create an immutable tree visitor.
+    #[inline]
     pub fn vistr<'b>(&'b self)->Vistr<'b,N,T>{
         self.alloc.vistr()
     }
 
     ///Returns the number of bots that are in the tree.
+    #[inline]
     pub fn num_bots(&self)->usize{
         self.num_bots
     }
+
+    ///Returns the number of nodes in the tree.
+    #[inline]
     pub fn num_nodes(&self)->usize{
         self.num_nodes
     }

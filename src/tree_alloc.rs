@@ -87,6 +87,11 @@ unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for Vistr<'a,N,T>{}
 
 impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
     type Item=&'a NodeDyn<N,T>;
+
+    ///An option of the NonLeafItem is returned to indicate that this node
+    ///and all leaves under this node do not have any bots. If such cases,
+    ///it does not make sense to have a divider since there is no median to use
+    ///to make it.
     type NonLeafItem=Option<&'a FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
         let height=self.height;
@@ -132,6 +137,11 @@ impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
 unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for VistrMut<'a,N,T>{}
 impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
     type Item=&'a mut NodeDyn<N,T>;
+
+    ///An option of the NonLeafItem is returned to indicate that this node
+    ///and all leaves under this node do not have any bots. If such cases,
+    ///it does not make sense to have a divider since there is no median to use
+    ///to make it.
     type NonLeafItem=Option<&'a FullComp<T::Num>>;
     fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
         let height=self.height;

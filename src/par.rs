@@ -7,6 +7,8 @@ pub trait Joiner:Send+Sync+Copy+Clone{
     fn should_switch_to_sequential(&self,a:Depth)->bool;
 }
 
+///Indicates that an algorithm should run in parallel up until
+///the specified depth.
 #[derive(Copy,Clone)]
 pub struct Parallel(pub Depth);
 impl Parallel{
@@ -26,6 +28,8 @@ impl Joiner for Parallel{
     }
 }
 
+///Indicates that an algorithm should run sequentially.
+///Once we transition to sequential, we always want to recurse sequentially.
 #[derive(Copy,Clone)]
 pub struct Sequential;
 impl Joiner for Sequential{

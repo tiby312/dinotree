@@ -3,7 +3,7 @@ use inner_prelude::*;
 use axgeom::Rect;
 
 use std::time::Instant;
-use dyntree::new_inner;
+use dinotree::new_inner;
 
 fn into_secs(elapsed:std::time::Duration)->f64{
     let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
@@ -20,13 +20,16 @@ pub struct LevelTimer{
 }
 
 impl LevelTimer{
+    #[inline]
     pub fn new()->LevelTimer{
         
         LevelTimer{levels:Vec::new(),time:None}
     }
+    #[inline]
     pub fn into_inner(self)->Vec<f64>{
         self.levels
     }
+    #[inline]
     fn node_end_common(&mut self){
 
         let time=self.time.unwrap();
@@ -37,6 +40,7 @@ impl LevelTimer{
     }
 }
 impl Splitter for LevelTimer{
+    #[inline]
     fn div(mut self)->(Self,Self){
         self.node_end_common();
 
@@ -44,6 +48,7 @@ impl Splitter for LevelTimer{
 
         (self,LevelTimer{levels:std::iter::repeat(0.0).take(length).collect(),time:None})
     }
+    #[inline]
     fn add(self,a:Self)->Self{
 
         let (smaller,mut larger)=if self.levels.len()<a.levels.len(){
@@ -58,10 +63,12 @@ impl Splitter for LevelTimer{
         }
         larger
     }
+    #[inline]
     fn node_start(&mut self){
         assert!(self.time.is_none());
         self.time=Some(Instant::now());
     }
+    #[inline]
     fn node_end(&mut self){
         self.node_end_common();
     } 
@@ -69,6 +76,7 @@ impl Splitter for LevelTimer{
 
 
 ///Outputs the height given an desirned number of bots per node.
+#[inline]
 pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
     
     //we want each node to have space for around 300 bots.
@@ -88,6 +96,7 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
 ///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
 ///This is provided so that users can allocate enough space for all the nodes
 ///before the tree is constructed, perhaps for some graphics buffer.
+#[inline]
 pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     
     //we want each node to have space for around num_per_node bots.
@@ -145,6 +154,7 @@ impl Splitter for SplitterEmpty{
 
 
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
+#[inline]
 pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DinoTree<A,N,BBox<Num,T>>,K){   
     
     let gg=if height<=height_switch_seq{
@@ -159,6 +169,7 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:
 }
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
+#[inline]
 pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DinoTree<A,N,BBox<Num,T>>,K){   
 
     pub struct SplitterWrapper<T>(
@@ -189,6 +200,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N
 ///Returns Ok, then this tree's invariants are being met.
 ///Should always return true, unless the user corrupts the trees memory
 ///or if the contract of the HasAabb trait are not upheld.
+#[inline]
 pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
     assert_invariants::are_invariants_met(tree)
 }
@@ -198,6 +210,7 @@ pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,
 ///The first element is the number of bots in the root level.
 ///The last number is the fraction in the lowest level of the tree.
 ///Ideally the fraction of bots in the lower level of the tree is high.
+#[inline]
 pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->Vec<f64>{
     tree_health::compute_tree_health(tree)
 }
