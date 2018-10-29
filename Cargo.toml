@@ -2,6 +2,11 @@
 name = "dinotree"
 version = "0.1.0"
 authors = ["Ken Reed <kenakioreed@gmail.com>"]
+description = "An aabb space partitioning 2d tree data structure"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/tiby312/dinotree"
+keywords = ["tree", "kdtree","dinotree","space partitioning"]
+readme = "readme.md"
 
 
 [dev-dependencies]
@@ -11,6 +16,5 @@ rustc-test = "0.3.0"
 is_sorted = "0.1.0"
 rayon = "1.0.2"
 pdqselect = "0.1.0"
-#compt = "1.1.0"
-compt = {path="../compt"}
-axgeom = {path="../axgeom"}
+compt = "1.2.2"
+axgeom = "1.0.1"
