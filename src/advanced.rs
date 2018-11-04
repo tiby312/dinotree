@@ -94,6 +94,13 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
     }
 }
 
+#[inline]
+pub fn compute_default_level_switch_sequential()->usize{
+    const DEPTH_SEQ:usize=2;
+
+    DEPTH_SEQ
+}
+
 ///Returns the height of a dyn tree for a given number of bots.
 ///The height is chosen such that the nodes will each have a small amount of bots.
 ///If we had a node per bot, the tree would be too big. 
