@@ -44,14 +44,6 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
         &self.rect
     }
 }
-/*
-impl<N:NumTrait,T:IsPoint<Num=N>> IsPoint for BBox<N,T>{
-    type Num=N;
-    fn get_center(&self)->[Self::Num;2]{
-        self.inner.get_center()
-    }
-}
-*/
 
     
 pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:K,height:usize,par:JJ)->(DinoTree<A,N,BBox<Num,T>>,K){   
@@ -341,15 +333,15 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     #[inline]
     pub fn apply<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
         
-        assert_eq!(bots.len(),self.num_bots());
-        let mut counter=0;
+        //assert_eq!(bots.len(),self.num_bots());
+        //let mut counter=0;
 
-        for (bot,mov) in self.iter().zip(self.mover.iter()){
+        for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
             let target=&mut bots[*mov as usize];
             conv(bot,target);
-            counter+=1;
+            //counter+=1;
         }
-        assert_eq!(counter,self.mover.len());
+        //assert_eq!(counter,self.mover.len());
     }
 
     ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.

@@ -69,7 +69,7 @@ extern crate compt;
 extern crate rayon;
 extern crate pdqselect;
 extern crate is_sorted;
-
+extern crate itertools;
 #[cfg(test)]
 extern crate test;
 
@@ -77,6 +77,7 @@ mod inner_prelude{
   pub use compt::*;
   pub use axgeom::*;
   pub use *;
+  pub use itertools::Itertools;
 }
 
 ///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.

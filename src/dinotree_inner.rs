@@ -124,7 +124,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             let binned_right=right;                
 
             //We already know that the middile is non zero in length.
-            let container_box=unsafe{create_cont_non_zero_unchecked(div_axis,binned_middle)};
+            let container_box=create_cont_non_zero(div_axis,binned_middle);
             
             oned::sweeper_update(div_axis.next(),binned_middle);
             let nj:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
@@ -148,8 +148,26 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
 
 
 ///The slice that is passed MUST NOT BE ZERO LENGTH!!!
-unsafe fn create_cont_non_zero_unchecked<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>{
+fn create_cont_non_zero<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->axgeom::Range<T::Num>{
   
+
+    let (first,rest)=middile.split_first().unwrap();
+    let mut min=first.get().get_range(axis).left;
+    let mut max=first.get().get_range(axis).right;
+
+    for a in rest.iter(){
+        let left=a.get().get_range(axis).left;
+        let right=a.get().get_range(axis).right;
+
+        if left<min{
+            min=left;
+        }
+
+        if right>max{
+            max=right;
+        }
+    }
+    /*
      let left=match middle.iter().min_by(|a,b|{
         a.get().get_range(axis).left.cmp(&b.get().get_range(axis).left)
      }){
@@ -163,6 +181,7 @@ unsafe fn create_cont_non_zero_unchecked<A:AxisTrait,T:HasAabb>(axis:A,middle:&[
         Some(x)=>x,
         None=>std::hint::unreachable_unchecked()
      };
-
-     axgeom::Range{left:left.get().get_range(axis).left,right:right.get().get_range(axis).right}    
+    */
+    axgeom::Range{left:min,right:max}
+     //axgeom::Range{left:left.get().get_range(axis).left,right:right.get().get_range(axis).right}    
 }

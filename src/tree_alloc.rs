@@ -5,7 +5,7 @@ use HasAabb;
 use std::marker::PhantomData;
 use std::iter::TrustedLen;
 use std::ptr::Unique;
-
+use inner_prelude::*;
 
 
 #[repr(C)]
@@ -264,7 +264,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
 
                 let dst:&mut NodeDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                 
-                for (a,b) in dst.range.iter_mut().zip(constructor.it){
+                for (a,b) in dst.range.iter_mut().zip_eq(constructor.it){
                     *a=b;
                 }
                 dst.misc=constructor.misc;
@@ -278,7 +278,7 @@ impl<N,T:HasAabb> TreeAllocDstDfsOrder<N,T>{
                 
                 let dst:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:self.counter,size:len})};    
                 
-                for (a,b) in dst.node.range.iter_mut().zip(constructor.it){
+                for (a,b) in dst.node.range.iter_mut().zip_eq(constructor.it){
                     *a=b;
                 }
                 dst.node.misc=constructor.misc;
