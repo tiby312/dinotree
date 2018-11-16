@@ -5,7 +5,8 @@ use tree_alloc::VistrMut;
 use tree_alloc::Vistr;
 use compt::Visitor;
 use advanced::Splitter;
-
+use dinotree_inner::Sorter;
+use dinotree_inner::DefaultSorter;
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
 ///This is what is inserted into the tree. This way the user 
@@ -46,7 +47,7 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
 }
 
     
-pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:K,height:usize,par:JJ)->(DinoTree<A,N,BBox<Num,T>>,K){   
+pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>{   
     
 
     pub struct Cont2<N:NumTrait>{
@@ -70,7 +71,7 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
     }).collect();
     
 
-    let (mut tree2,_bag)=DinoTreeInner::new(axis,&mut conts,height,ka,par);
+    let mut tree2=DinoTreeInner::new(axis,&mut conts,height,ka,par,sorter);
     
 
     let height=tree2.tree.get_height();                
@@ -119,11 +120,9 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
 
 
     //debug_assert!(tree.are_invariants_met().is_ok());
-    (tree,_bag)
+    tree
     
 }
-
-
 
 
 /// The tree this crate revoles around.
@@ -169,7 +168,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
     #[inline]
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{  
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
-        let ka=advanced::SplitterEmpty;
+        let mut ka=advanced::SplitterEmpty;
 
         //See the data project for reasoning behind this value.
         const DEPTH_SEQ:usize=2;
@@ -182,14 +181,14 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         
         let dlevel=par::Parallel::new(Depth(gg));
 
-        new_inner(axis,n,bots,aabb_create,ka,height,dlevel).0
+        new_inner(axis,n,bots,aabb_create,&mut ka,height,dlevel,DefaultSorter)
     }
 
     #[inline]
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
-        let ka=advanced::SplitterEmpty;
-        new_inner(axis,n,bots,aabb_create,ka,height,par::Sequential).0
+        let mut ka=advanced::SplitterEmpty;
+        new_inner(axis,n,bots,aabb_create,&mut ka,height,par::Sequential,DefaultSorter)
     }
 
 }
@@ -332,16 +331,10 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
     pub fn apply<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
-        
-        //assert_eq!(bots.len(),self.num_bots());
-        //let mut counter=0;
-
         for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
             let target=&mut bots[*mov as usize];
             conv(bot,target);
-            //counter+=1;
         }
-        //assert_eq!(counter,self.mover.len());
     }
 
     ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.

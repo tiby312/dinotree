@@ -10,7 +10,7 @@ pub struct DinoTreeInner<'a,A:AxisTrait,T:HasAabb+'a> {
 
 impl<'a,A:AxisTrait,T:HasAabb+Send+'a> DinoTreeInner<'a,A,T>{
 
-    pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:K,par:JJ) -> (DinoTreeInner<'a,A,T>,K) {
+    pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:&mut K,par:JJ,sorter:impl Sorter) -> DinoTreeInner<'a,A,T> {
         
         let mut ttree=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
             let rest=&mut [];
@@ -20,13 +20,13 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> DinoTreeInner<'a,A,T>{
             
         },height);
 
-        let bag={
+        {
             let j=ttree.vistr_mut().with_depth(Depth(0));
 
-            self::recurse_rebal::<A,T,JJ,K>(axis,par,rest,j,splitter)
-        };
+            self::recurse_rebal(axis,par,rest,j,sorter,splitter);
+        }
         
-        (DinoTreeInner{tree:ttree,axis},bag)
+        DinoTreeInner{tree:ttree,axis}
     }
 
 }
@@ -45,6 +45,26 @@ pub struct Node2<'a,T:HasAabb+'a>{
 }
 
 
+pub trait Sorter:Copy+Clone+Send+Sync{
+    fn sort(&self,axis:impl AxisTrait,bots:&mut [impl HasAabb]);
+}
+
+#[derive(Copy,Clone)]
+pub struct DefaultSorter;
+
+impl Sorter for DefaultSorter{
+    fn sort(&self,axis:impl AxisTrait,bots:&mut [impl HasAabb]){
+        oned::sweeper_update(axis,bots);
+    }
+}
+
+#[derive(Copy,Clone)]
+pub struct NoSorter;
+
+impl Sorter for NoSorter{
+    fn sort(&self,axis:impl AxisTrait,bots:&mut [impl HasAabb]){}
+}
+
 
 
 
@@ -53,23 +73,21 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
     dlevel:JJ,
     rest:&'b mut [T],
     down:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>,
-    mut splitter:K)->K{
+    sorter:impl Sorter,
+    splitter:&mut K){
     splitter.node_start();
 
     let ((level,nn),restt)=down.next();
 
     match restt{
         None=>{
-            //We are guarenteed that the leaf nodes have at most 10 bots
-            //since we divide based off of the median, and picked the height
-            //such that the leaves would have at most 10.
-            oned::sweeper_update(div_axis.next(),rest);
+            sorter.sort(div_axis.next(),rest);
+            //oned::sweeper_update(div_axis.next(),rest);
             
             nn.range=rest;
             //nn.div=std::default::Default::default();
             
             splitter.node_end();
-            splitter
         },
         Some(((),lleft,rright))=>{
             //let lleft:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>=lleft;
@@ -85,7 +103,7 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
                 */
                 
                 splitter.node_end();
-                return splitter;
+                return;
             }
             else
             {
@@ -112,46 +130,47 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
             let binned=oned::bin_middle_left_right(div_axis,&med,rest);
             
             debug_assert!(binned.middle.len()!=0);
-            
-            
-                    
-    
+        
             let oned::Binned{left,middle,right}=binned;
             
-
             let binned_left=left;
             let binned_middle=middle;
             let binned_right=right;                
 
             //We already know that the middile is non zero in length.
-            let container_box=create_cont_non_zero(div_axis,binned_middle);
+            let container_box=create_cont(div_axis,binned_middle).unwrap();
             
-            oned::sweeper_update(div_axis.next(),binned_middle);
+            //oned::sweeper_update(div_axis.next(),binned_middle);
+            sorter.sort(div_axis.next(),binned_middle);
             let nj:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
             *nn=nj;
 
-            let (splitter1,splitter2)=splitter.div();
 
-            let (splitter1,splitter2)=if !dlevel.should_switch_to_sequential(level){
-                let af=move || {self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,splitter1)};
-                let bf=move || {self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,splitter2)};
-                rayon::join(af,bf)
+
+            let mut splitter2=splitter.div();
+
+            let splitter=if !dlevel.should_switch_to_sequential(level){
+                let splitter2=&mut splitter2;
+                let af= move || {self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,sorter,splitter);splitter};
+                let bf= move || {self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,sorter,splitter2);};
+                rayon::join(af,bf).0
             }else{
-                (self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,splitter1),
-                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,splitter2))
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,sorter,splitter);
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,sorter,&mut splitter2);
+                splitter
             };
-            splitter1.add(splitter2)
+            
+            splitter.add(splitter2);
             
         }
     }
 }
 
 
-///The slice that is passed MUST NOT BE ZERO LENGTH!!!
-fn create_cont_non_zero<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->axgeom::Range<T::Num>{
+fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
   
 
-    let (first,rest)=middile.split_first().unwrap();
+    let (first,rest)=middile.split_first()?;
     let mut min=first.get().get_range(axis).left;
     let mut max=first.get().get_range(axis).right;
 
@@ -167,21 +186,7 @@ fn create_cont_non_zero<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->axgeom::Ran
             max=right;
         }
     }
-    /*
-     let left=match middle.iter().min_by(|a,b|{
-        a.get().get_range(axis).left.cmp(&b.get().get_range(axis).left)
-     }){
-        Some(x)=>x,
-        None=>std::hint::unreachable_unchecked()
-     };
 
-     let right=match middle.iter().max_by(|a,b|{
-        a.get().get_range(axis).right.cmp(&b.get().get_range(axis).right)
-     }){
-        Some(x)=>x,
-        None=>std::hint::unreachable_unchecked()
-     };
-    */
-    axgeom::Range{left:min,right:max}
-     //axgeom::Range{left:left.get().get_range(axis).left,right:right.get().get_range(axis).right}    
+    Some(axgeom::Range{left:min,right:max})
+
 }

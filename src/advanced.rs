@@ -5,6 +5,10 @@ use axgeom::Rect;
 use std::time::Instant;
 use dinotree::new_inner;
 
+use dinotree_inner::DefaultSorter;
+use dinotree_inner::NoSorter;
+
+
 fn into_secs(elapsed:std::time::Duration)->f64{
     let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
     sec
@@ -45,27 +49,35 @@ impl LevelTimer{
 }
 impl Splitter for LevelTimer{
     #[inline]
-    fn div(mut self)->(Self,Self){
+    fn div(&mut self)->Self{
         self.node_end_common();
 
         let length=self.levels.len();
 
-        (self,LevelTimer{levels:std::iter::repeat(0.0).take(length).collect(),time:None})
+        LevelTimer{levels:std::iter::repeat(0.0).take(length).collect(),time:None}
     }
     #[inline]
-    fn add(self,a:Self)->Self{
-
+    fn add(&mut self,a:Self){
+        let len=self.levels.len();
+        for (a,b) in self.levels.iter_mut().zip(a.levels.iter()){
+            *a+=*b;
+        }
+        if len<a.levels.len(){
+            self.levels.extend_from_slice(&a.levels[len..]);
+        }
+        /*
         let (smaller,mut larger)=if self.levels.len()<a.levels.len(){
-            (self,a)
+            (*self,a)
         }else{
-            (a,self)
+            (a,*self)
         };
 
 
         for (a,b) in larger.levels.iter_mut().zip(smaller.levels.iter()){
             *a+=*b;
         }
-        larger
+        *self=larger;
+        */
     }
     #[inline]
     fn node_start(&mut self){
@@ -140,10 +152,10 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 pub trait Splitter:Sized{
 
     ///Called to split this into two to be passed to the children.
-    fn div(self)->(Self,Self);
+    fn div(&mut self)->Self;
 
     ///Called to add the results of the recursive calls on the children.
-    fn add(self,Self)->Self;
+    fn add(&mut self,Self);
 
     ///Called at the start of the recursive call.
     fn node_start(&mut self);
@@ -157,16 +169,41 @@ pub trait Splitter:Sized{
 pub struct SplitterEmpty;
 
 impl Splitter for SplitterEmpty{
-  fn div(self)->(Self,Self){(SplitterEmpty,SplitterEmpty)}
-  fn add(self,_:Self)->Self{SplitterEmpty}
+  fn div(&mut self)->Self{SplitterEmpty}
+  fn add(&mut self,_:Self){}
   fn node_start(&mut self){}
   fn node_end(&mut self){}
 }
 
 
+
+//Todo use this
+pub struct NotSorted<A:AxisTrait,N,T:HasAabb>(pub DinoTree<A,N,T>);
+
+impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
+    pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
+        let height=advanced::compute_tree_height_heuristic(bots.len()); 
+        let mut ka=advanced::SplitterEmpty;
+
+        //See the data project for reasoning behind this value.
+        const DEPTH_SEQ:usize=2;
+
+        let gg=if height<=DEPTH_SEQ{
+            0
+        }else{
+            height-DEPTH_SEQ
+        };
+        
+        let dlevel=par::Parallel::new(Depth(gg));
+
+        NotSorted(new_inner(axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+    }
+}
+
+
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
 #[inline]
-pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K,height_switch_seq:usize)->(DinoTree<A,N,BBox<Num,T>>,K){   
+pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:&mut K,height_switch_seq:usize)->DinoTree<A,N,BBox<Num,T>>{   
     
     let gg=if height<=height_switch_seq{
         0
@@ -176,25 +213,25 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(axis:A,n:
     
     let dlevel=par::Parallel::new(Depth(gg));
 
-    new_inner(axis,n,bots,aabb_create,splitter,height,dlevel)    
+    new_inner(axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter)    
 }
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
 #[inline]
-pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:K)->(DinoTree<A,N,BBox<Num,T>>,K){   
+pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:&mut K)->DinoTree<A,N,BBox<Num,T>>{   
 
+    #[repr(transparent)]
     pub struct SplitterWrapper<T>(
         pub T,
     );
 
     impl<T:Splitter> Splitter for SplitterWrapper<T>{
-        fn div(self)->(Self,Self){
-            let (a,b)=self.0.div();
-            (SplitterWrapper(a),SplitterWrapper(b))
-        }
-        fn add(self,a:Self)->Self{
-            let a=self.0.add(a.0);
+        fn div(&mut self)->Self{
+            let a=self.0.div();
             SplitterWrapper(a)
+        }
+        fn add(&mut self,a:Self){
+            self.0.add(a.0);
         }
         fn node_start(&mut self){self.0.node_start()}
         fn node_end(&mut self){self.0.node_end()}
@@ -202,9 +239,9 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(axis:A,n:N
     unsafe impl<T> Send for SplitterWrapper<T>{}
     unsafe impl<T> Sync for SplitterWrapper<T>{}
 
-
-    let (a,b)=new_inner(axis,n,bots,aabb_create,SplitterWrapper(splitter),height,par::Sequential);
-    (a,b.0)
+    let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
+    new_inner(axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter)
+    //(a,b.0)
 }
 
 
