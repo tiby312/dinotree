@@ -46,11 +46,11 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     }
 }
 
-    
+
 pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>{   
     
-
-    pub struct Cont2<N:NumTrait>{
+        
+    struct Cont2<N:NumTrait>{
         rect:Rect<N>,
         pub index:u32
     }
@@ -59,7 +59,9 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
         fn get(&self)->&Rect<N>{
             &self.rect
         }
-    }
+    }    
+
+    
 
     let num_bots=bots.len();
     let max=std::u32::MAX;
@@ -322,6 +324,7 @@ pub(crate) mod iter_const{
     impl<'a,N,T:HasAabb> std::iter::ExactSizeIterator for TreeIter<'a,N,T>{}
     unsafe impl<'a,N,T:HasAabb> std::iter::TrustedLen for TreeIter<'a,N,T>{}
 }
+
 
 
 
