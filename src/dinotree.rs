@@ -1,5 +1,5 @@
 use inner_prelude::*;
-use dinotree_inner::DinoTreeInner;
+//use dinotree_inner::DinoTreeInner;
 use HasAabb;
 use tree_alloc::VistrMut;
 use tree_alloc::Vistr;
@@ -47,9 +47,10 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
 }
 
 
-pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>{   
+pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
+    {   
     
-        
+    #[derive(Copy,Clone)]
     struct Cont2<N:NumTrait>{
         rect:Rect<N>,
         pub index:u32
@@ -61,7 +62,6 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
         }
     }    
 
-    
 
     let num_bots=bots.len();
     let max=std::u32::MAX;
@@ -73,6 +73,13 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
     }).collect();
     
 
+    let mut tree2=tree_alloc::TreeInner::new(sorter,axis,&conts,(),height);
+    let num_nodes=tree2.num_nodes();
+
+
+    let mut alloc=tree2.into_other(|a|BBox{rect:a.rect,inner:bots[a.index as usize]},|_|n);
+    
+    /*
     let mut tree2=DinoTreeInner::new(axis,&mut conts,height,ka,par,sorter);
     
 
@@ -101,6 +108,7 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
 
         TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots)
     };
+    */
 
     /*
     //TODO optimization:drain tree into mover.
@@ -110,9 +118,8 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
     */
 
     let mover={
-        let mut nodes=tree2.tree.into_nodes();
         let mut mover=Vec::with_capacity(num_bots);
-        for node in nodes.drain(..){
+        for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
             mover.extend(node.range.iter().map(|a|a.index));
         }
         mover
@@ -157,7 +164,7 @@ pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     height:usize,
     num_nodes:usize,
     num_bots:usize,
-    alloc:TreeAllocDstDfsOrder<N,T>,
+    alloc:tree_alloc::TreeInner<T,N>,
     axis:A
 }
 
@@ -199,32 +206,14 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
     
     ///Transform the current tree to have a different extra component to each node.
-    pub fn with_extra<N2:Copy>(self,n2:N2)->DinoTree<A,N2,T>{
+    pub fn with_extra<N2:Copy>(self,n2:impl FnMut(&N)->N2)->DinoTree<A,N2,T>{
+        
         let axis=self.axis();
         let height=self.height();
         let num_nodes=self.num_nodes();
         let num_bots=self.num_bots();
-
         let mover=self.mover.clone();
-        let ii=self.vistr().map(|node,eextra|{
-            let l=tree_alloc::NodeConstructor{misc:n2,it:node.range.iter().map(|b|*b)};
-
-            let extra=match eextra{
-                Some(extra)=>{
-                    Some(tree_alloc::ExtraConstructor{
-                        comp:extra.map(|a|*a)
-                    })
-                },
-                None=>{
-                    None
-                }
-            };
-
-            (l,extra)
-        });
-        
-        let alloc=TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots);
-        
+        let alloc=self.alloc.into_other(|a|*a,n2);
         DinoTree{mover,axis,height,num_nodes,num_bots,alloc}
     }
 }
@@ -327,6 +316,10 @@ pub(crate) mod iter_const{
 
 
 
+fn create_tree_iter_mut<'a,N,T:HasAabb>(vistrmut:VistrMut<'a,N,T>,num_bots:usize)->iter_mut::TreeIterMut<'a,N,T>{
+    let it=vistrmut.dfs_inorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
+    iter_mut::TreeIterMut{it:unsafe{CustomLength::new(it,num_bots)}}
+}
 
 impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
 
@@ -334,9 +327,21 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
     pub fn apply<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
+        assert_eq!(bots.len(),self.num_bots());
         for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
             let target=&mut bots[*mov as usize];
             conv(bot,target);
+        }
+    }
+
+    #[inline]
+    pub fn apply_into<X>(&mut self,bots:&[X],conv:impl Fn(&X,&mut T)){
+        assert_eq!(bots.len(),self.num_bots());
+
+        let treev=create_tree_iter_mut(self.alloc.vistr_mut(),bots.len());
+        for (bot,mov) in treev.zip_eq(self.mover.iter()){
+            let source=&bots[*mov as usize];
+            conv(source,bot)
         }
     }
 
@@ -347,8 +352,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     #[inline]
     pub fn iter_mut<'a>(&'a mut self)->iter_mut::TreeIterMut<'a,N,T>{
         let length=self.num_bots();
-        let it=self.vistr_mut().dfs_inorder_iter().flat_map(iter_mut::convert as iter_mut::FF<N,T>);
-        iter_mut::TreeIterMut{it:unsafe{CustomLength::new(it,length)}}
+        create_tree_iter_mut(self.vistr_mut(),length)
     }
 
     ///See iter_mut
@@ -398,5 +402,3 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
         self.num_nodes
     }
 }
-
-use tree_alloc::TreeAllocDstDfsOrder;

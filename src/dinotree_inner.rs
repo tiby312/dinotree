@@ -1,6 +1,7 @@
 use inner_prelude::*;
 use advanced::Splitter;
 
+/*
 ///A KdTree construction
 ///This is like DynTree except the size of every node is constant.
 pub struct DinoTreeInner<'a,A:AxisTrait,T:HasAabb+'a> {
@@ -32,6 +33,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> DinoTreeInner<'a,A,T>{
 }
 
 
+
 pub struct Node2<'a,T:HasAabb+'a>{ 
 
     //If this is a non leaf node, then,
@@ -44,7 +46,7 @@ pub struct Node2<'a,T:HasAabb+'a>{
     pub range:&'a mut [T]
 }
 
-
+*/
 pub trait Sorter:Copy+Clone+Send+Sync{
     fn sort(&self,axis:impl AxisTrait,bots:&mut [impl HasAabb]);
 }
@@ -66,7 +68,7 @@ impl Sorter for NoSorter{
 }
 
 
-
+/*
 
 fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
@@ -165,9 +167,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
         }
     }
 }
+*/
 
-
-fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
+pub fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
   
 
     let (first,rest)=middile.split_first()?;

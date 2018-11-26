@@ -70,6 +70,7 @@ extern crate rayon;
 extern crate pdqselect;
 extern crate is_sorted;
 extern crate itertools;
+
 #[cfg(test)]
 extern crate test;
 
