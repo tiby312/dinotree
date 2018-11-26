@@ -170,11 +170,12 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for InnerVistrMut<'a,N,T>{
 
 
                 let bot_size=std::mem::size_of::<T>() as isize;
-                let left_pointer=(ptr as *mut u8).offset(-(node.next_nodes[0] as isize)*bot_size);
-
+                //let left_pointer=(ptr as *mut u8).offset(-(node.next_nodes[0] as isize)*bot_size);
+                let left_pointer=ptr as *mut u8;
                 let node_size=std::mem::size_of_val(node) as isize;
                 //let kkk=number_of_bots_to_cover_non_leaf_node_data::<N,T>() as isize+length as isize+node.next_nodes[1];
-                let right_pointer=(ptr as *mut u8).offset(node_size+(node.next_nodes[1] as isize)*bot_size);
+                //let right_pointer=(ptr as *mut u8).offset(node_size+(node.next_nodes[1] as isize)*bot_size);
+                let right_pointer=ptr as *mut u8;
 
                 let left_pointer:&'a mut u8=unsafe{std::mem::transmute(left_pointer)};
                 let right_pointer:&'a mut u8=unsafe{std::mem::transmute(right_pointer)};
@@ -234,12 +235,14 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for InnerVistr<'a,N,T>{
 
 
                 let bot_size=std::mem::size_of::<T>() as isize;
-                let left_pointer=(ptr as *const u8).offset(- (node.next_nodes[0] as isize)*bot_size);
-
+                //let left_pointer=(ptr as *const u8).offset(- (node.next_nodes[0] as isize)*bot_size);
+                let left_pointer=ptr as *mut u8;
+                
                 let node_size=std::mem::size_of_val(node) as isize;
                 //let kkk=number_of_bots_to_cover_non_leaf_node_data::<N,T>() as isize+length as isize+node.next_nodes[1];
-                let right_pointer=(ptr as *const u8).offset(node_size+(node.next_nodes[1] as isize)*bot_size);
-
+                //let right_pointer=(ptr as *const u8).offset(node_size+(node.next_nodes[1] as isize)*bot_size);
+                let right_pointer=ptr as *mut u8;
+                
                 let left_pointer:&'a  u8=unsafe{std::mem::transmute(left_pointer)};
                 let right_pointer:&'a u8=unsafe{std::mem::transmute(right_pointer)};
 
@@ -295,11 +298,12 @@ struct NodeDstDyn<N,T:HasAabb>{
     node:NodeDynWrap<N,T>
 }
 impl<N,T:HasAabb> NodeDstDyn<N,T>{
-    fn from_buffer(buffer:&mut [u8],size:usize)->&mut NodeDstDyn<N,T>{
+    fn from_buffer(buffer:&mut [u8],size:usize)->(&mut NodeDstDyn<N,T>,&mut [u8]){
         assert_eq!((buffer[0] as *mut u8).align_offset(NodeDstDyn::<N,T>::empty_alignment()),0 );
         assert!(buffer.len()<NodeDstDyn::<N,T>::empty_size());
         let node:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:&mut buffer[0],size})};
-        node
+        //node
+        (node,&mut []) //TODO implement
     }
     fn empty_size()->usize{
         let siz={
@@ -360,11 +364,13 @@ struct NodeDynWrap<N,T>{
 }
 
 impl<N,T> NodeDynWrap<N,T>{
-    fn from_buffer(buffer:&mut [u8],size:usize)->&mut NodeDynWrap<N,T>{
-        assert_eq!((buffer[0] as *mut u8).align_offset(NodeDynWrap::<N,T>::empty_alignment()),0 );
-        assert!(buffer.len()<NodeDynWrap::<N,T>::empty_size());
+    fn from_buffer(buffer:&mut [u8],size:usize)->(&mut NodeDynWrap<N,T>,&mut [u8]){
+        assert!(NodeDynWrap::<N,T>::empty_size()<=buffer.len(),"{:?}",(NodeDynWrap::<N,T>::empty_size(),buffer.len()));
+        
+        assert_eq!((buffer.as_mut_ptr()).align_offset(NodeDynWrap::<N,T>::empty_alignment()),0 );
         let node:&mut NodeDynWrap<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:&mut buffer[0],size})};
-        node
+        //node
+        (node,&mut []) //TODO implement
     }
 
     fn empty_alignment()->usize{
@@ -781,21 +787,24 @@ impl<T:HasAabb,N> TreeInner<T,N>{
         self.num_nodes
     }
     pub fn vistr(&self)->Vistr<N,T>{
+        println!("creating vistr");
         unsafe{
             let buffer=self.mem.get();
             
             let bot_size=std::mem::size_of::<(N,T)>();
-            let ptr=&buffer[self.target as usize*bot_size];
+            //let ptr=&buffer[self.target as usize*bot_size];
+            let ptr=std::mem::transmute(self.target);
             let inner=InnerVistr::new(ptr,self.height);
             Vistr{inner}
         }
     }
     pub fn vistr_mut(&mut self)->VistrMut<N,T>{
+        println!("creating vistr mut");
         unsafe{
             let buffer=self.mem.get_mut();
 
             let bot_size=std::mem::size_of::<(N,T)>();
-            let ptr=&mut buffer[self.target as usize*bot_size];
+            let ptr=std::mem::transmute(self.target);//&mut buffer[self.target as usize*bot_size];
             let inner=InnerVistrMut::new(ptr,self.height);
             VistrMut{inner}
         }
@@ -915,7 +924,7 @@ unsafe fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(
         let left_node =handle_node(sorter,axis.next(),RightOf,left,lb,n,height+1,max_height);
         let right_node=handle_node(sorter,axis.next(),LeftOf,right,rb,n,height+1,max_height);
 
-        let node=NodeDstDyn::<N,T>::from_buffer(node,mid.len());
+        let (node,_)=NodeDstDyn::<N,T>::from_buffer(node,mid.len());
 
         //TODO add checks
         //let node:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:&mut node[0],size:mid.len()})};
@@ -934,19 +943,31 @@ unsafe fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(
     }
     else
     {
+
+
         println!("leaf start");
         let shift=NodeDynWrap::<N,T>::empty_size();
         
         
-        let (node,bots)=if !st.bots_is_right_side_of_buffer(){
-            let (a,bots,_c)=move_bots_right(bots,buffer,shift);
-            (a,bots)
+        let (node,bots)=if st.bots_is_right_side_of_buffer(){
+        
+            let (node,_)=NodeDynWrap::<N,T>::from_buffer(buffer,bots.len());
+            (node,bots)        
+        
             //std::ptr::copy(&mut buffer[0],&mut buffer[shift],bots.len()*bot_size);
         }else{
-            (buffer,bots)
-        };;
+            
+            let (a,bots,_c)=move_bots_right(bots,buffer,shift);
+            
+            /*
+            let b:*mut u8=std::mem::transmute(a.as_mut_ptr());
+            assert_eq!((b).align_offset(NodeDynWrap::<N,T>::empty_alignment()),0 );
+            */
 
-        let node=NodeDynWrap::<N,T>::from_buffer(node,bots.len());
+            let (node,_)=NodeDynWrap::<N,T>::from_buffer(a,bots.len());
+            (node,bots)        
+        };
+
         //let node:&mut NodeDynWrap<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:&mut node[0],size:bots.len()})};
         node.dyn.misc=n;
         node.num=bots.len();
