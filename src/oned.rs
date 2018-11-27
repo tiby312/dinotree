@@ -9,6 +9,47 @@ pub struct Binned<'a,T:'a>{
 }
 
 
+pub fn bin_left_middle_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+    let bot_len=bots.len();
+        
+    let mut left_end=0;
+    let mut middle_end=0;
+    
+    //     |    middile   |   left|              right              |---------|
+    //
+    //                ^           ^                                  ^
+    //              middile_end    left_end                      index_at
+
+    for index_at in 0..bot_len{
+        
+            match bots[index_at].get().get_range(axis).left_or_right_or_contain(med){
+                
+                //If the divider is less than the bot
+                std::cmp::Ordering::Equal=>{
+                    bots.swap(index_at,left_end);
+                    left_end+=1;
+                },
+                //If the divider is greater than the bot
+                std::cmp::Ordering::Greater=>{
+                    
+                    bots.swap(index_at,left_end);
+                    bots.swap(left_end,middle_end);
+                    middle_end+=1;
+                    left_end+=1;
+                },
+                std::cmp::Ordering::Less=>{
+                                        
+                }
+            }
+        
+        
+    }
+
+    let (rest,right)=bots.split_at_mut(left_end);
+    let (left,middle)=rest.split_at_mut(middle_end);
+    debug_assert!(left.len()+middle.len()+right.len()==bot_len);
+    Binned{left:left,middle:middle,right:right}
+}
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
 pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{

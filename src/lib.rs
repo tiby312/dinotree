@@ -102,6 +102,7 @@ pub use dinotree::iter_const::TreeIter;
 pub use dinotree::iter_mut::TreeIterMut;
 
 
+mod tools;
 
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;

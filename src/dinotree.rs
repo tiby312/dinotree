@@ -78,7 +78,7 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
     let num_nodes=tree2.num_nodes();
 
 
-    let mut alloc=tree2.into_other(|a|BBox{rect:a.rect,inner:bots[a.index as usize]},|_|n);
+    let mut alloc=tree2.into_other(|a|{println!("index={:?}",a.index);BBox{rect:a.rect,inner:bots[a.index as usize]}},|_|n);
     println!("finished moving tree");
     /*
     let mut tree2=DinoTreeInner::new(axis,&mut conts,height,ka,par,sorter);

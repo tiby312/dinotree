@@ -1,0 +1,34 @@
+
+pub fn are_adjacent<'a, T1,T2>(first: &'a [T1], second: &'a [T2]) -> bool {
+    let fl = first.len();
+    if first[fl..].as_ptr() == second.as_ptr() as *const T1 {
+        true
+    }else{
+        false
+    }
+}
+
+pub fn slice_join_mut<'a, T>(first: &'a mut [T], second: &'a mut [T]) -> &'a mut [T] {
+    let fl = first.len();
+    if first[fl..].as_mut_ptr() == second.as_mut_ptr() {
+        unsafe {
+            ::std::slice::from_raw_parts_mut(first.as_mut_ptr(), fl + second.len())
+        }
+    }
+    else {
+        panic!("Slices not adjacent");
+    }
+}
+
+
+pub fn slice_join_mut2<'a, T>(first: &'a mut [T], second: &'a mut [u8]) -> &'a mut [u8] {
+    let fl = first.len();
+    if first[fl..].as_mut_ptr() as *mut u8 == second.as_mut_ptr() {
+        unsafe {
+            ::std::slice::from_raw_parts_mut(first.as_mut_ptr() as *mut u8, fl*std::mem::size_of::<T>() + second.len())
+        }
+    }
+    else {
+        panic!("Slices not adjacent");
+    }
+}
