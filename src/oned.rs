@@ -2,6 +2,7 @@ use inner_prelude::*;
 use HasAabb;
 
 ///The results of the binning process.
+
 pub struct Binned<'a,T:'a>{
     pub middle:&'a mut [T],
     pub left:&'a mut [T],

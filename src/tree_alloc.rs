@@ -418,15 +418,16 @@ impl LeftOrRight for RightOf{
 
 
 
+fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T]){ 
+    sorter.sort(div_axis.next(),bots);
+}
 
-fn construct<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<(FullComp<T::Num>,&mut [T],&mut [T],&mut [T])>{
-    println!("construct");
+fn construct_non_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<(FullComp<T::Num>,&mut [T],&mut [T],&mut [T])>{
     let med=if bots.len() == 0{
         return None;
     }
     else
     {
-        println!("a");
         let closure = |a: &T, b: &T| -> std::cmp::Ordering {
             oned::compare_bots(div_axis,a,b)
         };
@@ -439,7 +440,13 @@ fn construct<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T]
 
         k.get().get_range(div_axis).left
     };
-    println!("a");
+
+
+    for a in bots.iter(){ //TODO remove
+        let a=a.get().get_range(div_axis);
+        assert!(a.left<=a.right);
+    }
+    
     //It is very important that the median bot end up be binned into the middile bin.
     //We know this must be true because we chose the divider to be the medians left border,
     //and we binned so that all bots who intersect with the divider end up in the middle bin.
@@ -447,22 +454,19 @@ fn construct<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T]
     //If this were not true, there is no guarentee that the middile bin has bots in it even
     //though we did pick a divider.
     let binned=oned::bin_left_middle_right(div_axis,&med,bots);
-    println!("a");
-    debug_assert!(binned.middle.len()!=0);
+
+    assert!(binned.middle.len()!=0);
     
-    println!("a");
     //We already know that the middile is non zero in length.
     let container_box=dinotree_inner::create_cont(div_axis,binned.middle).unwrap();
     
     //oned::sweeper_update(div_axis.next(),binned_middle);
     sorter.sort(div_axis.next(),binned.middle);
-    println!("a");
     let full=FullComp{div:med,cont:container_box};
-    println!("construct fin");
     Some((full,binned.left,binned.middle,binned.right))
 }
 
-
+/*
 //returns the number of bytes that need to be reserved for the number of bots and nodes that are left.
 fn compute_space<N,T:HasAabb>(num_bots:usize,height:usize,max_height:usize)->usize{
     //  |-----------------------------------------------|
@@ -476,6 +480,12 @@ fn compute_space<N,T:HasAabb>(num_bots:usize,height:usize,max_height:usize)->usi
 
     num_bots*std::mem::size_of::<T>()+NodeDstDyn::<N,T>::empty_size()*num_non_leafs+NodeDynWrap::<N,T>::empty_size()*num_leafs
 }
+*/
+
+
+unsafe impl<T:HasAabb,N> Send for TreeInner<T,N>{}
+
+unsafe impl<T:HasAabb,N> Sync for TreeInner<T,N>{}
 
 
 pub struct TreeInner<T:HasAabb,N>{
@@ -502,8 +512,8 @@ fn compute_size<N,T:HasAabb>(num_bots:usize,height:usize,)->(usize,usize){
     };
 
     //TODO do this!
-    assert_eq!(align_of::<T>(),align_of_val(dst));
-    assert_eq!(align_of::<T>(),align_of_val(wrap));
+    //assert_eq!(align_of::<T>(),align_of_val(dst));
+    //assert_eq!(align_of::<T>(),align_of_val(wrap));
 
     println!("size of T={:?} size of dstdyn={:?} size of dynwrap={:?}",size_of::<T>(),NodeDstDyn::<N,T>::empty_size(),NodeDynWrap::<N,T>::empty_size());
     println!("num bots={:?} height={:?}",num_bots,height);
@@ -516,12 +526,11 @@ fn compute_size<N,T:HasAabb>(num_bots:usize,height:usize,)->(usize,usize){
     let num_leafs=num_nodes-num_non_leafs;
 
 
-    let num_bots_total=
-        num_bots+
-        num_non_leafs * NodeDstDyn::<N,T>::empty_size()+
-        num_leafs * NodeDynWrap::<N,T>::empty_size();
+    let num_bytes=
+        num_bots*(size_of::<T>()+align_of::<T>())+
+        num_non_leafs * (NodeDstDyn::<N,T>::empty_size()+align_of_val(dst)*2)+
+        num_leafs * (NodeDynWrap::<N,T>::empty_size()+align_of_val(wrap)*2);
 
-    let num_bytes=num_bots_total*size_of::<T>();
     (num_nodes,num_bytes)
 }
 
@@ -549,7 +558,7 @@ impl<T:HasAabb+Copy,N:Copy> TreeInner<T,N>{
             let (bots,buffer)={
                 let (_,bots,c)=mem.get_mut().align_to_mut::<T>();
                 let (bots,rest)=bots.split_at_mut(num_bots);
-                let buffer=slice_join_mut2(rest,c);
+                let buffer=slice_join_bytes_mut(rest,c);
                 bots[..].copy_from_slice(bbots);
                 (bots,buffer)
             };
@@ -702,9 +711,8 @@ impl<T:HasAabb,N> TreeInner<T,N>{
 }
 
 
-fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:S,axis:A,st:L,bots:&mut [T],buffer:&mut [u8],n:N,height:usize,max_height:usize)->*mut u8
+fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:S,axis:A,st:L,bots:&mut [T],buffer:&mut [u8],n:N,depth:usize,height:usize)->*mut u8
 {
-    println!("handle node");
     if st.bots_is_right_side_of_buffer(){
         assert!(are_adjacent(buffer,bots));
     }else{
@@ -713,11 +721,11 @@ fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:
     
     let bot_size=std::mem::size_of::<T>();
 
-    if height<max_height-1{
+    if depth<height-1{
         
         let (fullcomp,left,mid,right)={
                         
-            let (fullcomp,left,mid,right)=match construct(sorter,axis,bots){
+            let (fullcomp,left,mid,right)=match construct_non_leaf(sorter,axis,bots){
                 Some(pass)=>{
                     pass
                 },
@@ -727,10 +735,23 @@ fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:
                         std::ptr::write_bytes(&mut d,0,std::mem::size_of::<T::Num>());
                         d                        
                     };
-                    let empty1:&mut [T]=&mut [];
-                    let empty2:&mut [T]=&mut [];
-                    let empty3:&mut [T]=&mut [];
-                    println!("HIT EMPTY CASE!");
+
+                    let (empty1,empty2,empty3)={
+                        let target=if st.bots_is_right_side_of_buffer(){
+                            let len=buffer.len();
+                            buffer[len..].as_mut_ptr()
+                        }else{
+                            buffer.as_mut_ptr()
+                        };
+                        let target=target as *mut T;
+                        unsafe{
+                            let empty1:&mut [T]=std::slice::from_raw_parts_mut(target,0);
+                            let empty2:&mut [T]=std::slice::from_raw_parts_mut(target,0);
+                            let empty3:&mut [T]=std::slice::from_raw_parts_mut(target,0);
+                            (empty1,empty2,empty3)
+                        }
+                    };
+
                     (
                         FullComp{div:d,cont:Range{left:d,right:d}},
                         empty1,
@@ -743,15 +764,20 @@ fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:
             (fullcomp,left,mid,right)
         };
 
-        let (left_buffer,left,node,right,right_buffer)=if st.bots_is_right_side_of_buffer(){
-            move_bots_non_leaf(false,left,mid,right,buffer)
+
+
+        
+        let (left_buffer,left,_a,node,right,right_buffer)=if st.bots_is_right_side_of_buffer(){
+            move_bots_non_leaf(depth,height,false,left,mid,right,buffer)
         }else{
-            move_bots_non_leaf(true,left,mid,right,buffer)
+            move_bots_non_leaf(depth,height,true,left,mid,right,buffer)
         };
+
+        //println!("len={:?}",_a.len());
          
         //Construct this node.
-        let left_node =handle_node(sorter,axis.next(),RightOf,left,left_buffer,n,height+1,max_height);
-        let right_node=handle_node(sorter,axis.next(),LeftOf,right,right_buffer,n,height+1,max_height);
+        let left_node =handle_node(sorter,axis.next(),RightOf,left,left_buffer,n,depth+1,height);
+        let right_node=handle_node(sorter,axis.next(),LeftOf,right,right_buffer,n,depth+1,height);
 
         
         node.comp=fullcomp;
@@ -765,12 +791,14 @@ fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:
     }
     else
     {
+        construct_leaf(sorter,axis,bots);
+
         let (_left_buffer,node,_right_buffer)=if st.bots_is_right_side_of_buffer(){
             move_bots_leaf(false,bots,buffer)
         }else{
             move_bots_leaf(true,bots,buffer)
         };
-        println!("leaf remainder buffers={:?}",(_left_buffer.len(),_right_buffer.len()));
+        println!("leftover space={:?}",(_left_buffer.len(),_right_buffer.len()));
         node.dyn.misc=n;
         node.num=node.dyn.range.len();
 
@@ -796,7 +824,7 @@ fn move_bots_leaf_test(){
         
         let (a,b,c)=move_bots_leaf::<(),_>(true,bots,rest);
         b.num=0;
-        
+
         println!("sizes={:?}",(a.len(),c.len()));
         for a in a.iter_mut(){
             *a=0;
@@ -815,6 +843,8 @@ fn move_bots_leaf_test(){
 }
 
 fn move_bots_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,bots:&'a mut [T],rest:&'a mut [u8])->(&'a mut [u8],&'a mut NodeDynWrap<N,T>,&'a mut [u8]){
+    let bots_copy:Vec<T>=bots.iter().map(|a|*a).collect();
+    
     unsafe{
         use std::mem::*;
         let (total_size_of_mid,align_of_node)={
@@ -843,7 +873,6 @@ fn move_bots_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,bots:&'a mut [T],rest:&'a
 
 
         let val:&mut NodeDynWrap<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:target,size:bots.len()})};
-        println!("pointers={:?}",(bots.as_ptr(),val.dyn.range.as_mut_ptr()));
         std::ptr::copy(bots.as_ptr(),val.dyn.range.as_mut_ptr(),bots.len());
         //val.dyn.range.copy_from_slice(&bots);
 
@@ -856,23 +885,84 @@ fn move_bots_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,bots:&'a mut [T],rest:&'a
         let left=std::slice::from_raw_parts_mut(start as *mut u8,left_buffer_len);
         let right=std::slice::from_raw_parts_mut(right_buffer_start,right_buffer_len);
 
-        assert!(left.as_ptr() as usize>=start);
-        assert!((right[right_buffer_len..].as_ptr() as usize)<=end);
+        assert_eq!(left.as_ptr() as usize,start);
+        assert_eq!((right[right_buffer_len..].as_ptr() as usize),end);
         assert_eq!(left[left_buffer_len..].as_ptr(),target);
         assert_eq!(right.as_ptr(),target.offset(total_size_of_mid as isize));
 
+        for (a,b) in bots_copy.iter().zip(val.dyn.range.iter()){
+            assert!(a.get().equals(b.get()));
+        }
+        
         (left,val,right)
     }
 }
 
-//     |------|xxxxx|aaaaaaaa|oooooooooooo|zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|----------------|
-fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,left:&'a mut [T],mid:&'a mut [T],right:&'a mut [T],rest:&'a mut [u8])->(&'a mut [u8],&'a mut [T],&'a mut NodeDstDyn<N,T>,&'a mut [T],&'a mut [u8]){
+
+#[test]
+fn move_bots_non_leaf_test(){
+
+    let mut bots:Vec<BBox<u8,()>>=(0..40).map(|a|unsafe{BBox::new(axgeom::Rect::new(0xDEADu8,0xBEAF,0xCAFE,0xBABE),())}).collect();
+    {
+        let (bots,rest)=bots.split_at_mut(10);
+
+        let rest:&mut [u8]=unsafe{
+            let r=ReprMut{ptr:rest.as_mut_ptr() as *mut u8,size:rest.len()*std::mem::size_of::<BBox<u8,()>>()};
+            std::mem::transmute(r)
+        };
+
+        
+        let (buffer_left,left,unused_left,node,unused_right,right,buffer_right)=move_bots_non_leaf::<(),_>(true,bots,rest);
+        b.num=0;
+
+        println!("sizes={:?}",(a.len(),c.len()));
+        for a in buffer_left.iter_mut(){
+            *a=0;
+        }
+        for a in buffer_right.iter_mut(){
+            *a=0;
+        }
+    }
+
+    for a in bots{
+        let ((a,b),(c,d))=a.get().get();
+        println!("{:x}{:x}{:x}{:x}",a,b,c,d);
+    }
+    //println!("bots={:?}",bots);
+    panic!();
+}
+
+
+fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:bool,left:&'a mut [T],mid:&'a mut [T],right:&'a mut [T],rest:&'a mut [u8])->(&'a mut [u8],&'a mut [T],&'a mut [u8],&'a mut NodeDstDyn<N,T>,&'a mut [T],&'a mut [u8]){
+    let space_needed_for_left_bots={
+        let number_of_levels_left=height-depth;
+
+        let num_nodes_left=2usize.rotate_left(number_of_levels_left as u32)-1;
+
+        //The number of nodes on the left side only.
+        //let num_nodes_left=num_nodes_left/2;
+
+        let num_non_leafs=num_nodes_left/2;
+        let num_leafs=num_nodes_left-num_non_leafs;
+
+        left.len()*std::mem::size_of::<T>()+
+        (std::mem::align_of::<T>()+NodeDstDyn::<N,T>::empty_size())*num_non_leafs+
+        (std::mem::align_of::<T>()+NodeDynWrap::<N,T>::empty_size())*num_leafs
+    };
+
+
+
+
+    let left_copy:Vec<T>=left.iter().map(|a|*a).collect();
+    let right_copy:Vec<T>=right.iter().map(|a|*a).collect();
+
     unsafe{
         use std::mem::*;
         let bot_size=size_of::<T>();
         let (total_size_of_mid,align_of_node)={
-            let val:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x10 as *mut u8,size:mid.len()})};
-            assert_eq!(align_of::<T>(),align_of_val(val));
+            let val:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:mid.len()})};
+            assert_eq!(val.node.dyn.range.len(),mid.len());
+            //assert_eq!(align_of::<T>(),align_of_val(val));
             (size_of_val(val),align_of_val(val))
         };
         assert!(are_adjacent(left,mid));
@@ -893,12 +983,16 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,left:&'a mut [T],mid:
             (start as usize,end as usize)
         };
 
-        let diff=(end- start)/2;
-            
+        //let diff=(end- start)/2;  
         //we have a target now. Now find the closest pointer that aligns to it.
-        let target=start+diff-(total_size_of_mid/2);
+        //let target=start+diff-(total_size_of_mid/2);
+        let target=start+space_needed_for_left_bots;
+
+
         let target=target as *mut u8;
-        let target=target.offset(target.align_offset(align_of_node) as isize);
+        let target:*mut u8=target.offset(target.align_offset(align_of_node) as isize);
+
+
         //Now we have an aligned target for the mid.
 
 
@@ -906,51 +1000,99 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,left:&'a mut [T],mid:
         
 
 
+        //We have a left start.
+        let left_start:*mut T={
+            let left_start=target.offset(-((left.len()*bot_size) as isize));
+            let left_start=left_start.offset(-(align_of::<T>() as isize));
+            //Now align it to the left.
+            let bot_off=left_start.align_offset(align_of::<T>());
+            let left_start=left_start.offset(bot_off as isize);
+            left_start as *mut T
+        };
 
-        let left_start=target.offset(-((left.len()*bot_size) as isize));
-        let node_mid_start=target as *mut u8;
 
 
-        let right_start={
+        
+        let right_start:*mut T={
+            val.node.dyn.range.as_mut_ptr().offset(mid.len() as isize)
+            /*
             let right_start=target.offset(size_of_val(val) as isize);
             let offset=right_start.align_offset(align_of::<T>());
-            assert!(offset>=0);
-            right_start.offset(offset as isize)
+            assert_eq!(offset,0);
+            right_start.offset(offset as isize) as *mut T
+            */
         };
+
+
+        //aparently this isnt true????
+        //So the dst overlapps a bit with the slice we return,
+        //but this is oaky since it must be just padding??
+        //assert_eq!(right_start as *mut u8,target.offset(size_of_val(val) as isize));
 
         
         //At this point we havent written anything. Before we do, lets make sure we can fit everything.
         assert!(left_start as usize>=start);
-        let right_end=(right_start.offset((right.len()*bot_size) as isize) as usize);
+        let right_end=(right_start.offset(right.len() as isize) as usize);
         assert!(right_end <=end);
+
+
+        //Now move the bots
         if move_right{
             
-            std::ptr::copy(mid.as_mut_ptr() as *mut u8,val.node.dyn.range.as_mut_ptr() as *mut u8,(mid.len()+right.len())*bot_size);
+            std::ptr::copy(mid.as_mut_ptr(),val.node.dyn.range.as_mut_ptr(),mid.len()+right.len());
 
-            std::ptr::copy(left.as_mut_ptr()as *mut u8,left_start,left.len()*bot_size);
+            std::ptr::copy(left.as_mut_ptr(),left_start,left.len());
         }else{
 
-            std::ptr::copy(left.as_mut_ptr()as *mut u8,left_start,left.len()*bot_size);
+            std::ptr::copy(left.as_mut_ptr(),left_start,left.len());
             
-            std::ptr::copy(mid.as_mut_ptr() as *mut u8,val.node.dyn.range.as_mut_ptr() as *mut u8,(mid.len()+right.len())*bot_size);
+            std::ptr::copy(mid.as_mut_ptr(),val.node.dyn.range.as_mut_ptr() ,mid.len()+right.len());
         }
-
 
         let left_new:&mut [T]=std::slice::from_raw_parts_mut(left_start as *mut T,left.len());
         let right_new:&mut [T]=std::slice::from_raw_parts_mut(right_start as *mut T,right.len());
 
+        drop(left);
+        drop(right);
+
+
+        let diff=(target as usize) - (left_start.offset(left_new.len() as isize) as usize);
+        let unused_left:&mut [u8]=std::slice::from_raw_parts_mut(left_start.offset(left_new.len() as isize) as *mut u8,diff);
+
+        let unused_left_len=unused_left.len();
+        assert_eq!(unused_left[unused_left_len..].as_ptr(),target);
+
+        /*
+        let target_end=target.offset(total_size_of_mid as isize);
+        let diff=(right_start as usize) - (target_end as usize);
+        let unused_right:&mut [u8]=std::slice::from_raw_parts_mut(target_end as *mut u8,diff);
+        assert_eq!(target.offset(total_size_of_mid as isize) as *const u8,unused_right.as_ptr());
+        assert_eq!(unused_right.len(),0);
+        */
 
         let left_buffer_size=left_start as usize - start;
-
         let left_buffer:&mut [u8]=std::slice::from_raw_parts_mut(start as *mut u8,left_buffer_size);
         let right_buffer_size=end-right_end;
         let right_buffer:&mut [u8]=std::slice::from_raw_parts_mut(right_end as *mut u8,right_buffer_size);
         
 
+
+        assert!(are_adjacent(left_new,unused_left));
+        //assert!(are_adjacent(unused_right,right_new));
+
         assert!(are_adjacent(left_buffer,left_new));
         assert!(are_adjacent(right_new,right_buffer));
 
-        (left_buffer,left_new,val,right_new,right_buffer)
+        for (a,b) in left_copy.iter().zip(left_new.iter()){
+            assert!(a.get().equals(b.get()));
+        }
+        for (a,b) in right_copy.iter().zip(right_new.iter()){
+            assert!(a.get().equals(b.get()),"{:?}",move_right);
+        }
+
+
+        println!("sizes={:?}",( bytes_join_slice_mut(left_buffer,left_new).len(),slice_join_bytes_mut(right_new,right_buffer).len()  ));
+        (left_buffer,left_new,unused_left,val,right_new,right_buffer)
         
     }
 }

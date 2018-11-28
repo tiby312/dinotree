@@ -117,10 +117,10 @@ pub mod advanced;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait:Ord+Copy+Send+Sync{}
+pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync{}
+where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 
 pub use tree_alloc::FullComp;

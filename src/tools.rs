@@ -21,11 +21,23 @@ pub fn slice_join_mut<'a, T>(first: &'a mut [T], second: &'a mut [T]) -> &'a mut
 }
 
 
-pub fn slice_join_mut2<'a, T>(first: &'a mut [T], second: &'a mut [u8]) -> &'a mut [u8] {
+pub fn slice_join_bytes_mut<'a, T>(first: &'a mut [T], second: &'a mut [u8]) -> &'a mut [u8] {
     let fl = first.len();
     if first[fl..].as_mut_ptr() as *mut u8 == second.as_mut_ptr() {
         unsafe {
             ::std::slice::from_raw_parts_mut(first.as_mut_ptr() as *mut u8, fl*std::mem::size_of::<T>() + second.len())
+        }
+    }
+    else {
+        panic!("Slices not adjacent");
+    }
+}
+
+pub fn bytes_join_slice_mut<'a, T>(first: &'a mut [u8], second: &'a mut [T]) -> &'a mut [u8] {
+    let fl = first.len();
+    if first[fl..].as_mut_ptr() == second.as_mut_ptr() as *mut u8 {
+        unsafe {
+            ::std::slice::from_raw_parts_mut(first.as_mut_ptr() as *mut u8, fl + second.len()*std::mem::size_of::<T>())
         }
     }
     else {
