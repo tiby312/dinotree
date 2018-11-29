@@ -522,14 +522,17 @@ fn compute_size<N,T:HasAabb>(num_bots:usize,height:usize,)->(usize,usize){
         
     let num_nodes=1usize.rotate_left(height as u32)-1; //TODO verify
 
+    let num_nodes=num_nodes*2;
+
     let num_non_leafs=num_nodes/2;
     let num_leafs=num_nodes-num_non_leafs;
 
 
     let num_bytes=
-        num_bots*(size_of::<T>()+align_of::<T>())+
-        num_non_leafs * (NodeDstDyn::<N,T>::empty_size()+align_of_val(dst)*2)+
-        num_leafs * (NodeDynWrap::<N,T>::empty_size()+align_of_val(wrap)*2);
+        num_bots*(size_of::<T>())+
+        num_non_leafs * (NodeDstDyn::<N,T>::empty_size())+
+        num_leafs * (NodeDynWrap::<N,T>::empty_size());
+
 
     (num_nodes,num_bytes)
 }
@@ -549,7 +552,6 @@ impl<T:HasAabb+Copy,N:Copy> TreeInner<T,N>{
         let num_bots=bbots.len();
 
         let (num_nodes,num_bytes)=compute_size::<N,T>(bbots.len(),height);
-        println!("num_bytes={:?}",num_bytes);
         //TODO remove zeroing out.
         // let mut mem:Vec<u8>=std::iter::repeat(0).take(num_bytes).collect();
         let mut mem=chunk::MemChunk::new(num_bytes,std::mem::align_of::<T>());
@@ -562,11 +564,9 @@ impl<T:HasAabb+Copy,N:Copy> TreeInner<T,N>{
                 bots[..].copy_from_slice(bbots);
                 (bots,buffer)
             };
-            println!("starting");
             handle_node(sorter,axis,LeftOf,bots,buffer,n,0,height)
             
         };
-        println!("FINISH");
 
         TreeInner{num_bots,num_nodes,mem,target,height,_p:PhantomData}
 
@@ -685,7 +685,6 @@ impl<T:HasAabb,N> TreeInner<T,N>{
         self.num_nodes
     }
     pub fn vistr(&self)->Vistr<N,T>{
-        println!("creating vistr");
         unsafe{
             let buffer=self.mem.get();
             
@@ -697,7 +696,6 @@ impl<T:HasAabb,N> TreeInner<T,N>{
         }
     }
     pub fn vistr_mut(&mut self)->VistrMut<N,T>{
-        println!("creating vistr mut");
         unsafe{
             let buffer=self.mem.get_mut();
 
@@ -798,7 +796,7 @@ fn handle_node<T:HasAabb+Copy,N:Copy,S:Sorter,A:AxisTrait,L:LeftOrRight>(sorter:
         }else{
             move_bots_leaf(true,bots,buffer)
         };
-        println!("leftover space={:?}",(_left_buffer.len(),_right_buffer.len()));
+        //println!("leftover space={:?}",(_left_buffer.len(),_right_buffer.len()));
         node.dyn.misc=n;
         node.num=node.dyn.range.len();
 
@@ -825,7 +823,7 @@ fn move_bots_leaf_test(){
         let (a,b,c)=move_bots_leaf::<(),_>(true,bots,rest);
         b.num=0;
 
-        println!("sizes={:?}",(a.len(),c.len()));
+        //println!("sizes={:?}",(a.len(),c.len()));
         for a in a.iter_mut(){
             *a=0;
         }
@@ -915,7 +913,7 @@ fn move_bots_non_leaf_test(){
         let (buffer_left,left,unused_left,node,unused_right,right,buffer_right)=move_bots_non_leaf::<(),_>(true,bots,rest);
         b.num=0;
 
-        println!("sizes={:?}",(a.len(),c.len()));
+        //println!("sizes={:?}",(a.len(),c.len()));
         for a in buffer_left.iter_mut(){
             *a=0;
         }
@@ -932,23 +930,52 @@ fn move_bots_non_leaf_test(){
     panic!();
 }
 
+fn calculate_space_needed<N,T:HasAabb>(depth:usize,height:usize,num_bots:usize)->usize{
+    use std::mem::*;
+    let number_of_levels_left=height-depth;
+
+    let num_nodes_left=2usize.rotate_left(number_of_levels_left as u32)-1;
+
+    //let num_nodes_left=(num_nodes_left as f64*1.22 ) as usize;
+    let num_nodes_left=num_nodes_left/2;
+    //The number of nodes on the left side only.
+    //let num_nodes_left=num_nodes_left/2;
+
+    let num_non_leafs=num_nodes_left/2;
+    let num_leafs=num_nodes_left-num_non_leafs;
+
+    let k=num_bots*std::mem::size_of::<T>()+
+    (NodeDstDyn::<N,T>::empty_size())*num_non_leafs+
+    (NodeDynWrap::<N,T>::empty_size())*num_leafs;
+
+    k
+
+}
 
 fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:bool,left:&'a mut [T],mid:&'a mut [T],right:&'a mut [T],rest:&'a mut [u8])->(&'a mut [u8],&'a mut [T],&'a mut [u8],&'a mut NodeDstDyn<N,T>,&'a mut [T],&'a mut [u8]){
-    let space_needed_for_left_bots={
-        let number_of_levels_left=height-depth;
+    /*
+    let target={
+        //let ratio=left/right;
+        //let total_size=all memory we have;
+        //
+        //find x such that
+        /*
+        x/y=ratio;
+        x+y=total_size;   y=total_size-x;
 
-        let num_nodes_left=2usize.rotate_left(number_of_levels_left as u32)-1;
+        x/(total_size-x)=ratio;
+        x=ratio*(total_size-x);
+        x=ratio*total_size-ratio*x;
+        ratio*total_size=x+ratio*x;
+        ratio*total_size=x*(1+ratio);
+        x=ratio*total_size/(1+ratio);
+        */
 
-        //The number of nodes on the left side only.
-        //let num_nodes_left=num_nodes_left/2;
 
-        let num_non_leafs=num_nodes_left/2;
-        let num_leafs=num_nodes_left-num_non_leafs;
 
-        left.len()*std::mem::size_of::<T>()+
-        (std::mem::align_of::<T>()+NodeDstDyn::<N,T>::empty_size())*num_non_leafs+
-        (std::mem::align_of::<T>()+NodeDynWrap::<N,T>::empty_size())*num_leafs
-    };
+    }
+    */
+    let space_needed_for_left_bots=calculate_space_needed::<N,T>(depth,height,left.len());
 
 
 
@@ -961,6 +988,8 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:b
         let bot_size=size_of::<T>();
         let (total_size_of_mid,align_of_node)={
             let val:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:mid.len()})};
+      
+            //println!("size={:?}  node={:?}",std::mem::size_of::<T>(),NodeDstDyn::<N,T>::empty_size());
             assert_eq!(val.node.dyn.range.len(),mid.len());
             //assert_eq!(align_of::<T>(),align_of_val(val));
             (size_of_val(val),align_of_val(val))
@@ -1091,7 +1120,7 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:b
         }
 
 
-        println!("sizes={:?}",( bytes_join_slice_mut(left_buffer,left_new).len(),slice_join_bytes_mut(right_new,right_buffer).len()  ));
+        //println!("sizes={:?}",( bytes_join_slice_mut(left_buffer,left_new).len(),slice_join_bytes_mut(right_new,right_buffer).len()  ));
         (left_buffer,left_new,unused_left,val,right_new,right_buffer)
         
     }
