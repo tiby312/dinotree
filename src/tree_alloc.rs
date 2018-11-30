@@ -450,9 +450,95 @@ impl<T:HasAabb+Copy+Send,N:Copy+Send> TreeInner<T,N>{
     }
     
 }
+impl<T:HasAabb,N> TreeInner<T,N>{
+
+    pub fn num_nodes(&self)->usize{
+        self.num_nodes
+    }
+    pub fn vistr(&self)->Vistr<N,T>{
+        unsafe{
+            let buffer=self.mem.get();
+            
+            let bot_size=std::mem::size_of::<(N,T)>();
+            //let ptr=&buffer[self.target as usize*bot_size];
+            let ptr=std::mem::transmute(self.target);
+            let inner=InnerVistr::new(ptr,self.height);
+            Vistr{inner}
+        }
+    }
+    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
+        unsafe{
+            let buffer=self.mem.get_mut();
+
+            let bot_size=std::mem::size_of::<(N,T)>();
+            let ptr=std::mem::transmute(self.target);//&mut buffer[self.target as usize*bot_size];
+            let inner=InnerVistrMut::new(ptr,self.height);
+            VistrMut{inner}
+        }
+    }
+}
 impl<'a,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<T,N>{
-    pub fn from_vistr<I:Iterator<Item=T>,A:compt::Visitor<Item=(N,I),NonLeafItem=FullComp<T::Num>>>(a:A)->TreeInner<T,N>{
-        unimplemented!()
+    pub fn from_vistr<I:ExactSizeIterator<Item=T>,A:compt::FixedDepthVisitor<Item=(N,I),NonLeafItem=FullComp<T::Num>>>(num_bots:usize,height:usize,a:A)->TreeInner<T,N>{
+        
+        let num_nodes=1usize.rotate_left(height as u32)-1;
+        let mut allocator=NodeAllocator::<N,T>::new(num_bots,height);
+
+        let start=handle(&mut allocator,a);
+
+        return TreeInner{mem:allocator.into_inner(),target:start,height,num_nodes,num_bots,_p:PhantomData};
+        
+
+        fn handle<T:HasAabb,N,I:ExactSizeIterator<Item=T>,A:compt::FixedDepthVisitor<Item=(N,I),NonLeafItem=FullComp<T::Num>>>(allocator:&mut NodeAllocator<N,T>,a:A)->usize{
+
+            let ((n,bots_iter),rest)=a.next();
+
+
+            match rest{
+                Some((fullcomp,left,right))=>{
+
+                    let a=handle(allocator,left);
+                    
+                    let node2=allocator.create_non_leaf(bots_iter.len());
+
+
+                    let b=handle(allocator,right);
+
+                    node2.comp=fullcomp;
+                    node2.next_nodes=[a,b];
+                    {
+                        let no=&mut node2.node;
+                        no.num=bots_iter.len();
+                        no.dyn.misc=n;//=func2(&original.dyn.misc);
+                        for (a,b) in bots_iter.zip(no.dyn.range.iter_mut()){
+                            *b=a;
+                        }
+                    }
+
+                
+                    //set node
+                    //this_counter
+                    
+                    let ReprMut{ptr,size}:ReprMut<u8>=unsafe{std::mem::transmute(node2)};
+                    ptr as usize
+
+                },
+                None=>{
+                    
+                    let node2=allocator.create_leaf(bots_iter.len());
+
+                    node2.num=bots_iter.len();
+                    node2.dyn.misc=n;
+                    for (a,b) in bots_iter.zip(node2.dyn.range.iter_mut()){
+                        *b=a;
+                    }
+
+                    let ReprMut{ptr,size}:ReprMut<u8>=unsafe{std::mem::transmute(node2)};
+                    ptr as usize
+                    
+                }
+            }
+        }
+
     }
 }
 
@@ -497,7 +583,7 @@ impl<'a,N,T:HasAabb> NodeAllocator<'a,N,T>{
     }
 }
 
-
+/*
 impl<T:HasAabb,N> TreeInner<T,N>{
 
     pub fn into_other<T2:HasAabb<Num=T::Num>,N2>(&self,mut func1:impl FnMut(&T)->T2,mut func2:impl FnMut(&N)->N2)->TreeInner<T2,N2>{
@@ -592,6 +678,7 @@ impl<T:HasAabb,N> TreeInner<T,N>{
     }
    
 }
+*/
 
 
 fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRight>(par:impl par::Joiner,sorter:S,axis:A,st:L,bots:&mut [T],buffer:&mut [u8],n:N,depth:usize,height:usize)->usize
