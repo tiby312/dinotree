@@ -68,67 +68,70 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
     assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
 
 
-    let mut conts:Vec<Cont2<Num>>=bots.iter().enumerate().map(|(index,k)|{
+    let mut conts=bots.iter().enumerate().map(|(index,k)|{
         Cont2{rect:aabb_create(k),index:index as u32}
-    }).collect();
+    });
     
 
-    let mut tree2=tree_alloc::TreeInner::new(sorter,axis,&conts,(),height);
-    let num_nodes=tree2.num_nodes();
+    //TODO put somewhere else
+    let num_nodes=1usize.rotate_left(height as u32)-1;
+
+    let (alloc,mover)=if true{
+        let mut tree2=tree_alloc::TreeInner::new(par,sorter,axis,conts,(),height);
+        let num_nodes=tree2.num_nodes();
 
 
-    let mut alloc=tree2.into_other(|a|{BBox{rect:a.rect,inner:bots[a.index as usize]}},|_|n);
-    
-    /*
-    let mut tree2=DinoTreeInner::new(axis,&mut conts,height,ka,par,sorter);
-    
+        let mut alloc=tree2.into_other(|a|{BBox{rect:a.rect,inner:bots[a.index as usize]}},|_|n);
 
-    let height=tree2.tree.get_height();                
-    let num_nodes=tree2.tree.get_nodes().len();
 
-    let alloc={
-        let ii=tree2.tree.vistr_mut().map(|node,eextra|{
-            let l=tree_alloc::NodeConstructor{misc:n,it:node.range.iter_mut().map(|b|{
-                BBox{rect:b.rect,inner:bots[b.index as usize]}
-            })};
-
-            let extra=match eextra{
+        let mover={
+            let mut mover=Vec::with_capacity(num_bots);
+            for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
+                mover.extend(node.range.iter().map(|a|a.index));
+            }
+            mover
+        };
+        (alloc,mover)
+    }else{
+        let mut conts:Vec<_>=conts.collect();
+        
+        let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
+            let mid=&mut [];
+            //Get rid of zero initialization???
+            let fullcomp=unsafe{std::mem::uninitialized()};
+            dinotree_inner::Node2{fullcomp,mid}
+            
+        },height);
+        
+        {
+            let j=tree2.vistr_mut().with_depth(Depth(0));
+            dinotree_inner::recurse_rebal(axis,par,&mut conts,j,sorter,&mut advanced::SplitterEmpty);
+        }
+        let alloc=tree_alloc::TreeInner::from_vistr(tree2.vistr().map(|item,nonleaf|{
+            let x=(n,item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]}));
+            let fullcomp=match nonleaf{
                 Some(())=>{
-                    Some(tree_alloc::ExtraConstructor{
-                        comp:Some(node.div)
-                    })
+                    Some(item.fullcomp)
                 },
                 None=>{
                     None
                 }
             };
+            (x,fullcomp)
+        }));
 
-            (l,extra)
-        });
-
-        TreeAllocDstDfsOrder::new(ii,height,num_nodes,num_bots)
+        let mover={
+            let mut mover=Vec::with_capacity(num_bots);
+            for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
+                mover.extend(node.mid.iter().map(|a|a.index));
+            }
+            mover
+        };
+        (alloc,mover)
     };
-    */
-
-    /*
-    //TODO optimization:drain tree into mover.
-    let mover:Vec<u32>=tree2.tree.vistr().dfs_inorder_iter().flat_map(|(node,_extra)|{
-        node.range.iter()
-    }).map(|a|a.index).collect();
-    */
-
-    let mover={
-        let mut mover=Vec::with_capacity(num_bots);
-        for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
-            mover.extend(node.range.iter().map(|a|a.index));
-        }
-        mover
-    };
-
+    
     let tree=DinoTree{mover,alloc,axis,height,num_nodes,num_bots};
 
-
-    //debug_assert!(tree.are_invariants_met().is_ok());
     tree
     
 }

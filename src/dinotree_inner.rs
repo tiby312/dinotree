@@ -33,20 +33,9 @@ impl<'a,A:AxisTrait,T:HasAabb+Send+'a> DinoTreeInner<'a,A,T>{
 }
 
 
-
-pub struct Node2<'a,T:HasAabb+'a>{ 
-
-    //If this is a non leaf node, then,
-    //  div is None iff this node and children nodes do not have any bots in them.
-    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
-    // This is because we specifically pick the median.
-    // If it is a leaf node, then div being none still means it could have bots in it.
-    //pub div:Option<(T::Num,axgeom::Range<T::Num>)>,
-    pub div:tree_alloc::FullComp<T::Num>,
-    pub range:&'a mut [T]
-}
-
 */
+
+
 pub trait Sorter:Copy+Clone+Send+Sync{
     fn sort(&self,axis:impl AxisTrait,bots:&mut [impl HasAabb]);
 }
@@ -68,9 +57,21 @@ impl Sorter for NoSorter{
 }
 
 
-/*
 
-fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
+
+pub struct Node2<'a,T:HasAabb+'a>{ 
+
+    //If this is a non leaf node, then,
+    //  div is None iff this node and children nodes do not have any bots in them.
+    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
+    // This is because we specifically pick the median.
+    // If it is a leaf node, then div being none still means it could have bots in it.
+    //pub div:Option<(T::Num,axgeom::Range<T::Num>)>,
+    pub fullcomp:tree_alloc::FullComp<T::Num>,
+    pub mid:&'a mut [T]
+}
+
+pub fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
     rest:&'b mut [T],
@@ -81,70 +82,25 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
 
     let ((level,nn),restt)=down.next();
 
+
     match restt{
         None=>{
-            sorter.sort(div_axis.next(),rest);
-            //oned::sweeper_update(div_axis.next(),rest);
-            
-            nn.range=rest;
-            //nn.div=std::default::Default::default();
+            nn.mid=rest;
+            tree_alloc::construct_leaf(sorter,div_axis,&mut nn.mid);
             
             splitter.node_end();
         },
         Some(((),lleft,rright))=>{
-            //let lleft:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>=lleft;
-            //let rright:compt::LevelIter<compt::dfs_order::VistrMut<Node2<'b,T>>>=rright;
-            
-            let med = if rest.len() == 0{
-                /*
-                //Initialize the nodes under this one
-                for ((_,nn),_) in lleft.dfs_inorder_iter().chain(rright.dfs_inorder_iter()){
-                    nn.range=&mut [];
-                    nn.div=std::default::Default::default();
+            let (fullcomp,left,mid,right)=match tree_alloc::construct_non_leaf(sorter,div_axis,rest){
+                Some(pass)=>{
+                    pass
+                },
+                None=>{
+                    return;
                 }
-                */
-                
-                splitter.node_end();
-                return;
-            }
-            else
-            {
-
-                let closure = |a: &T, b: &T| -> std::cmp::Ordering {
-                    oned::compare_bots(div_axis,a,b)
-                };
-
-                let k={
-                    let mm=rest.len()/2;
-                    pdqselect::select_by(rest, mm, closure);
-                    &rest[mm]
-                };
-
-                k.get().get_range(div_axis).left
             };
 
-            //It is very important that the median bot end up be binned into the middile bin.
-            //We know this must be true because we chose the divider to be the medians left border,
-            //and we binned so that all bots who intersect with the divider end up in the middle bin.
-            //Very important that if a bots border is exactly on the divider, it is put in the middle.
-            //If this were not true, there is no guarentee that the middile bin has bots in it even
-            //though we did pick a divider.
-            let binned=oned::bin_middle_left_right(div_axis,&med,rest);
-            
-            debug_assert!(binned.middle.len()!=0);
-        
-            let oned::Binned{left,middle,right}=binned;
-            
-            let binned_left=left;
-            let binned_middle=middle;
-            let binned_right=right;                
-
-            //We already know that the middile is non zero in length.
-            let container_box=create_cont(div_axis,binned_middle).unwrap();
-            
-            //oned::sweeper_update(div_axis.next(),binned_middle);
-            sorter.sort(div_axis.next(),binned_middle);
-            let nj:Node2<'b,_>=Node2{div:tree_alloc::FullComp{div:med,cont:container_box},range:binned_middle};
+            let nj:Node2<'b,_>=Node2{fullcomp,mid};
             *nn=nj;
 
 
@@ -153,12 +109,12 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
 
             let splitter=if !dlevel.should_switch_to_sequential(level){
                 let splitter2=&mut splitter2;
-                let af= move || {self::recurse_rebal(div_axis.next(),dlevel,binned_left,lleft,sorter,splitter);splitter};
-                let bf= move || {self::recurse_rebal(div_axis.next(),dlevel,binned_right,rright,sorter,splitter2);};
+                let af= move || {self::recurse_rebal(div_axis.next(),dlevel,left,lleft,sorter,splitter);splitter};
+                let bf= move || {self::recurse_rebal(div_axis.next(),dlevel,right,rright,sorter,splitter2);};
                 rayon::join(af,bf).0
             }else{
-                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_left,lleft,sorter,splitter);
-                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),binned_right,rright,sorter,&mut splitter2);
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),left,lleft,sorter,splitter);
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),right,rright,sorter,&mut splitter2);
                 splitter
             };
             
@@ -167,7 +123,9 @@ fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
         }
     }
 }
-*/
+
+
+
 
 pub fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
   
