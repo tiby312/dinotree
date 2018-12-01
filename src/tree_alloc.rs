@@ -646,7 +646,7 @@ fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRigh
         node.comp=fullcomp;
         node.next_nodes=[left_node,right_node];
         node.node.dyn.misc=n;
-        node.node.num=node.node.dyn.range.len();//mid.len();
+        node.node.num=node.node.dyn.range.len();
         
         
         let ReprMut{ptr,size:_}:ReprMut<u8>=unsafe{std::mem::transmute(node)};
@@ -661,7 +661,7 @@ fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRigh
         }else{
             move_bots_leaf(true,bots,buffer)
         };
-        //println!("leftover space={:?}",(_left_buffer.len(),_right_buffer.len()));
+        
         node.dyn.misc=n;
         node.num=node.dyn.range.len();
 
@@ -675,7 +675,7 @@ fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRigh
 #[test]
 fn move_bots_leaf_test(){
 
-    let mut bots:Vec<BBox<u8,()>>=(0..40).map(|a|unsafe{BBox::new(axgeom::Rect::new(0xDEADu8,0xBEAF,0xCAFE,0xBABE),())}).collect();
+    let mut bots:Vec<BBox<u8,()>>=(0..40).map(|_|unsafe{BBox::new(axgeom::Rect::new(0xDEu8,0xAD,0xCA,0xFE),())}).collect();
     {
         let (bots,rest)=bots.split_at_mut(10);
 
