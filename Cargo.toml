@@ -17,5 +17,5 @@ is_sorted = "0.1.0"
 rayon = "1.0.3"
 pdqselect = "0.1.0"
 compt = "1.2.2"
-axgeom = "1.0.1"
+axgeom = {path="../axgeom"}
 itertools = "0.7.8"
