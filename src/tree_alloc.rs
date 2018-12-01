@@ -4,9 +4,9 @@ use compt::Visitor;
 use HasAabb;
 use std::marker::PhantomData;
 use std::iter::TrustedLen;
-use std::ptr::Unique;
 use inner_prelude::*;
 use tools::*;
+use dinotree_inner::Sorter;
 
 
 #[repr(C)]
@@ -23,8 +23,6 @@ struct Repr<T>{
 
 
 
-use super::*;
-use dinotree_inner::Sorter;
 
 
 
@@ -159,8 +157,7 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for InnerVistrMut<'a,N,T>{
         unsafe{
             let height=self.height;
             if self.depth<self.height-1{
-                let ptr=self.ptr as *mut u8;
-
+                
                 let node=NodeDstDyn::<N,T>::from_ptr_mut(self.ptr,None);
 
                 let nn=(self.height,node.next_nodes,&node.comp);
@@ -209,8 +206,7 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for InnerVistr<'a,N,T>{
         unsafe{
             let height=self.height;
             if self.depth<self.height-1{
-                let ptr=self.ptr as *const u8;
-
+                
                 let node=NodeDstDyn::<N,T>::from_ptr(self.ptr,None);
 
                 let nn=(self.height,node.next_nodes,&node.comp);
@@ -460,10 +456,6 @@ impl<T:HasAabb,N> TreeInner<T,N>{
     }
     pub fn vistr(&self)->Vistr<N,T>{
         unsafe{
-            let buffer=self.mem.get();
-            
-            let bot_size=std::mem::size_of::<(N,T)>();
-            //let ptr=&buffer[self.target as usize*bot_size];
             let ptr=std::mem::transmute(self.target);
             let inner=InnerVistr::new(ptr,self.height);
             Vistr{inner}
@@ -471,10 +463,7 @@ impl<T:HasAabb,N> TreeInner<T,N>{
     }
     pub fn vistr_mut(&mut self)->VistrMut<N,T>{
         unsafe{
-            let buffer=self.mem.get_mut();
-
-            let bot_size=std::mem::size_of::<(N,T)>();
-            let ptr=std::mem::transmute(self.target);//&mut buffer[self.target as usize*bot_size];
+            let ptr=std::mem::transmute(self.target);
             let inner=InnerVistrMut::new(ptr,self.height);
             VistrMut{inner}
         }
@@ -521,7 +510,7 @@ impl<'a,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<T,N>{
                     //set node
                     //this_counter
                     
-                    let ReprMut{ptr,size}:ReprMut<u8>=unsafe{std::mem::transmute(node2)};
+                    let ReprMut{ptr,size:_}:ReprMut<u8>=unsafe{std::mem::transmute(node2)};
                     ptr as usize
 
                 },
@@ -535,7 +524,7 @@ impl<'a,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<T,N>{
                         *b=a;
                     }
 
-                    let ReprMut{ptr,size}:ReprMut<u8>=unsafe{std::mem::transmute(node2)};
+                    let ReprMut{ptr,size:_}:ReprMut<u8>=unsafe{std::mem::transmute(node2)};
                     ptr as usize
                     
                 }
@@ -553,12 +542,8 @@ struct NodeAllocator<'a,N,T>{
 }
 impl<'a,N,T:HasAabb> NodeAllocator<'a,N,T>{
     fn new(num_bots:usize,height:usize)->NodeAllocator<'a,N,T>{
-        let num_nodes=1usize.rotate_left(height as u32)-1; //TODO verify
         let num_bytes=calculate_space_needed::<N,T>(0,height,num_bots);
-
-        let mut mem=chunk::MemChunk::new(num_bytes,std::mem::align_of::<T>());
-
-
+        let mem=chunk::MemChunk::new(num_bytes,std::mem::align_of::<T>());
         NodeAllocator{
             mem,counter:0,_p:PhantomData
         }
@@ -589,9 +574,6 @@ impl<'a,N,T:HasAabb> NodeAllocator<'a,N,T>{
 
 fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRight>(par:impl par::Joiner,sorter:S,axis:A,st:L,bots:&mut [T],buffer:&mut [u8],n:N,depth:usize,height:usize)->usize
 {
-    
-    let bot_size=std::mem::size_of::<T>();
-
     if depth<height-1{
         
         let (fullcomp,left,mid,right)={
@@ -661,7 +643,7 @@ fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRigh
         node.node.num=node.node.dyn.range.len();//mid.len();
         
         
-        let ReprMut{ptr,size}:ReprMut<u8>=unsafe{std::mem::transmute(node)};
+        let ReprMut{ptr,size:_}:ReprMut<u8>=unsafe{std::mem::transmute(node)};
         ptr as usize
     }
     else
@@ -677,7 +659,7 @@ fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRigh
         node.dyn.misc=n;
         node.num=node.dyn.range.len();
 
-        let ReprMut{ptr,size}:ReprMut<u8>=unsafe{std::mem::transmute(node)};
+        let ReprMut{ptr,size:_}:ReprMut<u8>=unsafe{std::mem::transmute(node)};
         ptr as usize
     }
 }
@@ -777,7 +759,7 @@ fn move_bots_leaf<'a,N,T:HasAabb+Copy>(move_right:bool,bots:&'a mut [T],rest:&'a
     }
 }
 
-
+/*
 #[test]
 fn move_bots_non_leaf_test(){
 
@@ -792,7 +774,7 @@ fn move_bots_non_leaf_test(){
 
         
         let (buffer_left,left,unused_left,node,unused_right,right,buffer_right)=move_bots_non_leaf::<(),_>(true,bots,rest);
-        b.num=0;
+    
 
         //println!("sizes={:?}",(a.len(),c.len()));
         for a in buffer_left.iter_mut(){
@@ -810,7 +792,7 @@ fn move_bots_non_leaf_test(){
     //println!("bots={:?}",bots);
     panic!();
 }
-
+*/ 
 
 
 
@@ -835,10 +817,7 @@ fn calculate_space_needed<N,T:HasAabb>(depth:usize,height:usize,num_bots:usize)-
 
 
 fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:bool,left:&'a mut [T],mid:&'a mut [T],right:&'a mut [T],rest:&'a mut [u8])->(&'a mut [u8],&'a mut [T],&'a mut [u8],&'a mut NodeDstDyn<N,T>,&'a mut [u8],&'a mut [T],&'a mut [u8]){
-    use std::mem::*;
     
-
-
     /*
     let mid_copy:Vec<T>=mid.iter().map(|a|*a).collect();
     let left_copy:Vec<T>=left.iter().map(|a|*a).collect();
@@ -848,10 +827,10 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:b
     unsafe{
         use std::mem::*;
         let bot_size=size_of::<T>();
-        let (total_size_of_mid,align_of_node)={
+        let align_of_node={
             let val:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:mid.len()})};
             debug_assert_eq!(val.node.dyn.range.len(),mid.len());
-            (size_of_val(val),align_of_val(val))
+            align_of_val(val)
         };
         debug_assert!(are_adjacent(left,mid));
         debug_assert!(are_adjacent(mid,right));
@@ -979,9 +958,6 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:b
         }
         */
 
-        let a=bytes_join_slice_mut(left_buffer,left_new).len();
-        let b=slice_join_bytes_mut(right_new,right_buffer).len();
-        
         (left_buffer,left_new,unused_left,val_new,unused_right,right_new,right_buffer)
         
     }
@@ -1004,7 +980,6 @@ mod chunk{
         }
         pub fn get(&self)->&[u8]{
             let offset=self.offset;
-            let num_bytes=self.num_bytes;
             unsafe{
                 let a=self.vec.as_ptr().offset(offset);
                 std::mem::transmute(tree_alloc::Repr{ptr:a,size:self.num_bytes})
@@ -1018,7 +993,6 @@ mod chunk{
         }
         pub fn get_mut(&mut self)->&mut [u8]{
             let offset=self.offset;
-            let num_bytes=self.num_bytes;
             unsafe{
                 let a=self.vec.as_mut_ptr().offset(offset);
                 std::mem::transmute(tree_alloc::ReprMut{ptr:a,size:self.num_bytes})

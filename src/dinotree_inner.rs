@@ -20,7 +20,7 @@ impl Sorter for DefaultSorter{
 pub struct NoSorter;
 
 impl Sorter for NoSorter{
-    fn sort(&self,axis:impl AxisTrait,bots:&mut [impl HasAabb]){}
+    fn sort(&self,_axis:impl AxisTrait,_bots:&mut [impl HasAabb]){}
 }
 
 

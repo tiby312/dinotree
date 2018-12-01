@@ -245,7 +245,7 @@ pub struct DinoTree2<A:AxisTrait,N,T:HasAabb>{
 
 impl<A:AxisTrait,N:Copy+Send,T:Copy+Send,Num:NumTrait> DinoTree2<A,N,BBox<Num,(usize,T)>>{
     pub fn new<K:Splitter+Send,F:FnMut(&T)->Rect<Num>>
-        (axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:Option<usize>)
+        (axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:Option<usize>)
             ->DinoTree2<A,N,BBox<Num,(usize,T)>>
     {
 
@@ -266,7 +266,7 @@ impl<A:AxisTrait,N:Copy+Send,T:Copy+Send,Num:NumTrait> DinoTree2<A,N,BBox<Num,(u
         let dlevel=par::Parallel::new(Depth(gg));
 
 
-        let mut tree2=tree_alloc::TreeInner::new(dlevel,DefaultSorter,axis,
+        let tree2=tree_alloc::TreeInner::new(dlevel,DefaultSorter,axis,
             bots.iter().enumerate().map(|(i,b)|unsafe{BBox::new(aabb_create(b),(i,*b))})
             ,n,height);
     

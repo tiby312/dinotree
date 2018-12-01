@@ -62,7 +62,7 @@ impl RebalStrat for RebalStrat2{
 
 
 
-pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:R,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
+pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:R,axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
     {   
     
     #[derive(Copy,Clone)]
@@ -83,7 +83,7 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
     assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
 
 
-    let mut conts=bots.iter().enumerate().map(|(index,k)|{
+    let conts=bots.iter().enumerate().map(|(index,k)|{
         Cont2{rect:aabb_create(k),index:index as u32}
     });
     
@@ -245,7 +245,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
         let num_bots=self.num_bots();
         let mover=self.mover.clone();
         //let alloc=self.alloc.into_other(|a|*a,n2);
-        let mut alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,self.alloc.vistr().map(|item,nonleaf|{
+        let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,self.alloc.vistr().map(|item,nonleaf|{
             let x=(n2,item.range.iter().map(|a|*a));
             let fullcomp=match nonleaf{
                 Some(fullcomp)=>{
