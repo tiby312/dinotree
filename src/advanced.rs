@@ -238,6 +238,7 @@ pub use dinotree::RebalStrat2;
 
 
 
+
 pub struct DinoTree2<A:AxisTrait,N,T:HasAabb>{
     axis:A,
     inner:tree_alloc::TreeInner<T,N>
@@ -271,6 +272,9 @@ impl<A:AxisTrait,N:Copy+Send,T:Copy+Send,Num:NumTrait> DinoTree2<A,N,BBox<Num,(u
             ,n,height);
     
         DinoTree2{axis,inner:tree2}        
+    }
+    pub fn axis(&self)->A{
+        self.axis
     }
 
 

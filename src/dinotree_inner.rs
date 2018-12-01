@@ -58,7 +58,7 @@ pub fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Sen
             splitter.node_end();
         },
         Some(((),lleft,rright))=>{
-            let (fullcomp,left,mid,right)=match tree_alloc::construct_non_leaf(sorter,div_axis,rest){
+            let (fullcomp,left,mid,right)=match tree_alloc::construct_non_leaf(false,sorter,div_axis,rest){
                 Some(pass)=>{
                     pass
                 },

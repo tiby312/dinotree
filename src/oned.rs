@@ -50,9 +50,12 @@ pub fn bin_left_middle_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
     let (left,middle)=rest.split_at_mut(middle_end);
     debug_assert!(left.len()+middle.len()+right.len()==bot_len);
     Binned{left:left,middle:middle,right:right}
+
+
 }
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
+
 pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         

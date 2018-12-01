@@ -87,10 +87,6 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
         Cont2{rect:aabb_create(k),index:index as u32}
     });
     
-
-    //TODO put somewhere else
-    let num_nodes=1usize.rotate_left(height as u32)-1;
-
     let (alloc,mover)=if !rebal_type.is_first_strat(){
         let mut tree2=tree_alloc::TreeInner::new(par,sorter,axis,conts,(),height);
         
@@ -158,7 +154,7 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
         (alloc,mover)
     };
     
-    let tree=DinoTree{mover,alloc,axis,height,num_nodes,num_bots};
+    let tree=DinoTree{mover,alloc,axis};
 
     tree
     
@@ -192,9 +188,6 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
 ///
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     mover:Vec<u32>, //Used to return the aabb objects back to their original position
-    height:usize,
-    num_nodes:usize,
-    num_bots:usize,
     alloc:tree_alloc::TreeInner<T,N>,
     axis:A
 }
@@ -241,10 +234,9 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
         
         let axis=self.axis();
         let height=self.height();
-        let num_nodes=self.num_nodes();
         let num_bots=self.num_bots();
         let mover=self.mover.clone();
-        //let alloc=self.alloc.into_other(|a|*a,n2);
+        
         let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,self.alloc.vistr().map(|item,nonleaf|{
             let x=(n2,item.range.iter().map(|a|*a));
             let fullcomp=match nonleaf{
@@ -265,7 +257,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
 
 
 
-        DinoTree{mover,axis,height,num_nodes,num_bots,alloc}
+        DinoTree{mover,axis,alloc}
     }
 }
 
@@ -426,7 +418,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Get the height of the tree.
     #[inline]
     pub fn height(&self)->usize{
-        self.height
+        self.alloc.height()
     }
 
     ///Create a mutable tree visitor.
@@ -444,12 +436,12 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Returns the number of bots that are in the tree.
     #[inline]
     pub fn num_bots(&self)->usize{
-        self.num_bots
+        self.alloc.num_bots()
     }
 
     ///Returns the number of nodes in the tree.
     #[inline]
     pub fn num_nodes(&self)->usize{
-        self.num_nodes
+        self.alloc.num_nodes()
     }
 }
