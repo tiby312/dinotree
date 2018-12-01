@@ -59,6 +59,9 @@ impl RebalStrat for RebalStrat2{
 }
 
 
+
+
+
 pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:R,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
     {   
     
@@ -374,7 +377,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
-    pub fn apply<X>(&mut self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
+    pub fn apply<X>(&self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
         assert_eq!(bots.len(),self.num_bots());
         for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
             let target=&mut bots[*mov as usize];

@@ -455,6 +455,9 @@ impl<T:HasAabb,N> TreeInner<T,N>{
     pub fn num_nodes(&self)->usize{
         self.num_nodes
     }
+    pub fn num_bots(&self)->usize{
+        self.num_bots
+    }
     pub fn vistr(&self)->Vistr<N,T>{
         unsafe{
             let buffer=self.mem.get();

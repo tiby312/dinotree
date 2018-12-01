@@ -1,39 +1,6 @@
 use inner_prelude::*;
 use advanced::Splitter;
 
-/*
-///A KdTree construction
-///This is like DynTree except the size of every node is constant.
-pub struct DinoTreeInner<'a,A:AxisTrait,T:HasAabb+'a> {
-    pub tree: compt::dfs_order::CompleteTree<Node2<'a,T>>,
-    pub axis:A
-}
-
-impl<'a,A:AxisTrait,T:HasAabb+Send+'a> DinoTreeInner<'a,A,T>{
-
-    pub fn new<JJ:par::Joiner,K:Splitter+Send>(axis:A,rest:&'a mut [T],height:usize,splitter:&mut K,par:JJ,sorter:impl Sorter) -> DinoTreeInner<'a,A,T> {
-        
-        let mut ttree=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
-            let rest=&mut [];
-            //Get rid of zero initialization???
-            let div=unsafe{std::mem::uninitialized()};
-            Node2{div,range:rest}
-            
-        },height);
-
-        {
-            let j=ttree.vistr_mut().with_depth(Depth(0));
-
-            self::recurse_rebal(axis,par,rest,j,sorter,splitter);
-        }
-        
-        DinoTreeInner{tree:ttree,axis}
-    }
-
-}
-
-
-*/
 
 
 pub trait Sorter:Copy+Clone+Send+Sync{
