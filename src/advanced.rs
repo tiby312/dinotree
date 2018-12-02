@@ -195,7 +195,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         
         let dlevel=par::Parallel::new(Depth(gg));
 
-        NotSorted(new_inner(RebalStrat::Default,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+        NotSorted(new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
@@ -203,7 +203,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
 
         let dlevel=par::Sequential;//Parallel::new(Depth(gg));
 
-        NotSorted(new_inner(RebalStrat::Default,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+        NotSorted(new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
     }
 
     pub fn new_adv_seq<K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:&mut K)->NotSorted<A,N,BBox<Num,T>>{
@@ -228,7 +228,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         unsafe impl<T> Sync for SplitterWrapper<T>{}
 
         let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
-        NotSorted(new_inner(RebalStrat::Default,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter))
+        NotSorted(new_inner(RebalStrat::First,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter))
     }
 }
 
@@ -315,9 +315,10 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_str
 
     let rebal_strat=match rebal_strat{
         Some(x)=>x,
-        None=>RebalStrat::Default
+        None=>RebalStrat::First
     };
 
+    
     new_inner(rebal_strat,axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter)    
 }
 
@@ -332,7 +333,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
 
     let rebal_strat=match rebal_strat{
         Some(x)=>x,
-        None=>RebalStrat::Default
+        None=>RebalStrat::First
     };
 
 

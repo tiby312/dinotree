@@ -47,11 +47,11 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
 }
 
 
-
+#[derive(Debug)]
 pub enum RebalStrat{
-    Default,
-    Alternate,
-    Tree
+    First,
+    Second,
+    Third
 }
 
 
@@ -168,9 +168,13 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
         Cont2{rect:aabb_create(k),index:index as u32}
                 });
     
-    let (alloc,mover)=match rebal_type{
-        Default=>{
 
+    //println!("rebal={:?}",rebal_type);
+
+    let (alloc,mover)=match rebal_type{
+        RebalStrat::First=>{
+
+            //println!("default");
             let mut conts:Vec<_>=conts.collect();
             
             let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
@@ -211,7 +215,9 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
             (alloc,mover)
 
         },
-        Alternate=>{
+        RebalStrat::Second=>{
+
+            //println!("alt");
             use dinotree_inner::Node2;
             let num_nodes=1usize.rotate_left(height as u32)-1;
             
@@ -260,26 +266,20 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
             
             (alloc,mover)
         },
-        Tree=>{
-            let mut conts:Vec<_>=conts.collect();
+        RebalStrat::Third=>{
+            //println!("tree");
+            let mut tree2=tree_alloc::TreeInner::new(par,sorter,axis,conts,(),height);
         
-            let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
-                let mid=&mut [];
-                //Get rid of zero initialization???
-                let fullcomp=unsafe{std::mem::uninitialized()};
-                dinotree_inner::Node2{fullcomp,mid}
-                
-            },height);
-            
-            {
-                let j=tree2.vistr_mut().with_depth(Depth(0));
-                dinotree_inner::recurse_rebal(axis,par,&mut conts,j,sorter,&mut advanced::SplitterEmpty);
-            }
-            let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
-                let x=(n,item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]}));
+            let mut alloc:tree_alloc::TreeInner<BBox<Num,T>,N>=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
+                let x=(n,item.range.iter().map(|a|{BBox{rect:a.rect,inner:bots[a.index as usize]}}));
                 let fullcomp=match nonleaf{
-                    Some(())=>{
-                        Some(item.fullcomp)
+                    Some(fullcomp)=>{
+                        match fullcomp{
+                            Some(fullcomp)=>Some(*fullcomp),
+                            None=>{
+                                Some(unsafe{std::mem::uninitialized()})
+                            }
+                        }
                     },
                     None=>{
                         None
@@ -288,12 +288,12 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
                 (x,fullcomp)
             }));
 
-
+            //let mover=tree2.into_index_only();
             
             let mover={
                 let mut mover=Vec::with_capacity(num_bots);
                 for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
-                    mover.extend(node.mid.iter().map(|a|a.index));
+                    mover.extend(node.range.iter().map(|a|a.index));
                 }
                 mover
             };
@@ -365,14 +365,14 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         
         let dlevel=par::Parallel::new(Depth(gg));
 
-        new_inner(RebalStrat::Default,axis,n,bots,aabb_create,&mut ka,height,dlevel,DefaultSorter)
+        new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,DefaultSorter)
     }
 
     #[inline]
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
-        new_inner(RebalStrat::Default,axis,n,bots,aabb_create,&mut ka,height,par::Sequential,DefaultSorter)
+        new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,par::Sequential,DefaultSorter)
     }
 
 }
