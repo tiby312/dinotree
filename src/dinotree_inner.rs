@@ -1,6 +1,6 @@
 use inner_prelude::*;
 use advanced::Splitter;
-
+use tree_alloc::BinStrat;
 
 
 pub trait Sorter:Copy+Clone+Send+Sync{
@@ -58,7 +58,7 @@ pub fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Sen
             splitter.node_end();
         },
         Some(((),lleft,rright))=>{
-            let (fullcomp,left,mid,right)=match tree_alloc::construct_non_leaf(false,sorter,div_axis,rest){
+            let (fullcomp,left,mid,right)=match tree_alloc::construct_non_leaf(BinStrat::MidLeftRight,sorter,div_axis,rest){
                 Some(pass)=>{
                     pass
                 },
@@ -82,6 +82,63 @@ pub fn recurse_rebal<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Sen
             }else{
                 self::recurse_rebal(div_axis.next(),dlevel.into_seq(),left,lleft,sorter,splitter);
                 self::recurse_rebal(div_axis.next(),dlevel.into_seq(),right,rright,sorter,&mut splitter2);
+                splitter
+            };
+            
+            splitter.add(splitter2);
+            
+        }
+    }
+}
+
+
+
+pub fn recurse_rebal2<'b,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
+    div_axis:A,
+    dlevel:JJ,
+    rest:&'b mut [T],
+    down:compt::LevelIter<compt::bfs_order_slice::VistrMut<Node2<'b,T>>>,
+    sorter:impl Sorter,
+    splitter:&mut K){
+    splitter.node_start();
+
+    let ((level,nn),restt)=down.next();
+
+
+    match restt{
+        None=>{
+            nn.mid=rest;
+            tree_alloc::construct_leaf(sorter,div_axis,&mut nn.mid);
+            
+            splitter.node_end();
+        },
+        Some(((),lleft,rright))=>{
+            let (fullcomp,left,mid,right)=match tree_alloc::construct_non_leaf(BinStrat::LeftRightMid,sorter,div_axis,rest){
+                Some(pass)=>{
+                    pass
+                },
+                None=>{
+                    //lleft.dfs_inorder_iter().map(|((level,nn),_)|nn.mid=&mut []);
+                    //rright.dfs_inorder_iter().map(|((level,nn),_)|nn.mid=&mut []);
+                    return;
+                }
+            };
+
+            let nj:Node2<'b,_>=Node2{fullcomp,mid};
+            *nn=nj;
+
+
+
+            let mut splitter2=splitter.div();
+
+            let splitter=if !dlevel.should_switch_to_sequential(level){
+                let splitter2=&mut splitter2;
+                let af= move || {self::recurse_rebal2(div_axis.next(),dlevel,left,lleft,sorter,splitter);splitter};
+                let bf= move || {self::recurse_rebal2(div_axis.next(),dlevel,right,rright,sorter,splitter2);};
+                rayon::join(af,bf).0
+            }else{
+                self::recurse_rebal2(div_axis.next(),dlevel.into_seq(),left,lleft,sorter,splitter);
+                self::recurse_rebal2(div_axis.next(),dlevel.into_seq(),right,rright,sorter,&mut splitter2);
                 splitter
             };
             

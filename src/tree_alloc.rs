@@ -24,6 +24,62 @@ struct Repr<T>{
 
 
 
+fn rotate_left<'a,T:Copy>(buffer:&'a mut [T],arr:&'a mut [T])->(&'a mut [T],&'a mut [T]){
+    
+    let buffer_len=buffer.len();
+    let arr_len=arr.len();
+    
+    if buffer.len()<arr.len(){
+        buffer.copy_from_slice(&arr[arr_len-buffer_len..]);
+    }else{
+        buffer[..arr_len].copy_from_slice(arr);
+    }
+
+    let all=slice_join_mut(buffer,arr);
+    let (arr,buffer)=all.split_at_mut(arr_len);
+
+    assert_eq!(buffer.len(),buffer_len);
+    assert_eq!(arr.len(),arr_len);
+
+    (arr,buffer)
+}
+
+fn rotate_right<'a,T:Copy>(arr:&'a mut [T],buffer:&'a mut [T])->(&'a mut [T],&'a mut [T]){
+    
+    let buffer_len=buffer.len();
+    let arr_len=arr.len();
+    
+    if buffer.len()<arr.len(){
+        buffer.copy_from_slice(&arr[..buffer_len]);
+    }else{
+        buffer[buffer_len-arr_len..].copy_from_slice(arr);
+    }
+    let all=slice_join_mut(arr,buffer);
+    let (buffer,arr)=all.split_at_mut(buffer_len);
+
+    assert_eq!(buffer.len(),buffer_len);
+    assert_eq!(arr.len(),arr_len);
+
+    (buffer,arr)
+}
+
+
+fn rotate_slices_right<'a,T:Copy>(left:&'a mut [T],mid:&'a mut [T],right:&'a mut [T],buffer:&'a mut [T])->(&'a mut [T],&'a mut [T],&'a mut [T],&'a mut [T]){
+    let (buffer,right)=rotate_right(right,buffer);
+    let (buffer,mid)=rotate_right(mid,buffer);
+    let (buffer,left)=rotate_right(left,buffer);
+    (buffer,left,mid,right)
+}
+fn rotate_slices_left<'a,T:Copy>(buffer:&'a mut [T],left:&'a mut [T],mid:&'a mut [T],right:&'a mut [T])->(&'a mut [T],&'a mut [T],&'a mut [T],&'a mut [T]){
+
+    let (left,rest)=rotate_left(buffer,left);
+    let (mid,rest)=rotate_left(rest,mid);
+    let (right,buffer)=rotate_left(rest,right);
+    (left,mid,right,buffer)
+}
+
+
+
 
 
 /// Tree Iterator that returns a reference to each node.
@@ -361,7 +417,14 @@ pub fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots
     sorter.sort(div_axis.next(),bots);
 }
 
-pub fn construct_non_leaf<T:HasAabb>(left_mid_right:bool,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<(FullComp<T::Num>,&mut [T],&mut [T],&mut [T])>{
+
+pub enum BinStrat{
+    LeftMidRight,
+    MidLeftRight,
+    LeftRightMid
+}
+
+pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<(FullComp<T::Num>,&mut [T],&mut [T],&mut [T])>{
     let med=if bots.len() == 0{
         return None;
     }
@@ -380,12 +443,12 @@ pub fn construct_non_leaf<T:HasAabb>(left_mid_right:bool,sorter:impl Sorter,div_
         k.get().get_range(div_axis).left
     };
 
-    /*
+    
     for a in bots.iter(){ //TODO remove
         let a=a.get().get_range(div_axis);
-        assert!(a.left<=a.right);
+        debug_assert!(a.left<=a.right);
     }
-    */
+    
     
     //It is very important that the median bot end up be binned into the middile bin.
     //We know this must be true because we chose the divider to be the medians left border,
@@ -393,10 +456,16 @@ pub fn construct_non_leaf<T:HasAabb>(left_mid_right:bool,sorter:impl Sorter,div_
     //Very important that if a bots border is exactly on the divider, it is put in the middle.
     //If this were not true, there is no guarentee that the middile bin has bots in it even
     //though we did pick a divider.
-    let binned=if left_mid_right{
-        oned::bin_left_middle_right(div_axis,&med,bots)
-    }else{
-        oned::bin_middle_left_right(div_axis,&med,bots)
+    let binned=match bin_strat{
+        LeftMidRight=>{
+            oned::bin_left_middle_right(div_axis,&med,bots)
+        },
+        MidLeftRight=>{
+            oned::bin_middle_left_right(div_axis,&med,bots)
+        },
+        LeftRightMid=>{
+            oned::bin_left_right_middle(div_axis,&med,bots)
+        }
     };
 
     debug_assert!(binned.middle.len()!=0);
@@ -620,7 +689,7 @@ fn handle_node<T:HasAabb+Copy+Send,N:Copy+Send,S:Sorter,A:AxisTrait,L:LeftOrRigh
         
         let (fullcomp,left,mid,right)={
                         
-            let (fullcomp,left,mid,right)=match construct_non_leaf(true,sorter,axis,bots){
+            let (fullcomp,left,mid,right)=match construct_non_leaf(BinStrat::LeftMidRight,sorter,axis,bots){
                 Some(pass)=>{
                     pass
                 },
@@ -943,8 +1012,23 @@ fn move_bots_non_leaf<'a,N,T:HasAabb+Copy>(depth:usize,height:usize,move_right:b
 
         //Now move the bots
         if move_right{
-            std::ptr::copy(right.as_mut_ptr(),right_new.as_mut_ptr(),right.len());
+            /*{
 
+                let right_len=right.len();
+             
+                let right_end=right[right_len..].as_mut_ptr();
+                let new_right_end=right_new[right_len..].as_mut_ptr();
+             
+                assert!(right_end as usize <=new_right_end as usize);
+                let buffer:&mut [T]=std::slice::from_raw_parts_mut(right_end,((new_right_end as usize)-(right_end as usize))/size_of::<T>());
+                let buffer_len=buffer.len();
+                assert_eq!(buffer.as_ptr(),right_end);
+                assert_eq!(buffer[buffer_len..].as_ptr(),right_new[right_len..].as_ptr());
+                rotate_right(right,buffer);
+            }*/
+
+            std::ptr::copy(right.as_mut_ptr(),right_new.as_mut_ptr(),right.len());
+            
             std::ptr::copy(mid.as_mut_ptr(),val_new.node.dyn.range.as_mut_ptr(),mid.len());  
 
 

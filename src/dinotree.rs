@@ -46,6 +46,16 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
     }
 }
 
+
+
+pub enum RebalStrat{
+    Default,
+    Alternate,
+    Tree
+}
+
+
+/*
 pub trait RebalStrat{
     fn is_first_strat(&self)->bool;
 }
@@ -57,6 +67,7 @@ pub struct RebalStrat2;
 impl RebalStrat for RebalStrat2{
     fn is_first_strat(&self)->bool{false}
 }
+*/
 
 
 
@@ -74,8 +85,76 @@ unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
 }   
 
 
+mod double_vec{
+    use std::mem::*;
+    use std::marker::*;
+            
+    pub struct DoubleVec{
+        v:Vec<u8>,
+        start_node:usize,
+        start_bot:usize,
+        num_nodes:usize,
+        num_bots:usize,
+        node_size:usize,
+        bot_size:usize,
+        node_align:usize,
+        bot_align:usize,
+    }
+    impl DoubleVec{
+        pub fn new<N,T>(num_nodes:usize,num_bots:usize)->DoubleVec{
+            unsafe{
+                let node_size=num_nodes*size_of::<N>();
+                let bot_size=num_bots*size_of::<T>();
 
-pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:R,axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
+                let node_align=align_of::<N>();
+                let bot_align=align_of::<T>();
+
+
+                let num_bytes=node_align+node_size+bot_align+bot_size;
+                let v=Vec::with_capacity(num_bytes);
+                let start=v.as_ptr() as usize;
+                let end=v.as_ptr().offset(num_bytes as isize) as usize;
+
+                let start_node=v.as_ptr().offset(v.as_ptr().align_offset(node_align) as isize);
+
+
+                let start_bot=start_node.offset(node_size as isize);
+                let start_bot=start_bot.offset(start_bot.align_offset(bot_align) as isize);
+
+                let start_node=start_node as usize;
+                let start_bot=start_bot as usize;
+
+
+                let mut v=DoubleVec{v,start_node,start_bot,num_nodes,num_bots,node_align,bot_align,node_size:size_of::<N>(),bot_size:size_of::<T>()};
+
+                {            
+                    let (l,r)=v.get::<N,T>();
+                    assert!(l.as_ptr() as usize>=start);
+                    assert_eq!((l.as_ptr() as *const u8).align_offset(node_align),0);
+                    assert_eq!((r.as_ptr() as *const u8).align_offset(bot_align),0);
+                    assert!(l[num_nodes..].as_ptr() as usize <= r.as_ptr() as usize);
+                    assert!((r[num_bots..].as_ptr() as usize) < end);
+                }
+
+                v
+                //assert!(r[num_bots].as_ptr()<start_node.)
+            }
+        }
+        pub fn get<'a,N,T>(&'a mut self)->(&'a mut [N],&'a mut [T]){
+            assert_eq!(size_of::<N>(),self.node_size);
+            assert_eq!(size_of::<T>(),self.bot_size);
+            assert_eq!(align_of::<N>(),self.node_align);
+            assert_eq!(align_of::<T>(),self.bot_align);
+            unsafe{
+                let k1=std::slice::from_raw_parts_mut(self.start_node as *mut N,self.num_nodes);
+                let k2=std::slice::from_raw_parts_mut(self.start_bot as *mut T,self.num_bots);
+                (k1,k2)
+            }
+        }
+    }
+}
+
+pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
     {   
      
 
@@ -87,82 +166,142 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
 
     let conts=bots.iter().enumerate().map(|(index,k)|{
         Cont2{rect:aabb_create(k),index:index as u32}
-    });
+                });
     
-    let (alloc,mover)=if rebal_type.is_first_strat(){
-       
-        let mut conts:Vec<_>=conts.collect();
-        
-        let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
-            let mid=&mut [];
-            //Get rid of zero initialization???
-            let fullcomp=unsafe{std::mem::uninitialized()};
-            dinotree_inner::Node2{fullcomp,mid}
+    let (alloc,mover)=match rebal_type{
+        Default=>{
+
+            let mut conts:Vec<_>=conts.collect();
             
-        },height);
-        
-        {
-            let j=tree2.vistr_mut().with_depth(Depth(0));
-            dinotree_inner::recurse_rebal(axis,par,&mut conts,j,sorter,&mut advanced::SplitterEmpty);
-        }
-        let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
-            let x=(n,item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]}));
-            let fullcomp=match nonleaf{
-                Some(())=>{
-                    Some(item.fullcomp)
-                },
-                None=>{
-                    None
-                }
-            };
-            (x,fullcomp)
-        }));
-
-
-        
-        let mover={
-            let mut mover=Vec::with_capacity(num_bots);
-            for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
-                mover.extend(node.mid.iter().map(|a|a.index));
+            let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
+                let mid=&mut [];
+                //Get rid of zero initialization???
+                let fullcomp=unsafe{std::mem::uninitialized()};
+                dinotree_inner::Node2{fullcomp,mid}
+                
+            },height);
+            
+            {
+                let j=tree2.vistr_mut().with_depth(Depth(0));
+                dinotree_inner::recurse_rebal(axis,par,&mut conts,j,sorter,&mut advanced::SplitterEmpty);
             }
-            mover
-        };
-        
-        (alloc,mover)
-
-    }else{
-        let mut tree2=tree_alloc::TreeInner::new(par,sorter,axis,conts,(),height);
-        
-        let mut alloc:tree_alloc::TreeInner<BBox<Num,T>,N>=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
-            let x=(n,item.range.iter().map(|a|{BBox{rect:a.rect,inner:bots[a.index as usize]}}));
-            let fullcomp=match nonleaf{
-                Some(fullcomp)=>{
-                    match fullcomp{
-                        Some(fullcomp)=>Some(*fullcomp),
-                        None=>{
-                            Some(unsafe{std::mem::uninitialized()})
-                        }
+            let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
+                let x=(n,item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]}));
+                let fullcomp=match nonleaf{
+                    Some(())=>{
+                        Some(item.fullcomp)
+                    },
+                    None=>{
+                        None
                     }
-                },
-                None=>{
-                    None
-                }
-            };
-            (x,fullcomp)
-        }));
+                };
+                (x,fullcomp)
+            }));
 
-        //let mover=tree2.into_index_only();
-        
-        let mover={
-            let mut mover=Vec::with_capacity(num_bots);
-            for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
-                mover.extend(node.range.iter().map(|a|a.index));
+
+            
+            let mover={
+                let mut mover=Vec::with_capacity(num_bots);
+                for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
+                    mover.extend(node.mid.iter().map(|a|a.index));
+                }
+                mover
+            };
+            
+            (alloc,mover)
+
+        },
+        Alternate=>{
+            use dinotree_inner::Node2;
+            let num_nodes=1usize.rotate_left(height as u32)-1;
+            
+            let mut doublev=double_vec::DoubleVec::new::<Node2<Cont2<Num>>,Cont2<Num>>(num_nodes,num_bots);
+            let (nodes,new_bots)=doublev.get::<Node2<Cont2<Num>>,Cont2<Num>>();
+            
+
+            for (a ,b) in new_bots.iter_mut().zip_eq(conts){
+                *a=b;
             }
-            mover
-        };
+            
+            
+            for n in nodes.iter_mut(){
+                n.mid=&mut [];
+            }
+
+            let mut tree2=compt::bfs_order_slice::CompleteTree::from_slice(nodes,height).unwrap();
+
+            {
+                let j=tree2.vistr_mut().with_depth(Depth(0));
+                dinotree_inner::recurse_rebal2(axis,par,new_bots,j,sorter,&mut advanced::SplitterEmpty);
+            }
+
+            let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
+                let x=(n,item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]}));
+                let fullcomp=match nonleaf{
+                    Some(())=>{
+                        Some(item.fullcomp)
+                    },
+                    None=>{
+                        None
+                    }
+                };
+                (x,fullcomp)
+            }));
+
+
+            //TODO reuse space from double vec!!!!!.???
+            let mover={
+                let mut mover=Vec::with_capacity(num_bots);
+                for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
+                    mover.extend(node.mid.iter().map(|a|a.index));
+                }
+                mover
+            };
+            
+            (alloc,mover)
+        },
+        Tree=>{
+            let mut conts:Vec<_>=conts.collect();
         
-        (alloc,mover)
+            let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
+                let mid=&mut [];
+                //Get rid of zero initialization???
+                let fullcomp=unsafe{std::mem::uninitialized()};
+                dinotree_inner::Node2{fullcomp,mid}
+                
+            },height);
+            
+            {
+                let j=tree2.vistr_mut().with_depth(Depth(0));
+                dinotree_inner::recurse_rebal(axis,par,&mut conts,j,sorter,&mut advanced::SplitterEmpty);
+            }
+            let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
+                let x=(n,item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]}));
+                let fullcomp=match nonleaf{
+                    Some(())=>{
+                        Some(item.fullcomp)
+                    },
+                    None=>{
+                        None
+                    }
+                };
+                (x,fullcomp)
+            }));
+
+
+            
+            let mover={
+                let mut mover=Vec::with_capacity(num_bots);
+                for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
+                    mover.extend(node.mid.iter().map(|a|a.index));
+                }
+                mover
+            };
+            
+            (alloc,mover)
+        }
     };
+
     
     let tree=DinoTree{mover,alloc,axis};
 
@@ -213,6 +352,8 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
 
+
+        //TODO simplify this code!!!
         //See the data project for reasoning behind this value.
         const DEPTH_SEQ:usize=2;
 
@@ -224,14 +365,14 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         
         let dlevel=par::Parallel::new(Depth(gg));
 
-        new_inner(RebalStrat1,axis,n,bots,aabb_create,&mut ka,height,dlevel,DefaultSorter)
+        new_inner(RebalStrat::Default,axis,n,bots,aabb_create,&mut ka,height,dlevel,DefaultSorter)
     }
 
     #[inline]
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
-        new_inner(RebalStrat1,axis,n,bots,aabb_create,&mut ka,height,par::Sequential,DefaultSorter)
+        new_inner(RebalStrat::Default,axis,n,bots,aabb_create,&mut ka,height,par::Sequential,DefaultSorter)
     }
 
 }
