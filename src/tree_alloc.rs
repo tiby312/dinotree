@@ -475,6 +475,42 @@ impl<T:HasAabb,N> TreeInner<T,N>{
         }
     }
 }
+/*
+impl<'a,Num:NumTrait,N> TreeInner<dinotree::Cont2<Num>,N>{
+    pub fn into_index_only(mut self)->Vec<u32>{
+        let num_bots=self.num_bots();
+
+        let counter=self._mem.as_mut_ptr() as *mut u32;
+
+        for a in self.vistr().dfs_inorder_iter(){
+            for b in a.0.range.iter(){
+                unsafe{
+                    *counter=b.index;
+                    counter.offset(1 as isize);
+                }
+            }
+        }
+
+        let mut vec1:Vec<u8>=self._mem.into_inner();
+         
+        let mut vec=unsafe{
+            use std::mem::*;
+            assert_eq!(vec1.as_ptr().align_offset(std::mem::align_of::<u32>()),0);
+            assert_eq!(vec1.len()%size_of::<u32>(),0);
+            assert_eq!(vec1.capacity() % size_of::<u32>(),0);
+            let mut vec:Vec<u32>=std::vec::Vec::from_raw_parts(vec1.as_mut_ptr() as *mut u32,vec1.len()/4,vec1.capacity()/4);
+            std::mem::forget(vec1);
+            vec
+        };
+
+        unsafe{
+            vec.set_len(num_bots);
+        }
+        vec.shrink_to_fit();
+        vec
+    }
+}
+*/
 impl<'a,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<T,N>{
     pub fn from_vistr<I:ExactSizeIterator<Item=T>,A:compt::FixedDepthVisitor<Item=(N,I),NonLeafItem=FullComp<T::Num>>>(num_bots:usize,height:usize,a:A)->TreeInner<T,N>{
         
@@ -982,7 +1018,9 @@ mod chunk{
     }
     impl MemChunk{
         
-        
+        pub fn into_inner(self)->Vec<u8>{
+            self.vec
+        }
         pub fn as_mut_ptr(&mut self)->*mut u8{
             self.vec.as_mut_ptr()
         }

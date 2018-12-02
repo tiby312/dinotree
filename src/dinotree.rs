@@ -61,21 +61,23 @@ impl RebalStrat for RebalStrat2{
 
 
 
+#[derive(Copy,Clone)]
+pub(crate)struct Cont2<N:NumTrait>{
+    rect:Rect<N>,
+    pub index:u32
+}
+unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
+    type Num=N;
+    fn get(&self)->&Rect<N>{
+        &self.rect
+    }
+}   
+
+
 
 pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:R,axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
     {   
-    
-    #[derive(Copy,Clone)]
-    struct Cont2<N:NumTrait>{
-        rect:Rect<N>,
-        pub index:u32
-    }
-    unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
-        type Num=N;
-        fn get(&self)->&Rect<N>{
-            &self.rect
-        }
-    }    
+     
 
 
     let num_bots=bots.len();
@@ -87,36 +89,8 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
         Cont2{rect:aabb_create(k),index:index as u32}
     });
     
-    let (alloc,mover)=if !rebal_type.is_first_strat(){
-        let mut tree2=tree_alloc::TreeInner::new(par,sorter,axis,conts,(),height);
-        
-        let mut alloc:tree_alloc::TreeInner<BBox<Num,T>,N>=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
-            let x=(n,item.range.iter().map(|a|{BBox{rect:a.rect,inner:bots[a.index as usize]}}));
-            let fullcomp=match nonleaf{
-                Some(fullcomp)=>{
-                    match fullcomp{
-                        Some(fullcomp)=>Some(*fullcomp),
-                        None=>{
-                            Some(unsafe{std::mem::uninitialized()})
-                        }
-                    }
-                },
-                None=>{
-                    None
-                }
-            };
-            (x,fullcomp)
-        }));
-
-        let mover={
-            let mut mover=Vec::with_capacity(num_bots);
-            for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
-                mover.extend(node.range.iter().map(|a|a.index));
-            }
-            mover
-        };
-        (alloc,mover)
-    }else{
+    let (alloc,mover)=if rebal_type.is_first_strat(){
+       
         let mut conts:Vec<_>=conts.collect();
         
         let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
@@ -144,6 +118,8 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
             (x,fullcomp)
         }));
 
+
+        
         let mover={
             let mut mover=Vec::with_capacity(num_bots);
             for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
@@ -151,6 +127,40 @@ pub fn new_inner<R:RebalStrat,JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<N
             }
             mover
         };
+        
+        (alloc,mover)
+
+    }else{
+        let mut tree2=tree_alloc::TreeInner::new(par,sorter,axis,conts,(),height);
+        
+        let mut alloc:tree_alloc::TreeInner<BBox<Num,T>,N>=tree_alloc::TreeInner::from_vistr(num_bots,height,tree2.vistr().map(|item,nonleaf|{
+            let x=(n,item.range.iter().map(|a|{BBox{rect:a.rect,inner:bots[a.index as usize]}}));
+            let fullcomp=match nonleaf{
+                Some(fullcomp)=>{
+                    match fullcomp{
+                        Some(fullcomp)=>Some(*fullcomp),
+                        None=>{
+                            Some(unsafe{std::mem::uninitialized()})
+                        }
+                    }
+                },
+                None=>{
+                    None
+                }
+            };
+            (x,fullcomp)
+        }));
+
+        //let mover=tree2.into_index_only();
+        
+        let mover={
+            let mut mover=Vec::with_capacity(num_bots);
+            for (node,_) in tree2.vistr_mut().dfs_inorder_iter(){
+                mover.extend(node.range.iter().map(|a|a.index));
+            }
+            mover
+        };
+        
         (alloc,mover)
     };
     
