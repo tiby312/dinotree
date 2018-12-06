@@ -237,8 +237,7 @@ pub use dinotree::RebalStrat;
 
 
 pub struct DinoTree2<A:AxisTrait,N,T:HasAabb>{
-    axis:A,
-    inner:tree_alloc::TreeInner<T,N>
+    inner:alloc::TreeInner<A,T,N>
 }
 
 impl<A:AxisTrait,N:Copy+Send,T:Copy+Send,Num:NumTrait> DinoTree2<A,N,BBox<Num,(usize,T)>>{
@@ -263,15 +262,17 @@ impl<A:AxisTrait,N:Copy+Send,T:Copy+Send,Num:NumTrait> DinoTree2<A,N,BBox<Num,(u
         
         let dlevel=par::Parallel::new(Depth(gg));
 
-
-        let tree2=tree_alloc::TreeInner::new(dlevel,DefaultSorter,axis,
+        /*
+        let tree2=alloc::TreeInner::new(dlevel,DefaultSorter,axis,
             bots.iter().enumerate().map(|(i,b)|unsafe{BBox::new(aabb_create(b),(i,*b))})
             ,n,height);
     
         DinoTree2{axis,inner:tree2}        
+        */
+        unimplemented!()
     }
     pub fn axis(&self)->A{
-        self.axis
+        self.inner.axis()
     }
 
 

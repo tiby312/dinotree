@@ -58,11 +58,13 @@
 //! there are no more aabb objects to be added to a node.
 //!
 
-#![feature(specialization)]
+//#![feature(specialization)]
 #![feature(ptr_internals)]
 #![feature(align_offset)]
 #![feature(trusted_len)]
 #![feature(test)]
+#![feature(vec_resize_with)]
+
 
 extern crate axgeom;
 extern crate compt;
@@ -93,6 +95,9 @@ mod tree_alloc;
 mod assert_invariants;
 
 mod tree_health;
+
+mod alloc;
+
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one

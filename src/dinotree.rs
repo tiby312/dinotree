@@ -7,6 +7,7 @@ use compt::Visitor;
 use advanced::Splitter;
 use dinotree_inner::Sorter;
 use dinotree_inner::DefaultSorter;
+use alloc::*;
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
 ///This is what is inserted into the tree. This way the user 
@@ -55,20 +56,6 @@ pub enum RebalStrat{
 }
 
 
-/*
-pub trait RebalStrat{
-    fn is_first_strat(&self)->bool;
-}
-pub struct RebalStrat1;
-impl RebalStrat for RebalStrat1{
-    fn is_first_strat(&self)->bool{true}
-}
-pub struct RebalStrat2;
-impl RebalStrat for RebalStrat2{
-    fn is_first_strat(&self)->bool{false}
-}
-*/
-
 
 
 
@@ -85,76 +72,7 @@ unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
 }   
 
 
-mod double_vec{
-    use std::mem::*;
-    use std::marker::*;
-            
-    pub struct DoubleVec{
-        v:Vec<u8>,
-        start_node:usize,
-        start_bot:usize,
-        num_nodes:usize,
-        num_bots:usize,
-        node_size:usize,
-        bot_size:usize,
-        node_align:usize,
-        bot_align:usize,
-    }
-    impl DoubleVec{
-        pub fn new<N,T>(num_nodes:usize,num_bots:usize)->DoubleVec{
-            unsafe{
-                let node_size=num_nodes*size_of::<N>();
-                let bot_size=num_bots*size_of::<T>();
-
-                let node_align=align_of::<N>();
-                let bot_align=align_of::<T>();
-
-
-                let num_bytes=node_align+node_size+bot_align+bot_size;
-                let v=Vec::with_capacity(num_bytes);
-                let start=v.as_ptr() as usize;
-                let end=v.as_ptr().offset(num_bytes as isize) as usize;
-
-                let start_node=v.as_ptr().offset(v.as_ptr().align_offset(node_align) as isize);
-
-
-                let start_bot=start_node.offset(node_size as isize);
-                let start_bot=start_bot.offset(start_bot.align_offset(bot_align) as isize);
-
-                let start_node=start_node as usize;
-                let start_bot=start_bot as usize;
-
-
-                let mut v=DoubleVec{v,start_node,start_bot,num_nodes,num_bots,node_align,bot_align,node_size:size_of::<N>(),bot_size:size_of::<T>()};
-
-                {            
-                    let (l,r)=v.get::<N,T>();
-                    assert!(l.as_ptr() as usize>=start);
-                    assert_eq!((l.as_ptr() as *const u8).align_offset(node_align),0);
-                    assert_eq!((r.as_ptr() as *const u8).align_offset(bot_align),0);
-                    assert!(l[num_nodes..].as_ptr() as usize <= r.as_ptr() as usize);
-                    assert!((r[num_bots..].as_ptr() as usize) < end);
-                }
-
-                v
-                //assert!(r[num_bots].as_ptr()<start_node.)
-            }
-        }
-        pub fn get<'a,N,T>(&'a mut self)->(&'a mut [N],&'a mut [T]){
-            assert_eq!(size_of::<N>(),self.node_size);
-            assert_eq!(size_of::<T>(),self.bot_size);
-            assert_eq!(align_of::<N>(),self.node_align);
-            assert_eq!(align_of::<T>(),self.bot_align);
-            unsafe{
-                let k1=std::slice::from_raw_parts_mut(self.start_node as *mut N,self.num_nodes);
-                let k2=std::slice::from_raw_parts_mut(self.start_bot as *mut T,self.num_bots);
-                (k1,k2)
-            }
-        }
-    }
-}
-
-pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
+pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
     {   
      
 
@@ -172,11 +90,26 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
     //println!("rebal={:?}",rebal_type);
 
     let (alloc,mover)=match rebal_type{
-        RebalStrat::First=>{
+        _=>{
 
-            //println!("default");
             let mut conts:Vec<_>=conts.collect();
+            let mut nodes=Vec::new();
+            dinotree_inner::recurse_rebal3(axis,par,&mut conts,&mut nodes,sorter,ka,0,height);
+            let tree=compt::dfs_order::CompleteTree::from_vec(nodes,height).unwrap();
+
+            let alloc=alloc::TreeInner::from_dfs_in_order(axis,num_bots,&tree,|a|BBox{rect:a.rect,inner:bots[a.index as usize]},n);
+            let mut nodes= tree.into_nodes();
+        
+            let mover={
+                let mut mover=Vec::with_capacity(num_bots);
+                for node in nodes.drain(..){
+                    mover.extend(node.mid.iter().map(|a|a.index));
+                }
+                mover
+            };
             
+            (alloc,mover)
+            /*
             let mut tree2=compt::dfs_order::CompleteTree::from_dfs_inorder(&mut ||{
                 let mid=&mut [];
                 //Get rid of zero initialization???
@@ -213,8 +146,10 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
             };
             
             (alloc,mover)
+            */
 
         },
+        /*
         RebalStrat::Second=>{
 
             //println!("alt");
@@ -300,10 +235,11 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
             
             (alloc,mover)
         }
+        */
     };
 
     
-    let tree=DinoTree{mover,alloc,axis};
+    let tree=DinoTree{mover,alloc};
 
     tree
     
@@ -337,8 +273,7 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
 ///
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     mover:Vec<u32>, //Used to return the aabb objects back to their original position
-    alloc:tree_alloc::TreeInner<T,N>,
-    axis:A
+    alloc:TreeInner<A,T,N>,
 }
 
 
@@ -388,7 +323,8 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
         let num_bots=self.num_bots();
         let mover=self.mover.clone();
         
-        let alloc=tree_alloc::TreeInner::from_vistr(num_bots,height,self.alloc.vistr().map(|item,nonleaf|{
+        /*
+        let alloc=alloc::TreeInner::from_vistr(num_bots,height,self.alloc.vistr().map(|item,nonleaf|{
             let x=(n2,item.range.iter().map(|a|*a));
             let fullcomp=match nonleaf{
                 Some(fullcomp)=>{
@@ -405,10 +341,11 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
             };
             (x,fullcomp)
         }));
+        */
+        //TODO unimplemented
 
-
-
-        DinoTree{mover,axis,alloc}
+        unimplemented!()
+        //DinoTree{mover,axis,alloc}
     }
 }
 
@@ -563,7 +500,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///partitioning the bots by their x values.
     #[inline]
     pub fn axis(&self)->A{
-        self.axis
+        self.alloc.axis()
     }
 
     ///Get the height of the tree.
