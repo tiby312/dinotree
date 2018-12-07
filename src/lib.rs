@@ -72,14 +72,23 @@ extern crate rayon;
 extern crate pdqselect;
 extern crate is_sorted;
 extern crate itertools;
+extern crate smallvec;
 
 #[cfg(test)]
 extern crate test;
 
 mod inner_prelude{
+  pub use advanced::*;
+  pub use std::mem::*;
+  pub use std::marker::PhantomData;
+  pub use std::iter::*;
+  pub use smallvec::*;
   pub use compt::*;
   pub use axgeom::*;
   pub use *;
+  pub use alloc::*;
+  pub use dinotree_inner::*;
+  pub use dinotree::*;
   pub use itertools::Itertools;
 }
 
@@ -90,7 +99,6 @@ pub mod par;
 ///Contains rebalancing code.
 mod dinotree_inner;
 ///Provides low level functionality to construct a dyntree.
-mod tree_alloc;
 
 mod assert_invariants;
 
@@ -128,11 +136,11 @@ impl<T> NumTrait for T
 where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 
-pub use tree_alloc::FullComp;
+pub use alloc::FullComp;
 pub use dinotree::DinoTree;
-pub use tree_alloc::NodeDyn;
-pub use tree_alloc::Vistr;
-pub use tree_alloc::VistrMut;
+pub use alloc::NodeDyn;
+pub use alloc::Vistr;
+pub use alloc::VistrMut;
 pub use dinotree::BBox;
 
 

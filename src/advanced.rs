@@ -236,60 +236,6 @@ pub use dinotree::RebalStrat;
 
 
 
-pub struct DinoTree2<A:AxisTrait,N,T:HasAabb>{
-    inner:alloc::TreeInner<A,T,N>
-}
-
-impl<A:AxisTrait,N:Copy+Send,T:Copy+Send,Num:NumTrait> DinoTree2<A,N,BBox<Num,(usize,T)>>{
-    pub fn new<K:Splitter+Send,F:FnMut(&T)->Rect<Num>>
-        (axis:A,n:N,bots:&[T],mut aabb_create:F,_ka:&mut K,height:Option<usize>)
-            ->DinoTree2<A,N,BBox<Num,(usize,T)>>
-    {
-
-        let height=match height{
-            Some(height)=>height,
-            None=>compute_tree_height_heuristic(bots.len())
-        };
-
-        let height_switch_seq=compute_default_level_switch_sequential();
-
-
-        let gg=if height<=height_switch_seq{
-            0
-        }else{
-            height-height_switch_seq
-        };
-        
-        let dlevel=par::Parallel::new(Depth(gg));
-
-        /*
-        let tree2=alloc::TreeInner::new(dlevel,DefaultSorter,axis,
-            bots.iter().enumerate().map(|(i,b)|unsafe{BBox::new(aabb_create(b),(i,*b))})
-            ,n,height);
-    
-        DinoTree2{axis,inner:tree2}        
-        */
-        unimplemented!()
-    }
-    pub fn axis(&self)->A{
-        self.inner.axis()
-    }
-
-
-    
-    ///Returns the bots to their original ordering. This is what you would call after you used this tree
-    ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
-    #[inline]
-    pub fn apply<X>(&self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
-        assert_eq!(bots.len(),self.inner.num_bots());
-        for bbox in self.inner.vistr().dfs_inorder_iter().flat_map(|a|a.0.range.iter()){
-            let target=&mut bots[bbox.inner.0];
-            conv(&bbox.inner.1,target);
-        }
-    }
-
-}
-
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
 #[inline]
 pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   
