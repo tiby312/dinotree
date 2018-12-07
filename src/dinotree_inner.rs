@@ -22,8 +22,6 @@ impl Sorter for NoSorter{
 }
 
 
-
-
 pub struct Node2<'a,T:HasAabb+'a>{ 
 
     //If this is a non leaf node, then,
@@ -31,7 +29,6 @@ pub struct Node2<'a,T:HasAabb+'a>{
     // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
     // This is because we specifically pick the median.
     // If it is a leaf node, then div being none still means it could have bots in it.
-    //pub div:Option<(T::Num,axgeom::Range<T::Num>)>,
     pub fullcomp:FullCompOrEmpty<T::Num>,
     pub mid:&'a mut [T]
 }

@@ -40,6 +40,8 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
 }
 
 
+///Some alternate strategies for rebalancing.
+///Used to empirically show that the default (the first one) is a good default.
 #[derive(Debug)]
 pub enum RebalStrat{
     First,
