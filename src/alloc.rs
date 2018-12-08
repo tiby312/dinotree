@@ -4,6 +4,7 @@ use inner_prelude::*;
 
 ///The common struct between leaf nodes and non leaf nodes.
 ///It is a dynamically sized type.
+
 pub struct NodeDyn<N,T>{
     ///Some tree query algorithms need memory on a per node basis.
     ///By embedding the memory directly in the tree we gain very good memory locality.
@@ -31,7 +32,6 @@ pub enum FullCompOrEmpty<N:NumTrait>{
 }
 
 
-
 struct NodeDstDyn<N,T:HasAabb>{
     //This term can't live in fullcomp, since every if there are no bots in a node, or below,
     //we might want to traverse the lower children to construct the tree properly.
@@ -39,28 +39,16 @@ struct NodeDstDyn<N,T:HasAabb>{
 
     comp:FullComp<T::Num>,
         
-    node:NodeDynWrap<N,T>
+    node:NodeDynWrap<N,T>,
+
 }
 
-impl<N,T:HasAabb> NodeDstDyn<N,T>{
-    fn as_ptr(&self)->*const u8{
-        let alloc::Repr{ptr,size:_size}=unsafe{std::mem::transmute(self)};
-        ptr
-    }
-}
+
 
 struct NodeDynWrap<N,T>{
     num:u32, //TODO hcange these to i32
     dyn:NodeDyn<N,T>
 }
-
-impl<N,T:HasAabb> NodeDynWrap<N,T>{
-    fn as_ptr(&self)->*const u8{
-        let alloc::Repr{ptr,size:_size}=unsafe{std::mem::transmute(self)};
-        ptr
-    }
-}
-
 
 
 
@@ -113,8 +101,8 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
                     node
                 };
 
-                let left_pointer=(self.ptr as *const u8).offset(- (node.next_nodes[0] as isize)) ;
-                let right_pointer=(self.ptr as *const u8).offset(node.next_nodes[1] as isize);
+                let left_pointer=(self.ptr as *const u8).wrapping_sub(node.next_nodes[0] as usize);
+                let right_pointer=(self.ptr as *const u8).wrapping_add(node.next_nodes[1] as usize);
                 let left_pointer=left_pointer.as_ref().unwrap();
                 let right_pointer=right_pointer.as_ref().unwrap();
 
@@ -196,8 +184,8 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
                     node
                 };
 
-                let left_pointer=(self.ptr as *mut u8).offset(-(node.next_nodes[0] as isize)) ;
-                let right_pointer=(self.ptr as *mut u8).offset(node.next_nodes[1] as isize);
+                let left_pointer=(self.ptr as *mut u8).wrapping_sub(node.next_nodes[0] as usize);
+                let right_pointer=(self.ptr as *mut u8).wrapping_add(node.next_nodes[1] as usize);
                 let left_pointer=left_pointer.as_mut().unwrap();
                 let right_pointer=right_pointer.as_mut().unwrap();
 
@@ -249,6 +237,155 @@ pub struct Repr<T>{
 }
 
 
+
+mod nodealloc{
+    use super::*;
+    #[derive(Copy,Clone,Debug)]
+    pub struct BufferIndex(pub usize);
+
+    pub struct NodeLeafReserve2{
+        node:BufferIndex
+    }
+
+    pub struct NodeAllocator2<N,T:HasAabb>{
+        mem:Vec<u8>,
+        _p:PhantomData<(N,T)>
+    }
+
+    impl<N,T:HasAabb> NodeAllocator2<N,T>{
+        pub fn new(height:usize,num_bots:usize)->NodeAllocator2<N,T>{
+
+            fn calculate_space_needed<N,T:HasAabb>(depth:usize,height:usize,num_bots:usize)->usize{
+                use std::mem::*;
+                let number_of_levels_left=height-depth;
+
+                let num_nodes_left=1usize.rotate_left(number_of_levels_left as u32)-1;
+
+                let val1:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:0})};
+                let val2:&mut NodeDynWrap<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:0})};
+                 
+                let num_non_leafs=num_nodes_left/2;
+                let num_leafs=num_nodes_left-num_non_leafs;
+
+                let k=(num_bots)*(std::mem::size_of::<T>())+
+                size_of_val(val1)*num_non_leafs+
+                size_of_val(val2)*num_leafs+
+                align_of_val(val1)*(1+(num_non_leafs/2))+
+                align_of_val(val2)*(1+(num_leafs/2));
+                k
+            }
+
+
+
+            let start_cap=calculate_space_needed::<N,T>(0,height,num_bots);
+           
+
+            NodeAllocator2{mem:Vec::with_capacity(start_cap),_p:PhantomData}
+        }
+
+        pub fn into_inner(mut self)->Vec<u8>{
+            //println!("wasted space={:?}",self.mem.capacity()-self.mem.len());
+            //self.mem.shrink_to_fit();
+            self.mem
+        }
+        pub fn connect_children_nodes(&mut self,a:NodeLeafReserve2,left:BufferIndex,right:BufferIndex)->BufferIndex{
+            unsafe{
+                let val:&mut NodeDstDyn<N,T>=std::mem::transmute(ReprMut{ptr:&mut self.mem[a.node.0] as *mut u8,size:0});
+                
+
+                assert!(a.node.0>left.0);
+                assert!(right.0>a.node.0);
+                let ll=a.node.0-left.0;
+                let rr=right.0-a.node.0;
+
+                val.next_nodes=[ll as u32,rr as u32];
+                a.node
+            }
+        }
+        pub fn push_non_leaf(&mut self,fullcomp:FullCompOrEmpty<T::Num>,n:N,bots:impl ExactSizeIterator<Item=T> + TrustedLen)->NodeLeafReserve2{
+            let (index,node2)=unsafe{
+                let (align,siz)={
+                    let val:&mut NodeDstDyn<N,T>=std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:bots.len()});
+                    (align_of_val(val),size_of_val(val))
+                };
+
+                let l=self.mem.len();
+                let off=self.mem[l..].as_ptr().align_offset(align);
+                
+                self.mem.resize_with(l+off,||std::mem::uninitialized());
+
+                
+
+                let l=self.mem.len();
+                assert_eq!(self.mem[l..].as_ptr().align_offset(align),0);
+                self.mem.resize_with(l+siz,||std::mem::uninitialized());
+                let node:&mut NodeDstDyn<N,T>=std::mem::transmute(ReprMut{ptr:self.mem[l..].as_mut_ptr(),size:bots.len()});
+                (l,node)
+            };
+
+
+            
+            let fullcomp=match fullcomp{
+                FullCompOrEmpty::NonEmpty(fullcomp)=>{
+                    fullcomp
+                },
+                FullCompOrEmpty::Empty()=>{
+                    unsafe{
+                        let mut fullcomp=std::mem::uninitialized();
+                        std::ptr::write_bytes(&mut fullcomp,0,std::mem::size_of::<FullComp<T::Num>>());
+                        fullcomp
+                    }
+                }
+            };
+            
+
+            node2.comp=fullcomp;
+            node2.node.num=bots.len() as u32;
+            node2.node.dyn.misc=n;
+            for (a,b) in node2.node.dyn.range.iter_mut().zip(bots){
+                *a=b;
+            }
+
+            NodeLeafReserve2{node:BufferIndex(index)}
+        }
+
+        pub fn push_leaf(&mut self,bots:impl ExactSizeIterator<Item=T> + TrustedLen,n:N)->BufferIndex{
+            //assert!(node.fullcomp.is_none());
+            let (index,node2)=unsafe{
+                let (align,siz)={
+                    let val:&mut NodeDynWrap<N,T>=std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:bots.len()});
+                    (align_of_val(val),size_of_val(val))
+                };
+
+                let l=self.mem.len();
+                let off=self.mem[l..].as_ptr().align_offset(align);
+                self.mem.resize_with(l+off,||std::mem::uninitialized());
+
+
+                let l=self.mem.len();
+                self.mem.resize_with(l+siz,||std::mem::uninitialized());
+                let node:&mut NodeDynWrap<N,T>=std::mem::transmute(ReprMut{ptr:self.mem[l..].as_mut_ptr(),size:bots.len()});
+
+                let ll=self.mem.len();
+                //assert_eq!(self.mem[ll..].as_ptr(),self.mem[l..].as_ptr().wrapping_add(siz));
+                (l,node)
+            };
+
+            node2.num=bots.len() as u32;
+            node2.dyn.misc=n;
+            for(a,b) in node2.dyn.range.iter_mut().zip(bots){
+                *a=b;
+            }
+            BufferIndex(index)
+        }
+    }
+}
+
+
+
+/*
+
+
 struct NodeLeafReserve<'a,N,T:HasAabb>{
     node:&'a mut NodeDstDyn<N,T>
 }
@@ -262,7 +399,6 @@ impl<'a,N,T:HasAabb> NodeLeafReserve<'a,N,T>{
     }
 }
 
-
 struct NodeAllocator<'a,N,T>{
     mem:Vec<u8>,
     start_cap:usize,
@@ -271,23 +407,23 @@ struct NodeAllocator<'a,N,T>{
 impl<'a,N,T:HasAabb+Copy> NodeAllocator<'a,N,T>{
     fn new(height:usize,num_bots:usize)->NodeAllocator<'a,N,T>{
         
-    fn calculate_space_needed<N,T:HasAabb>(depth:usize,height:usize,num_bots:usize)->usize{
-        use std::mem::*;
-        let number_of_levels_left=height-depth;
+        fn calculate_space_needed<N,T:HasAabb>(depth:usize,height:usize,num_bots:usize)->usize{
+            use std::mem::*;
+            let number_of_levels_left=height-depth;
 
-        let num_nodes_left=1usize.rotate_left(number_of_levels_left as u32)-1;
+            let num_nodes_left=1usize.rotate_left(number_of_levels_left as u32)-1;
 
-        let val1:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:0})};
-        let val2:&mut NodeDynWrap<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:0})};
-         
-        let num_non_leafs=num_nodes_left/2;
-        let num_leafs=num_nodes_left-num_non_leafs;
+            let val1:&mut NodeDstDyn<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:0})};
+            let val2:&mut NodeDynWrap<N,T>=unsafe{std::mem::transmute(ReprMut{ptr:0x128 as *mut u8,size:0})};
+             
+            let num_non_leafs=num_nodes_left/2;
+            let num_leafs=num_nodes_left-num_non_leafs;
 
-        let k=(num_bots)*(std::mem::size_of::<T>())+
-        (size_of_val(val1)+align_of_val(val1))*num_non_leafs+
-        (size_of_val(val2)+align_of_val(val2))*num_leafs;
-        k
-    }
+            let k=(num_bots)*(std::mem::size_of::<T>())+
+            (size_of_val(val1)+align_of_val(val1))*num_non_leafs+
+            (size_of_val(val2)+align_of_val(val2))*num_leafs;
+            k
+        }
 
 
 
@@ -298,6 +434,7 @@ impl<'a,N,T:HasAabb+Copy> NodeAllocator<'a,N,T>{
     }
     fn into_inner(self)->Vec<u8>{
         assert_eq!(self.mem.capacity(),self.start_cap);
+        println!("wasted space in bytes={:?}",self.start_cap-self.mem.len());
         self.mem
     }
 
@@ -370,18 +507,19 @@ impl<'a,N,T:HasAabb+Copy> NodeAllocator<'a,N,T>{
         node2
     }
 }
+*/
 
 
 
 
 
 
-unsafe impl<A:AxisTrait,T:HasAabb,N> Send for TreeInner<A,T,N>{}
-unsafe impl<A:AxisTrait,T:HasAabb,N> Sync for TreeInner<A,T,N>{}
+unsafe impl<A:AxisTrait,T:HasAabb+Send,N:Send> Send for TreeInner<A,T,N>{}
+unsafe impl<A:AxisTrait,T:HasAabb+Sync,N:Sync> Sync for TreeInner<A,T,N>{}
 
 pub(crate) struct TreeInner<A:AxisTrait,T:HasAabb,N>{
     axis:A,
-    _mem:Vec<u8>,
+    mem:Vec<u8>,
     root:usize,
     height:usize,
     num_nodes:usize,
@@ -404,20 +542,53 @@ impl<A:AxisTrait,T:HasAabb,N> TreeInner<A,T,N>{
         self.num_bots
     }
     pub(crate) fn vistr(&self)->Vistr<N,T>{
-        let ptr=unsafe{std::mem::transmute(self.root)};
-            
-        Vistr::new(ptr,self.height)
+        Vistr::new(&self.mem[self.root],self.height)
         
     }
     pub(crate) fn vistr_mut(&mut self)->VistrMut<N,T>{
-        let ptr=unsafe{std::mem::transmute(self.root)};
-        VistrMut::new(ptr,self.height)
+        VistrMut::new(&mut self.mem[self.root],self.height)
     }
 }
 
 
 impl<'a,A:AxisTrait,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<A,T,N>{
 
+
+    pub(crate) fn from_dfs_in_order1<K:ExactSizeIterator<Item=T>+TrustedLen,I:compt::Visitor<Item=K,NonLeafItem=FullCompOrEmpty<T::Num>>>(axis:A,height:usize,num_bots:usize,a:I,n:N)->TreeInner<A,T,N>{
+
+        use self::nodealloc::*;
+
+        let num_nodes=1usize.rotate_left(height as u32)-1;
+        
+
+        let mut mem=NodeAllocator2::new(height,num_bots);
+        let root=handle(a,&mut mem,n);
+        return TreeInner{axis,mem:mem.into_inner(),root:root.0,height,num_nodes,num_bots,_p:PhantomData};
+        
+
+        fn handle<N:Copy,T:HasAabb+Copy,K:ExactSizeIterator<Item=T>+TrustedLen,I:compt::Visitor<Item=K,NonLeafItem=FullCompOrEmpty<T::Num>>>(a:I,na:&mut NodeAllocator2<N,T>,n:N)->BufferIndex{
+
+
+            let (nn,rest)=a.next();
+
+            match rest{
+                Some((fullcomp,left,right))=>{
+                    let left_index=handle(left,na,n);
+
+                    let node=na.push_non_leaf(fullcomp,n,nn);
+
+                    let right_index=handle(right,na,n);
+
+                    na.connect_children_nodes(node,left_index,right_index)
+                },
+                None=>{
+                    na.push_leaf(nn,n)
+                }
+            }
+        }
+    }
+    
+    /*
     pub(crate) fn from_dfs_in_order2<K:ExactSizeIterator<Item=T>+TrustedLen,I:compt::Visitor<Item=K,NonLeafItem=FullCompOrEmpty<T::Num>>>(axis:A,height:usize,num_bots:usize,a:I,n:N)->TreeInner<A,T,N>{
         
         let num_nodes=1usize.rotate_left(height as u32)-1;
@@ -425,7 +596,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<A,T,N>{
 
         let mut mem=NodeAllocator::new(height,num_bots);
         let root=handle(a,&mut mem,n);
-        return TreeInner{axis,_mem:mem.into_inner(),root,height,num_nodes,num_bots,_p:PhantomData};
+        return TreeInner{axis,mem:mem.into_inner(),root,height,num_nodes,num_bots,_p:PhantomData};
         
 
         fn handle<N:Copy,T:HasAabb+Copy,K:ExactSizeIterator<Item=T>+TrustedLen,I:compt::Visitor<Item=K,NonLeafItem=FullCompOrEmpty<T::Num>>>(a:I,na:&mut NodeAllocator<N,T>,n:N)->usize{
@@ -457,6 +628,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Copy+'a,N:Copy+'a> TreeInner<A,T,N>{
             }
         }
     }
+    */
     
     /*
     //TODO measure using this

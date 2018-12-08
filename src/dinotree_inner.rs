@@ -22,6 +22,9 @@ impl Sorter for NoSorter{
 }
 
 
+
+
+
 pub struct Node2<'a,T:HasAabb+'a>{ 
 
     //If this is a non leaf node, then,
@@ -224,6 +227,7 @@ pub fn recurse_rebal3<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Se
         splitter.node_end();
     }
 }
+
 
 
 

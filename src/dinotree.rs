@@ -66,6 +66,188 @@ unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
 }   
 
 
+
+
+
+
+mod dinotree2{
+    pub use super::*;
+
+    pub struct Vistr2<'a,N:'a,T:HasAabb+'a>{
+        inner:compt::dfs_order::Vistr<'a,Node3<N,T>>
+    }
+
+    impl<'a,N:'a,T:HasAabb+'a> Vistr2<'a,N,T>{
+        ///It is safe to borrow the iterator and then produce mutable references from that
+        ///as long as by the time the borrow ends, all the produced references also go away.
+        pub fn create_wrap<'b>(&'b mut self)->Vistr2<'b,N,T>{
+            Vistr2{inner:self.inner.create_wrap()}
+        }
+    }
+
+    unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for Vistr2<'a,N,T>{}
+    impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr2<'a,N,T>{
+        type Item=(&'a N,&'a [T]);
+        type NonLeafItem=Option<&'a FullComp<T::Num>>;
+        
+        fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
+            let (nn,rest)=self.inner.next();
+            
+            let k=match rest{
+                Some(((),left,right))=>{
+                    let f=match &nn.fullcomp{
+                        FullCompOrEmpty::NonEmpty(f)=>{
+                            Some(f)
+                        },
+                        FullCompOrEmpty::Empty()=>{
+                            None
+                        }
+                    };
+                    Some((f,Vistr2{inner:left},Vistr2{inner:right}))
+                },
+                None=>{
+                    None
+                }
+            };
+
+            ((&nn.n,unsafe{nn.mid.as_ref()}),k)
+
+
+        }
+        fn level_remaining_hint(&self)->(usize,Option<usize>){
+            self.inner.level_remaining_hint()
+        }
+    }
+
+
+    /// Tree Iterator that returns a reference to each node.
+    /// It also returns the non-leaf specific data when it applies.
+    pub struct VistrMut2<'a,N:'a,T:HasAabb+'a>{
+        inner:compt::dfs_order::VistrMut<'a,Node3<N,T>>
+    }
+
+    impl<'a,N:'a,T:HasAabb+'a> VistrMut2<'a,N,T>{
+        ///It is safe to borrow the iterator and then produce mutable references from that
+        ///as long as by the time the borrow ends, all the produced references also go away.
+        pub fn create_wrap_mut<'b>(&'b mut self)->VistrMut2<'b,N,T>{
+            VistrMut2{inner:self.inner.create_wrap_mut()}
+        }
+    }
+
+    unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for VistrMut2<'a,N,T>{}
+    impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut2<'a,N,T>{
+        type Item=(&'a mut N,&'a mut [T]);
+        type NonLeafItem=Option<&'a FullComp<T::Num>>;
+        
+        fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
+            let (nn,rest)=self.inner.next();
+            
+            let k=match rest{
+                Some(((),left,right))=>{
+                    let f=match &nn.fullcomp{
+                        FullCompOrEmpty::NonEmpty(f)=>{
+                            Some(f)
+                        },
+                        FullCompOrEmpty::Empty()=>{
+                            None
+                        }
+                    };
+                    Some((f,VistrMut2{inner:left},VistrMut2{inner:right}))
+                },
+                None=>{
+                    None
+                }
+            };
+
+            ((&mut nn.n,unsafe{nn.mid.as_mut()}),k)
+
+
+        }
+        fn level_remaining_hint(&self)->(usize,Option<usize>){
+            self.inner.level_remaining_hint()
+        }
+    }
+
+
+    pub struct Node3<N,T:HasAabb>{ 
+        pub n:N,
+        //If this is a non leaf node, then,
+        //  div is None iff this node and children nodes do not have any bots in them.
+        // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
+        // This is because we specifically pick the median.
+        // If it is a leaf node, then div being none still means it could have bots in it.
+        pub fullcomp:FullCompOrEmpty<T::Num>,
+        pub mid:std::ptr::Unique<[T]>
+    }
+
+    pub struct DinoTree2<A,N,T:HasAabb>{
+        axis:A,
+        bots:Vec<T>,
+        nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
+        mover:Vec<u32>,
+    }
+
+    pub fn new_inner2<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(
+        rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree2<A,N,BBox<Num,T>>
+    {   
+        let num_bots=bots.len();
+        let max=std::u32::MAX;
+        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
+
+
+        let conts=bots.iter().enumerate().map(|(index,k)|{
+            Cont2{rect:aabb_create(k),index:index as u32}
+                    });
+
+
+
+        let mut conts:Vec<_>=conts.collect();
+        
+        let mut nodes=Vec::new();
+        dinotree_inner::recurse_rebal1(axis,par,&mut conts,&mut nodes,sorter,ka,0,height);
+
+
+        let tree=compt::dfs_order::CompleteTree::from_vec(nodes,height).unwrap();
+
+        let mut new_bots:Vec<BBox<Num,T>>=Vec::with_capacity(num_bots);
+        for node in tree.dfs_inorder_iter(){
+            for a in node.mid.iter(){
+                new_bots.push(BBox{rect:a.rect,inner:bots[a.index as usize]});
+            }
+        }
+
+
+
+        let new_nodes={
+            let mut rest:Option<&mut [BBox<Num,T>]>=Some(&mut new_bots);
+            let mut new_nodes=Vec::new();
+            for node in tree.dfs_inorder_iter(){
+                let (b,rest2)=rest.take().unwrap().split_at_mut(node.mid.len());
+                rest=Some(rest2);
+                
+                let b=unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])};
+                new_nodes.push(Node3{n,fullcomp:node.fullcomp,mid:b});
+            }
+            new_nodes
+        };
+
+        let tree2=compt::dfs_order::CompleteTree::from_vec(new_nodes,height).unwrap();
+
+
+        let mut nodes=tree.into_nodes();
+
+        let mover={
+            let mut mover=Vec::with_capacity(num_bots);
+            for node in nodes.drain(..){
+                mover.extend(node.mid.iter().map(|a|a.index));
+            }
+            mover
+        };
+        DinoTree2{axis,bots:new_bots,nodes:tree2,mover}    
+    }
+}
+
+
 pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait>(
     rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
 {   
@@ -100,10 +282,8 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
             nodes
         }
     };
-
     let tree=compt::dfs_order::CompleteTree::from_vec(nodes,height).unwrap();
-
-    let alloc=alloc::TreeInner::from_dfs_in_order2(axis,height,num_bots,tree.vistr().map(|item,nonleaf|{
+    let alloc=alloc::TreeInner::from_dfs_in_order1(axis,height,num_bots,tree.vistr().map(|item,nonleaf|{
         let a=item.mid.iter().map(|a|BBox{rect:a.rect,inner:bots[a.index as usize]});
         
         let b=match nonleaf{
@@ -116,7 +296,7 @@ pub fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>,A:AxisTra
         };
         (a,b)
     }),n);
-    
+
     let mut nodes= tree.into_nodes();
 
     let mover={
@@ -212,7 +392,7 @@ impl<A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTree<A,N,T>{
         let num_bots=self.num_bots();
         let mover=self.mover.clone();
         
-        let alloc=alloc::TreeInner::from_dfs_in_order2(axis,height,num_bots,self.alloc.vistr().map(|item,nonleaf|{
+        let alloc=alloc::TreeInner::from_dfs_in_order1(axis,height,num_bots,self.alloc.vistr().map(|item,nonleaf|{
             let a=item.range.iter().map(|a|*a);
             
             let b=match nonleaf{
