@@ -1,7 +1,6 @@
 
 
-pub mod dinotree_simple;
-pub mod dinotree_both;
+pub mod dinotree;
 
 
 use inner_prelude::*;

@@ -100,10 +100,21 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
 }
 
 #[inline]
-pub fn compute_default_level_switch_sequential()->usize{
-    const DEPTH_SEQ:usize=2;
+pub fn compute_default_level_switch_sequential(depth:Option<usize>,height:usize)->par::Parallel{
+    const DEPTH_SEQ:usize=4;
 
-    DEPTH_SEQ
+    let dd=match depth{
+        Some(d)=>d,
+        None=>DEPTH_SEQ
+    };
+
+    let gg=if height<=dd{
+        0
+    }else{
+        height-dd
+    };
+    
+    par::Parallel::new(Depth(gg))
 }
 
 ///Returns the height of a dyn tree for a given number of bots.
@@ -170,7 +181,7 @@ impl Splitter for SplitterEmpty{
 
 
 
-pub use tree::dinotree_both::DinoTree;
+pub use tree::dinotree::DinoTree;
 //Todo use this
 pub struct NotSorted<A:AxisTrait,N,T:HasAabb>(pub DinoTree<A,N,T>);
 
@@ -179,17 +190,9 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
 
-        //See the data project for reasoning behind this value.
-        const DEPTH_SEQ:usize=2;
 
-        let gg=if height<=DEPTH_SEQ{
-            0
-        }else{
-            height-DEPTH_SEQ
-        };
+        let dlevel=compute_default_level_switch_sequential(None,height);
         
-        let dlevel=par::Parallel::new(Depth(gg));
-
         NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
@@ -239,19 +242,8 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_str
         None=>compute_tree_height_heuristic(bots.len())
     };
 
-    let height_switch_seq=match height_switch_seq{
-        Some(k)=>k,
-        None=>compute_default_level_switch_sequential()
-    };
-
-    let gg=if height<=height_switch_seq{
-        0
-    }else{
-        height-height_switch_seq
-    };
-    
-    let dlevel=par::Parallel::new(Depth(gg));
-
+    let dlevel=compute_default_level_switch_sequential(height_switch_seq,height);
+        
 
     let rebal_strat=match rebal_strat{
         Some(x)=>x,
@@ -306,7 +298,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
 ///Should always return true, unless the user corrupts the trees memory
 ///or if the contract of the HasAabb trait are not upheld.
 #[inline]
-pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree_both::DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
+pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree::DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
     assert_invariants::are_invariants_met(tree)
 }
 
@@ -316,6 +308,6 @@ pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree_both
 ///The last number is the fraction in the lowest level of the tree.
 ///Ideally the fraction of bots in the lower level of the tree is high.
 #[inline]
-pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree_both::DinoTree<A,N,T>)->Vec<f64>{
+pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree::DinoTree<A,N,T>)->Vec<f64>{
     tree_health::compute_tree_health(tree)
 }

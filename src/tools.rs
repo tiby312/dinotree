@@ -1,4 +1,5 @@
 
+/*
 
 #[repr(C)]
 pub struct ReprMut<T>{
@@ -11,6 +12,7 @@ pub struct Repr<T>{
     pub ptr:*const T,
     pub size:usize,
 }
+*/
 
 
 

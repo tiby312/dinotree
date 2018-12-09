@@ -4,8 +4,8 @@ use is_sorted::IsSorted;
 use inner_prelude::*;
 
 
-use tree::dinotree_both::DinoTree;
-use tree::dinotree_both::Vistr;
+use tree::dinotree::DinoTree;
+use tree::dinotree::Vistr;
 
 
 

@@ -29,41 +29,17 @@
 //! Every divider keeps track of how thick a line would have to be
 //! to cover all the bots it owns.
 //!
-//! Compact Data layout:
-//!
-//!              xo.....
-//!     xo...    |           xo.....
-//!  x..|    x...|      x....|      x....
-//!  |  |    |   |      |    |      | 
-//!  ------------------------------------
-//!
-//! where:
-//! x=data every node has (e.g. number of aabb objects).
-//! o=data only non leaf nodes have (e.g. divider location).
-//! .=a aabb object. Notice nodes can each have a different number of aabb objects.
-//! 
-//! Every 'o' has a pointer to the left and right children 'x' s.
 //! ~~~~
 //!
 //! # Unsafety
 //!
-//! Unsafety is used to construct the tree in contiguous memory despite nodes having each having different sizes.
-//!
 //! The HasAabb trait is marked as unsafe. See its description. 
 //!
-//! Parts of the tree may be unsafely uninitialized, but their access is inhibited from the safe Vistr and VistrMut api. The Vistr and VistrMut Visitors will
-//! return an Option for their NonLeafNode item. A value of none indicates that that node and all nodes beneath it do
-//! not have any aabb objects. In such cases, there is no median from which to create a divider.
-//! Internally, these nodes are not initialized since the construction algorithm stops recursing once
-//! there are no more aabb objects to be added to a node.
-//!
 
-//#![feature(specialization)]
 #![feature(ptr_internals)]
 #![feature(align_offset)]
 #![feature(trusted_len)]
 #![feature(test)]
-#![feature(vec_resize_with)]
 
 
 extern crate axgeom;
@@ -90,7 +66,6 @@ mod inner_prelude{
   pub use std::time::Instant;
   
   pub(crate) use par;
-  pub(crate) use tools;
   pub(crate) use tree;
   pub(crate) use advanced;
   pub(crate) use advanced::Splitter;
@@ -113,7 +88,7 @@ mod tree_health;
 
 
 mod tree;
-pub use tree::dinotree_both::*;
+pub use tree::dinotree::*;
 pub use tree::FullComp;
 pub use tree::NodeRef;
 pub use tree::NodeRefMut;

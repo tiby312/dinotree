@@ -2,6 +2,10 @@ use inner_prelude::*;
 
 
 
+
+
+
+
 pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
     inner:compt::dfs_order::Vistr<'a,Node3<N,T>>
 }
@@ -104,45 +108,34 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
 }
 
 
+
 pub struct Node3<N,T:HasAabb>{ 
     pub n:N,
     pub fullcomp:FullCompOrEmpty<T::Num>,
     pub mid:std::ptr::Unique<[T]>
 }
 
-pub struct DinoTree<A,N,T:HasAabb>{
+
+
+
+pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
+	//inner:dinotree_simple::DinoTree<A,N,T>,
     axis:A,
-    pub bots:Vec<T>,
-    pub nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
+    bots:Vec<T>,
+    nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
+    mover:Vec<u32>
 }
-
-impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
-    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
-        VistrMut{inner:self.nodes.vistr_mut()}
-    }
-    pub fn vistr(&self)->Vistr<N,T>{
-        Vistr{inner:self.nodes.vistr()}
-    }
-
-    pub fn height(&self)->usize{
-        self.nodes.get_height()
-    }
-    pub fn num_nodes(&self)->usize{
-        self.nodes.get_nodes().len()
-    }
-    pub fn axis(&self)->A{
-        self.axis
-    }
-    pub fn num_bots(&self)->usize{
-        self.bots.len()
-    }
-}
-
 
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
-    pub fn new<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>>(
-        rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->(DinoTree<A,N,BBox<Num,T>>,Vec<u32>)
-    {   
+
+
+    #[inline]
+	pub(crate) fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>>(
+	    rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
+	{   
+        //let (inner,mover)=dinotree_simple::DinoTree::new(rebal_type,axis,n,bots,aabb_create,ka,height,par,sorter);
+
+
         let num_bots=bots.len();
         let max=std::u32::MAX;
         
@@ -159,10 +152,10 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         
         match rebal_type{
             RebalStrat::First=>{
-                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::MidLeftRight);
+                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::LeftMidRight);
             },
             RebalStrat::Second=>{
-                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::LeftMidRight);
+                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::MidLeftRight);
             },
             RebalStrat::Third=>{
                 tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::LeftRightMid);
@@ -204,6 +197,86 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
             }
             mover
         };
-        (DinoTree{axis,bots:new_bots,nodes:tree2},mover)    
+        DinoTree{mover,axis,bots:new_bots,nodes:tree2}
+	}
+
+    
+    ///Safe to assume aabb_create is called for each bot in the slice in order.
+    ///Parallelization is done using rayon crate.
+    #[inline]
+    pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{  
+        advanced::new_adv(None,axis,n,bots,aabb_create,None,&mut advanced::SplitterEmpty,None,)
     }
+
+    #[inline]
+    pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
+        advanced::new_adv_seq(None,axis,n,bots,aabb_create,None,&mut advanced::SplitterEmpty)
+    }
+    
 }
+
+
+impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
+    ///Returns the bots to their original ordering. This is what you would call after you used this tree
+    ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
+    #[inline]
+    pub fn apply<X>(&self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
+        assert_eq!(bots.len(),self.num_bots());
+        for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
+            let target=&mut bots[*mov as usize];
+            conv(bot,target);
+        }
+    }
+
+    #[inline]
+    pub fn apply_into<X>(&mut self,bots:&[X],conv:impl Fn(&X,&mut T)){
+        
+        assert_eq!(bots.len(),self.num_bots());
+
+        //let treev=self.inner.nodes.dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut());
+        let treev=self.bots.iter_mut();
+        
+        for (bot,mov) in treev.zip_eq(self.mover.iter()){
+            let source=&bots[*mov as usize];
+            conv(source,bot)
+        }
+        
+    }
+
+    ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.
+    ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
+    ///Instead, prefer to iterate through all the bots before the tree is constructed.
+    ///But this is useful if you need to iterate over all the bots aabbs.
+    #[inline]
+    pub fn iter_mut(&mut self)->std::slice::IterMut<T>{
+        self.bots.iter_mut()
+    }
+
+    ///See iter_mut
+    #[inline]
+    pub fn iter(&self)->std::slice::Iter<T>{
+        self.bots.iter()
+    }
+    
+    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
+        VistrMut{inner:self.nodes.vistr_mut()}
+    }
+    pub fn vistr(&self)->Vistr<N,T>{
+        Vistr{inner:self.nodes.vistr()}
+    }
+
+    pub fn height(&self)->usize{
+        self.nodes.get_height()
+    }
+    pub fn num_nodes(&self)->usize{
+        self.nodes.get_nodes().len()
+    }
+    pub fn axis(&self)->A{
+        self.axis
+    }
+    pub fn num_bots(&self)->usize{
+        self.bots.len()
+    }
+
+}
+
