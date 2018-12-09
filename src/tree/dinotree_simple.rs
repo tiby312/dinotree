@@ -106,19 +106,14 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
 
 pub struct Node3<N,T:HasAabb>{ 
     pub n:N,
-    //If this is a non leaf node, then,
-    //  div is None iff this node and children nodes do not have any bots in them.
-    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
-    // This is because we specifically pick the median.
-    // If it is a leaf node, then div being none still means it could have bots in it.
     pub fullcomp:FullCompOrEmpty<T::Num>,
     pub mid:std::ptr::Unique<[T]>
 }
 
 pub struct DinoTree<A,N,T:HasAabb>{
     axis:A,
-    bots:Vec<T>,
-    nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
+    pub bots:Vec<T>,
+    pub nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
 }
 
 impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
@@ -142,45 +137,40 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
         self.bots.len()
     }
 }
+
+
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
     pub fn new<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>>(
         rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->(DinoTree<A,N,BBox<Num,T>>,Vec<u32>)
     {   
         let num_bots=bots.len();
         let max=std::u32::MAX;
+        
         assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
 
 
-        let conts=bots.iter().enumerate().map(|(index,k)|{
+        let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
             Cont2{rect:aabb_create(k),index:index as u32}
-                    });
+        }).collect();
 
 
 
-        let mut conts:Vec<_>=conts.collect();
+        let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
         
-        //let mut nodes=Vec::new();
-        let nodes=match rebal_type{
+        match rebal_type{
             RebalStrat::First=>{
-                let mut nodes=Vec::new();
-                tree::recurse_rebal1(axis,par,&mut conts,&mut nodes,sorter,ka,0,height);
-                nodes
+                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::MidLeftRight);
             },
             RebalStrat::Second=>{
-                let mut nodes=SmallVec::new();
-                tree::recurse_rebal2(axis,par,&mut conts,&mut nodes,sorter,ka,0,height);
-                nodes.into_vec()
+                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::LeftMidRight);
             },
             RebalStrat::Third=>{
-                let mut nodes=Vec::new();
-                tree::recurse_rebal3(axis,par,&mut conts,&mut nodes,sorter,ka,0,height);
-                nodes
+                tree::recurse_rebal(axis,par,&mut conts,&mut nodes,sorter,ka,0,height,BinStrat::LeftRightMid);
             }
-        };
-        //tree::recurse_rebal1(axis,par,&mut conts,&mut nodes,sorter,ka,0,height);
-
+        }
 
         let tree=compt::dfs_order::CompleteTree::from_vec(nodes,height).unwrap();
+
 
         let mut new_bots:Vec<BBox<Num,T>>=Vec::with_capacity(num_bots);
         for node in tree.dfs_inorder_iter(){
@@ -190,14 +180,12 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         }
 
 
-
         let new_nodes={
             let mut rest:Option<&mut [BBox<Num,T>]>=Some(&mut new_bots);
-            let mut new_nodes=Vec::new();
+            let mut new_nodes=Vec::with_capacity(tree.get_nodes().len());
             for node in tree.dfs_inorder_iter(){
                 let (b,rest2)=rest.take().unwrap().split_at_mut(node.mid.len());
                 rest=Some(rest2);
-                
                 let b=unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])};
                 new_nodes.push(Node3{n,fullcomp:node.fullcomp,mid:b});
             }

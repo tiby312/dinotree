@@ -1,6 +1,5 @@
 
 
-pub mod dinotree_advanced;
 pub mod dinotree_simple;
 pub mod dinotree_both;
 
@@ -59,7 +58,13 @@ pub enum FullCompOrEmpty<N:NumTrait>{
 
 
 
-pub fn recurse_rebal1<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
+
+fn nodes_left(depth:usize,height:usize)->usize{
+    let levels=height-depth;
+    2usize.rotate_left(levels as u32)-1
+}
+
+pub fn recurse_rebal<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
     rest:&'a mut [Cont2<Num>],
@@ -67,10 +72,9 @@ pub fn recurse_rebal1<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send
     sorter:impl Sorter,
     splitter:&mut K,
     depth:usize,
-    height:usize){
+    height:usize,
+    binstrat:BinStrat){
     splitter.node_start();
-
-
 
     if depth<height-1{
         
@@ -78,7 +82,7 @@ pub fn recurse_rebal1<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send
         let mut splitter2=splitter.div();
 
 
-        let (node,left,right)=match construct_non_leaf(BinStrat::MidLeftRight,sorter,div_axis,rest){
+        let (node,left,right)=match construct_non_leaf(binstrat,sorter,div_axis,rest){
             Some((fullcomp,left,mid,right))=>{
                 
                 (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
@@ -88,156 +92,29 @@ pub fn recurse_rebal1<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send
                 (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
             }
         };
-
+        
         let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
             let splitter2=&mut splitter2;
 
             let af= move || {
-                self::recurse_rebal1(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height);
+                self::recurse_rebal(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height,binstrat);
                 (splitter,nodes)
             };
+
             let bf= move || {
-                let mut nodes2=Vec::new();
-                nodes2.push(node);
-                self::recurse_rebal1(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height);
+
+                let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,height));
+                nodes2.push(node);                
+                self::recurse_rebal(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height,binstrat);
                 nodes2
             };
             let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
             nodes.append(&mut nodes2);
             splitter
         }else{
-            self::recurse_rebal1(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height);
+            self::recurse_rebal(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height,binstrat);
             nodes.push(node);
-            self::recurse_rebal1(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height);
-            splitter
-        };
-        
-        splitter.add(splitter2);
-    }else{
-        let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
-        construct_leaf(sorter,div_axis,&mut node.mid);
-        nodes.push(node);
-        splitter.node_end();
-    }
-}
-
-
-
-pub fn recurse_rebal2<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
-    div_axis:A,
-    dlevel:JJ,
-    rest:&'a mut [Cont2<Num>],
-    nodes:&mut SmallVec<[Node2<'a,Num>;32]>,
-    sorter:impl Sorter,
-    splitter:&mut K,
-    depth:usize,
-    height:usize){
-    splitter.node_start();
-
-
-
-    if depth<height-1{
-        
-
-        let mut splitter2=splitter.div();
-
-
-        let (node,left,right)=match construct_non_leaf(BinStrat::MidLeftRight,sorter,div_axis,rest){
-            Some((fullcomp,left,mid,right))=>{
-                
-                (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
-            },
-            None=>{
-                //We don't want to return here since we still want to populate the whole tree!
-                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
-            }
-        };
-
-        let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
-            let splitter2=&mut splitter2;
-
-            let af= move || {
-                self::recurse_rebal2(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height);
-                (splitter,nodes)
-            };
-            let bf= move || {
-                let mut nodes2=SmallVec::new();
-                nodes2.push(node);
-                self::recurse_rebal2(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height);
-                nodes2
-            };
-            let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
-            for a in nodes2.drain(){
-                nodes.push(a);
-            }
-            splitter
-        }else{
-            self::recurse_rebal2(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height);
-            nodes.push(node);
-            self::recurse_rebal2(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height);
-            splitter
-        };
-        
-        splitter.add(splitter2);
-    }else{
-        let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
-        construct_leaf(sorter,div_axis,&mut node.mid);
-        nodes.push(node);
-        splitter.node_end();
-    }
-}
-
-
-pub fn recurse_rebal3<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
-    div_axis:A,
-    dlevel:JJ,
-    rest:&'a mut [Cont2<Num>],
-    nodes:&mut Vec<Node2<'a,Num>>,
-    sorter:impl Sorter,
-    splitter:&mut K,
-    depth:usize,
-    height:usize){
-    splitter.node_start();
-
-
-
-    if depth<height-1{
-        
-
-        let mut splitter2=splitter.div();
-
-
-        let (node,left,right)=match construct_non_leaf(BinStrat::LeftMidRight,sorter,div_axis,rest){
-            Some((fullcomp,left,mid,right))=>{
-                
-                (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
-            },
-            None=>{
-                //We don't want to return here since we still want to populate the whole tree!
-                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
-            }
-        };
-
-        let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
-            let splitter2=&mut splitter2;
-
-            let af= move || {
-                self::recurse_rebal3(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height);
-                (splitter,nodes)
-            };
-            let bf= move || {
-                let mut nodes2=Vec::new();
-                nodes2.push(node);
-                self::recurse_rebal3(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height);
-                nodes2
-            };
-            let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
-            nodes.append(&mut nodes2);
-            splitter
-        }else{
-            self::recurse_rebal3(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height);
-            nodes.push(node);
-            self::recurse_rebal3(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height);
+            self::recurse_rebal(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height,binstrat);
             splitter
         };
         
@@ -287,6 +164,7 @@ pub fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots
 
 
 #[allow(dead_code)]
+#[derive(Copy,Clone,Debug)]
 pub enum BinStrat{
     LeftMidRight,
     MidLeftRight,
