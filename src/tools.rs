@@ -1,5 +1,19 @@
 
 
+#[repr(C)]
+pub struct ReprMut<T>{
+    pub ptr:*mut T,
+    pub size:usize,
+}
+
+#[repr(C)]
+pub struct Repr<T>{
+    pub ptr:*const T,
+    pub size:usize,
+}
+
+
+
 
 /*
 fn rotate_left<'a,T:Copy>(buffer:&'a mut [T],arr:&'a mut [T])->(&'a mut [T],&'a mut [T]){

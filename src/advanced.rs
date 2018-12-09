@@ -1,12 +1,6 @@
-
 use inner_prelude::*;
-use axgeom::Rect;
 
-use std::time::Instant;
-use dinotree::new_inner;
-
-use dinotree_inner::DefaultSorter;
-use dinotree_inner::NoSorter;
+pub use tree::RebalStrat;
 
 fn into_secs(elapsed:std::time::Duration)->f64{
     let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
@@ -176,6 +170,7 @@ impl Splitter for SplitterEmpty{
 
 
 
+pub use tree::dinotree_both::DinoTree;
 //Todo use this
 pub struct NotSorted<A:AxisTrait,N,T:HasAabb>(pub DinoTree<A,N,T>);
 
@@ -195,7 +190,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         
         let dlevel=par::Parallel::new(Depth(gg));
 
-        NotSorted(new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+        NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter,None))
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
@@ -203,7 +198,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
 
         let dlevel=par::Sequential;//Parallel::new(Depth(gg));
 
-        NotSorted(new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+        NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter,None))
     }
 
     pub fn new_adv_seq<K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:&mut K)->NotSorted<A,N,BBox<Num,T>>{
@@ -228,11 +223,9 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         unsafe impl<T> Sync for SplitterWrapper<T>{}
 
         let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
-        NotSorted(new_inner(RebalStrat::First,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter))
+        NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter,None))
     }
 }
-
-pub use dinotree::RebalStrat;
 
 
 
@@ -266,7 +259,7 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_str
     };
 
     
-    new_inner(rebal_strat,axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter)    
+    DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter,None)    
 }
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
@@ -304,7 +297,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
     unsafe impl<T> Sync for SplitterWrapper<T>{}
 
     let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
-    new_inner(rebal_strat,axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter)
+    DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter,None)
     //(a,b.0)
 }
 
@@ -313,7 +306,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
 ///Should always return true, unless the user corrupts the trees memory
 ///or if the contract of the HasAabb trait are not upheld.
 #[inline]
-pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
+pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree_both::DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
     assert_invariants::are_invariants_met(tree)
 }
 
@@ -323,6 +316,6 @@ pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,
 ///The last number is the fraction in the lowest level of the tree.
 ///Ideally the fraction of bots in the lower level of the tree is high.
 #[inline]
-pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&DinoTree<A,N,T>)->Vec<f64>{
+pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree_both::DinoTree<A,N,T>)->Vec<f64>{
     tree_health::compute_tree_health(tree)
 }

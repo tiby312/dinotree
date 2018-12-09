@@ -1,7 +1,12 @@
-use super::*;
 use axgeom::AxisTrait;
 use compt::Visitor;
 use is_sorted::IsSorted;
+use inner_prelude::*;
+
+
+use tree::dinotree_both::DinoTree;
+use tree::dinotree_both::Vistr;
+
 
 
 pub fn are_invariants_met<A:AxisTrait,N,T:HasAabb>(tree:&DinoTree<A,N,T>)->Result<(),()> where T::Num : std::fmt::Debug{

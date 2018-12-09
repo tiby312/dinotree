@@ -1,6 +1,9 @@
-use super::*;
-use axgeom::AxisTrait;
-use compt::Visitor;
+use inner_prelude::*;
+
+
+use tree::dinotree_both::DinoTree;
+use tree::dinotree_both::Vistr;
+
 
 ///Outputs the ratio of the number of bots at the current level compared to the total number of bots in the tree.
 ///Starts at the root level and ends with the leaf level.

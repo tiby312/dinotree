@@ -1,4 +1,22 @@
+
+
+pub mod dinotree_advanced;
+pub mod dinotree_simple;
+pub mod dinotree_both;
+
+
 use inner_prelude::*;
+
+
+pub struct NodeRef<'a,N,T>{
+    pub misc:&'a N,
+    pub range:&'a [T]
+}
+pub struct NodeRefMut<'a,N,T>{
+    pub misc:&'a mut N,
+    pub range:&'a mut [T]
+}
+
 
 
 pub trait Sorter:Copy+Clone+Send+Sync{
@@ -22,26 +40,30 @@ impl Sorter for NoSorter{
 }
 
 
+///A struct that contains data that only non leaf nodes contain.
+#[derive(Copy,Clone)]
+pub struct FullComp<N:NumTrait>{
+    ///The position of the splitting line for this node.
+    pub div:N,
+    ///The 1d bounding box for this node. All bots that intersect the splitting line are 
+    ///within this bounding box.
+    pub cont:axgeom::Range<N> ,
 
+}
 
-
-pub struct Node2<'a,T:HasAabb+'a>{ 
-
-    //If this is a non leaf node, then,
-    //  div is None iff this node and children nodes do not have any bots in them.
-    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
-    // This is because we specifically pick the median.
-    // If it is a leaf node, then div being none still means it could have bots in it.
-    pub fullcomp:FullCompOrEmpty<T::Num>,
-    pub mid:&'a mut [T]
+#[derive(Copy,Clone)]
+pub enum FullCompOrEmpty<N:NumTrait>{
+    NonEmpty(FullComp<N>),
+    Empty()
 }
 
 
-pub fn recurse_rebal1<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
+
+pub fn recurse_rebal1<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
-    rest:&'a mut [T],
-    nodes:&mut Vec<Node2<'a,T>>,
+    rest:&'a mut [Cont2<Num>],
+    nodes:&mut Vec<Node2<'a,Num>>,
     sorter:impl Sorter,
     splitter:&mut K,
     depth:usize,
@@ -63,7 +85,7 @@ pub fn recurse_rebal1<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Se
             },
             None=>{
                 //We don't want to return here since we still want to populate the whole tree!
-                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [T],&mut [] as &mut [T]) //TODO rust should make this easier
+                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
             }
         };
 
@@ -101,11 +123,11 @@ pub fn recurse_rebal1<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Se
 
 
 
-pub fn recurse_rebal2<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
+pub fn recurse_rebal2<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
-    rest:&'a mut [T],
-    nodes:&mut SmallVec<[Node2<'a,T>;32]>,
+    rest:&'a mut [Cont2<Num>],
+    nodes:&mut SmallVec<[Node2<'a,Num>;32]>,
     sorter:impl Sorter,
     splitter:&mut K,
     depth:usize,
@@ -127,7 +149,7 @@ pub fn recurse_rebal2<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Se
             },
             None=>{
                 //We don't want to return here since we still want to populate the whole tree!
-                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [T],&mut [] as &mut [T]) //TODO rust should make this easier
+                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
             }
         };
 
@@ -166,11 +188,11 @@ pub fn recurse_rebal2<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Se
 }
 
 
-pub fn recurse_rebal3<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Send>(
+pub fn recurse_rebal3<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
     div_axis:A,
     dlevel:JJ,
-    rest:&'a mut [T],
-    nodes:&mut Vec<Node2<'a,T>>,
+    rest:&'a mut [Cont2<Num>],
+    nodes:&mut Vec<Node2<'a,Num>>,
     sorter:impl Sorter,
     splitter:&mut K,
     depth:usize,
@@ -192,7 +214,7 @@ pub fn recurse_rebal3<'a,A:AxisTrait,T:HasAabb+Send,JJ:par::Joiner,K:Splitter+Se
             },
             None=>{
                 //We don't want to return here since we still want to populate the whole tree!
-                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [T],&mut [] as &mut [T]) //TODO rust should make this easier
+                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
             }
         };
 
@@ -318,10 +340,94 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
     debug_assert!(binned.middle.len()!=0);
     
     //We already know that the middile is non zero in length.
-    let container_box=dinotree_inner::create_cont(div_axis,binned.middle).unwrap();
+    let container_box=create_cont(div_axis,binned.middle).unwrap();
     
     sorter.sort(div_axis.next(),binned.middle);
     let full=FullComp{div:med,cont:container_box};
     Some((full,binned.left,binned.middle,binned.right))
 }
+
+
+
+///A wrapper type around a type T and bounding box where the bounding box is hidden.
+///This is what is inserted into the tree. This way the user 
+///cannot modify the bounding box since it is hidden, with only read access.
+#[derive(Copy,Clone)]
+pub struct BBox<N:NumTrait,T>{
+    rect:Rect<N>,
+    pub inner:T
+}
+
+use std::fmt::Formatter;
+use std::fmt::Debug;
+
+impl<N:NumTrait+Debug,T:Debug> Debug for BBox<N,T>{
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result{
+        self.rect.fmt(f)?;
+        self.inner.fmt(f)
+    }
+}
+
+impl<N:NumTrait,T> BBox<N,T>{
+    ///Unsafe since the user create to boxes whose rectangles do not intersect,
+    ///but whose contents point to a shared resource thus violating the contract of HasAabb.
+    #[inline]
+    pub unsafe fn new(rect:Rect<N>,inner:T)->BBox<N,T>{
+        BBox{rect,inner}
+    }
+
+}
+
+unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
+    type Num=N;
+    #[inline]
+    fn get(&self)->&Rect<Self::Num>{
+        &self.rect
+    }
+}
+
+
+///Some alternate strategies for rebalancing.
+///Used to empirically show that the default (the first one) is a good default.
+#[derive(Debug)]
+pub enum RebalStrat{
+    First,
+    Second,
+    Third
+}
+
+
+
+
+
+pub struct Node2<'a,Num:NumTrait+'a>{ 
+
+    //If this is a non leaf node, then,
+    //  div is None iff this node and children nodes do not have any bots in them.
+    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
+    // This is because we specifically pick the median.
+    // If it is a leaf node, then div being none still means it could have bots in it.
+    pub fullcomp:FullCompOrEmpty<Num>,
+    pub mid:&'a mut [Cont2<Num>]
+}
+
+
+
+
+#[derive(Copy,Clone)]
+pub struct Cont2<N:NumTrait>{
+    rect:Rect<N>,
+    pub index:u32
+}
+unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
+    type Num=N;
+    fn get(&self)->&Rect<N>{
+        &self.rect
+    }
+}   
+
+
+
+
 

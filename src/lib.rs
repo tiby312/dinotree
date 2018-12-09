@@ -78,41 +78,50 @@ extern crate smallvec;
 extern crate test;
 
 mod inner_prelude{
-  pub use advanced::*;
+  //pub use advanced::*;
+  pub use tree::*;
   pub use std::mem::*;
   pub use std::marker::PhantomData;
   pub use std::iter::*;
   pub use smallvec::*;
-  pub use compt::*;
+  pub(crate) use compt;
   pub use axgeom::*;
-  pub use *;
-  pub use alloc::*;
-  pub use dinotree_inner::*;
-  pub use dinotree::*;
   pub use itertools::Itertools;
+  pub use std::time::Instant;
+  
+  pub(crate) use par;
+  pub(crate) use tools;
+  pub(crate) use tree;
+  pub(crate) use advanced;
+  pub(crate) use advanced::Splitter;
+  pub(crate) use compt::Depth;
+  pub(crate) use compt::Visitor;
+  pub(crate) use super::*;
 }
+
 
 ///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
 ///Used by algorithms that operate on the tree.
 pub mod par;
 
-///Contains rebalancing code.
-mod dinotree_inner;
+
 ///Provides low level functionality to construct a dyntree.
 
 mod assert_invariants;
 
 mod tree_health;
 
-mod alloc;
 
+mod tree;
+pub use tree::dinotree_both::*;
+pub use tree::FullComp;
+pub use tree::NodeRef;
+pub use tree::NodeRefMut;
+pub use tree::BBox;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
 ///segment of memory. 
-mod dinotree;
-pub use dinotree::iter_const::TreeIter;
-pub use dinotree::iter_mut::TreeIterMut;
 
 
 mod tools;
@@ -135,13 +144,6 @@ pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 impl<T> NumTrait for T
 where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
 
-
-pub use alloc::FullComp;
-pub use dinotree::DinoTree;
-pub use alloc::NodeDyn;
-pub use alloc::Vistr;
-pub use alloc::VistrMut;
-pub use dinotree::BBox;
 
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
