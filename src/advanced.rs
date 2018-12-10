@@ -302,12 +302,3 @@ pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree::Din
     assert_invariants::are_invariants_met(tree)
 }
 
-
-///Return the fraction of bots that are in each level of the tree.
-///The first element is the number of bots in the root level.
-///The last number is the fraction in the lowest level of the tree.
-///Ideally the fraction of bots in the lower level of the tree is high.
-#[inline]
-pub fn compute_tree_health<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree::DinoTree<A,N,T>)->Vec<f64>{
-    tree_health::compute_tree_health(tree)
-}

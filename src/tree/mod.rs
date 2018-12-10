@@ -6,10 +6,15 @@ pub mod dinotree;
 use inner_prelude::*;
 
 
+
+
+/// Reference to a node returned by the Vistr tree iterator.
 pub struct NodeRef<'a,N,T>{
     pub misc:&'a N,
     pub range:&'a [T]
 }
+
+/// Reference to a node returned by the VistrMut tree iterator.
 pub struct NodeRefMut<'a,N,T>{
     pub misc:&'a mut N,
     pub range:&'a mut [T]

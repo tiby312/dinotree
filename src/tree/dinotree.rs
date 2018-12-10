@@ -1,11 +1,8 @@
 use inner_prelude::*;
 
 
-
-
-
-
-
+/// Tree Iterator that returns a reference to each node.
+/// It also returns the non-leaf specific data when it applies.
 pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
     inner:compt::dfs_order::Vistr<'a,Node3<N,T>>
 }
@@ -228,12 +225,12 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
         }
     }
 
+    ///Apply changes to the internals of the bots (not the aabb) back into the tree without recreating the tree.
     #[inline]
     pub fn apply_into<X>(&mut self,bots:&[X],conv:impl Fn(&X,&mut T)){
         
         assert_eq!(bots.len(),self.num_bots());
 
-        //let treev=self.inner.nodes.dfs_preorder_iter().flat_map(|(a,_)|a.range.iter_mut());
         let treev=self.bots.iter_mut();
         
         for (bot,mov) in treev.zip_eq(self.mover.iter()){
@@ -244,9 +241,6 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     }
 
     ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.
-    ///Think twice before using this as this data structure is not optimal for linear traversal of the bots.
-    ///Instead, prefer to iterate through all the bots before the tree is constructed.
-    ///But this is useful if you need to iterate over all the bots aabbs.
     #[inline]
     pub fn iter_mut(&mut self)->std::slice::IterMut<T>{
         self.bots.iter_mut()

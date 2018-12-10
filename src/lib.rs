@@ -37,8 +37,6 @@
 //!
 
 #![feature(ptr_internals)]
-#![feature(align_offset)]
-#![feature(trusted_len)]
 #![feature(test)]
 
 
@@ -48,18 +46,15 @@ extern crate rayon;
 extern crate pdqselect;
 extern crate is_sorted;
 extern crate itertools;
-extern crate smallvec;
 
 #[cfg(test)]
 extern crate test;
 
 mod inner_prelude{
-  //pub use advanced::*;
   pub use tree::*;
   pub use std::mem::*;
   pub use std::marker::PhantomData;
   pub use std::iter::*;
-  pub use smallvec::*;
   pub(crate) use compt;
   pub use axgeom::*;
   pub use itertools::Itertools;
@@ -84,11 +79,12 @@ pub mod par;
 
 mod assert_invariants;
 
-mod tree_health;
 
 
 mod tree;
-pub use tree::dinotree::*;
+pub use tree::dinotree::DinoTree;
+pub use tree::dinotree::Vistr;
+pub use tree::dinotree::VistrMut;
 pub use tree::FullComp;
 pub use tree::NodeRef;
 pub use tree::NodeRefMut;
