@@ -115,8 +115,8 @@ pub struct Node3<N,T:HasAabb>{
 
 
 
+///The datastructure this crate revolves around.
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
-	//inner:dinotree_simple::DinoTree<A,N,T>,
     axis:A,
     bots:Vec<T>,
     nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
