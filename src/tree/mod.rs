@@ -263,11 +263,12 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
         k.get().get_range(div_axis).left
     };
 
-    
+    /*
     for a in bots.iter(){ //TODO remove
         let a=a.get().get_range(div_axis);
         debug_assert!(a.left<=a.right);
     }
+    */
     
     
     //It is very important that the median bot end up be binned into the middile bin.
@@ -293,10 +294,12 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
 
     debug_assert!(binned.middle.len()!=0);
     
+    
+    sorter.sort(div_axis.next(),binned.middle);
+    
     //We already know that the middile is non zero in length.
     let container_box=create_cont(div_axis,binned.middle).unwrap();
     
-    sorter.sort(div_axis.next(),binned.middle);
     let full=FullComp{div:med,cont:container_box};
     Some((full,binned.left,binned.middle,binned.right))
 }
