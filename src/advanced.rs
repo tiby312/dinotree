@@ -182,6 +182,7 @@ impl Splitter for SplitterEmpty{
 
 
 pub use tree::dinotree::DinoTree;
+pub use tree::dinotree::DinoTreeNoCopy;
 //Todo use this
 pub struct NotSorted<A:AxisTrait,N,T:HasAabb>(pub DinoTree<A,N,T>);
 
@@ -252,6 +253,29 @@ pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_str
 
     
     DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter)    
+}
+
+
+///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
+#[inline]
+pub fn new_adv_no_copy<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&'a mut[T],height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTreeNoCopy<'a,A,N,T>{   
+    //TODO make this the inner api????
+
+    let height=match height{
+        Some(height)=>height,
+        None=>compute_tree_height_heuristic(bots.len())
+    };
+
+    let dlevel=compute_default_level_switch_sequential(height_switch_seq,height);
+        
+
+    let rebal_strat=match rebal_strat{
+        Some(x)=>x,
+        None=>RebalStrat::First
+    };
+
+    
+    DinoTreeNoCopy::new_inner(rebal_strat,axis,n,bots,splitter,height,dlevel,DefaultSorter)    
 }
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.

@@ -68,66 +68,134 @@ fn nodes_left(depth:usize,height:usize)->usize{
     2usize.rotate_left(levels as u32)-1
 }
 
-pub fn recurse_rebal<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
-    div_axis:A,
-    dlevel:JJ,
-    rest:&'a mut [Cont2<Num>],
-    nodes:&mut Vec<Node2<'a,Num>>,
-    sorter:impl Sorter,
-    splitter:&mut K,
-    depth:usize,
-    height:usize,
-    binstrat:BinStrat){
-    splitter.node_start();
 
-    if depth<height-1{
-        
+mod cont_tree{
 
-        let mut splitter2=splitter.div();
+    use super::*;
 
 
-        let (node,left,right)=match construct_non_leaf(binstrat,sorter,div_axis,rest){
-            Some((fullcomp,left,mid,right))=>{
+    pub struct Node2<'a,Num:NumTrait+'a>{ 
+
+        //If this is a non leaf node, then,
+        //  div is None iff this node and children nodes do not have any bots in them.
+        // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
+        // This is because we specifically pick the median.
+        // If it is a leaf node, then div being none still means it could have bots in it.
+        pub fullcomp:FullCompOrEmpty<Num>,
+        pub mid:&'a mut [Cont2<Num>]
+    }
+
+
+
+
+    #[derive(Copy,Clone)]
+    pub struct Cont2<N:NumTrait>{
+        pub rect:Rect<N>,
+        pub index:u32
+    }
+    unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
+        type Num=N;
+        fn get(&self)->&Rect<N>{
+            &self.rect
+        }
+    }   
+
+
+
+
+
+    pub struct ContTree<'a,Num:NumTrait>{
+        tree:compt::dfs_order::CompleteTree<Node2<'a,Num>>,
+        conts:&'a mut [Cont2<Num>]
+    }
+
+    impl<'a,Num:NumTrait> ContTree<'a,Num>{
+        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,Num>>{
+            &mut self.tree
+        }
+        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,Num>>{
+            &self.tree
+        }
+        pub fn get_conts_mut(&mut self)->&mut [Cont2<Num>]{
+            self.conts
+        }
+        pub fn get_conts(&self)->&[Cont2<Num>]{
+            self.conts
+        }
+
+        pub fn new<A:AxisTrait,JJ:par::Joiner,K:Splitter+Send>(div_axis:A,dlevel:JJ,rest:&'a mut [Cont2<Num>],sorter:impl Sorter,splitter:&mut K,height:usize,binstrat:BinStrat)->ContTree<'a,Num>{
+            let rest2=unsafe{&mut *(rest as *mut [_])};
+            let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
                 
-                (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
-            },
-            None=>{
-                //We don't want to return here since we still want to populate the whole tree!
-                (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
-            }
-        };
-        
-        let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
-            let splitter2=&mut splitter2;
+            //let mut nodes=Vec::new(); //TODO use with_capacity().
+            recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
 
-            let af= move || {
-                self::recurse_rebal(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height,binstrat);
-                (splitter,nodes)
+            let tree=compt::dfs_order::CompleteTree::from_vec(nodes,height).unwrap();
+            ContTree{tree,conts:rest2}
+        }
+    }
+
+    fn recurse_rebal<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
+        div_axis:A,
+        dlevel:JJ,
+        rest:&'a mut [Cont2<Num>],
+        nodes:&mut Vec<Node2<'a,Num>>,
+        sorter:impl Sorter,
+        splitter:&mut K,
+        depth:usize,
+        height:usize,
+        binstrat:BinStrat){
+        splitter.node_start();
+
+        if depth<height-1{
+            
+
+            let mut splitter2=splitter.div();
+
+
+            let (node,left,right)=match construct_non_leaf(binstrat,sorter,div_axis,rest){
+                Some((fullcomp,left,mid,right))=>{
+                    
+                    (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
+                },
+                None=>{
+                    //We don't want to return here since we still want to populate the whole tree!
+                    (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
+                }
             };
+            
+            let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
+                let splitter2=&mut splitter2;
 
-            let bf= move || {
+                let af= move || {
+                    self::recurse_rebal(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height,binstrat);
+                    (splitter,nodes)
+                };
 
-                let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,height));
-                nodes2.push(node);                
-                self::recurse_rebal(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height,binstrat);
-                nodes2
+                let bf= move || {
+
+                    let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,height));
+                    nodes2.push(node);                
+                    self::recurse_rebal(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height,binstrat);
+                    nodes2
+                };
+                let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
+                nodes.append(&mut nodes2);
+                splitter
+            }else{
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height,binstrat);
+                nodes.push(node);
+                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height,binstrat);
+                splitter
             };
-            let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
-            nodes.append(&mut nodes2);
-            splitter
+            
+            splitter.add(splitter2);
         }else{
-            self::recurse_rebal(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height,binstrat);
+            let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
+            construct_leaf(sorter,div_axis,&mut node.mid);
             nodes.push(node);
-            self::recurse_rebal(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height,binstrat);
-            splitter
-        };
-        
-        splitter.add(splitter2);
-    }else{
-        let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
-        construct_leaf(sorter,div_axis,&mut node.mid);
-        nodes.push(node);
-        splitter.node_end();
+            splitter.node_end();
+        }
     }
 }
 
@@ -171,6 +239,7 @@ pub fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots
 #[derive(Copy,Clone,Debug)]
 pub enum BinStrat{
     LeftMidRight,
+    LeftMidRightUnchecked,
     MidLeftRight,
     LeftRightMid
 }
@@ -210,6 +279,9 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
     let binned=match bin_strat{
         BinStrat::LeftMidRight=>{
             oned::bin_left_middle_right(div_axis,&med,bots)
+        },
+        BinStrat::LeftMidRightUnchecked=>{
+            unsafe{oned::bin_left_middle_right_unchecked(div_axis,&med,bots)}
         },
         BinStrat::MidLeftRight=>{
             oned::bin_middle_left_right(div_axis,&med,bots)
@@ -278,37 +350,6 @@ pub enum RebalStrat{
     Second,
     Third
 }
-
-
-
-
-
-pub struct Node2<'a,Num:NumTrait+'a>{ 
-
-    //If this is a non leaf node, then,
-    //  div is None iff this node and children nodes do not have any bots in them.
-    // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
-    // This is because we specifically pick the median.
-    // If it is a leaf node, then div being none still means it could have bots in it.
-    pub fullcomp:FullCompOrEmpty<Num>,
-    pub mid:&'a mut [Cont2<Num>]
-}
-
-
-
-
-#[derive(Copy,Clone)]
-pub struct Cont2<N:NumTrait>{
-    rect:Rect<N>,
-    pub index:u32
-}
-unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
-    type Num=N;
-    fn get(&self)->&Rect<N>{
-        &self.rect
-    }
-}   
-
 
 
 

@@ -10,6 +10,57 @@ pub struct Binned<'a,T:'a>{
 }
 
 
+
+unsafe fn swap_unchecked<T>(arr:&mut [T],a:usize,b:usize){
+    let a=&mut *(arr.get_unchecked_mut(a) as *mut T);
+    let b=&mut *(arr.get_unchecked_mut(b) as *mut T);
+    std::mem::swap(a,b)
+}
+
+pub unsafe fn bin_left_middle_right_unchecked<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+    let bot_len=bots.len();
+        
+    let mut left_end=0;
+    let mut middle_end=0;
+    
+    //     |    middile   |   left|              right              |---------|
+    //
+    //                ^           ^                                  ^
+    //              middile_end    left_end                      index_at
+
+    for index_at in 0..bot_len{
+        
+            match bots.get_unchecked(index_at).get().get_range(axis).left_or_right_or_contain(med){
+                
+                //If the divider is less than the bot
+                std::cmp::Ordering::Equal=>{
+                    swap_unchecked(bots,index_at,left_end);
+                    left_end+=1;
+                },
+                //If the divider is greater than the bot
+                std::cmp::Ordering::Greater=>{
+                    
+                    swap_unchecked(bots,index_at,left_end);
+                    swap_unchecked(bots,left_end,middle_end);
+                    middle_end+=1;
+                    left_end+=1;
+                },
+                std::cmp::Ordering::Less=>{
+                                        
+                }
+            }
+        
+        
+    }
+
+    let (rest,right)=bots.split_at_mut(left_end);
+    let (left,middle)=rest.split_at_mut(middle_end);
+    debug_assert!(left.len()+middle.len()+right.len()==bot_len);
+    Binned{left:left,middle:middle,right:right}
+
+
+}
+
 pub fn bin_left_middle_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         

@@ -46,6 +46,7 @@ extern crate rayon;
 extern crate pdqselect;
 extern crate is_sorted;
 extern crate itertools;
+extern crate reorder;
 
 #[cfg(test)]
 extern crate test;
@@ -82,6 +83,7 @@ mod assert_invariants;
 
 
 mod tree;
+pub use tree::dinotree::DinoTreeNoCopy;
 pub use tree::dinotree::DinoTree;
 pub use tree::dinotree::Vistr;
 pub use tree::dinotree::VistrMut;
