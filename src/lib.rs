@@ -81,12 +81,12 @@ pub mod par;
 mod assert_invariants;
 
 
+mod notsorted;
 
 mod tree;
-pub use tree::dinotree::DinoTreeNoCopy;
 pub use tree::dinotree::DinoTree;
-pub use tree::dinotree::Vistr;
-pub use tree::dinotree::VistrMut;
+pub use tree::Vistr;
+pub use tree::VistrMut;
 pub use tree::FullComp;
 pub use tree::NodeRef;
 pub use tree::NodeRefMut;

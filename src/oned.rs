@@ -191,13 +191,6 @@ pub fn bin_left_right_middle<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&
     let (left,right)=rest.split_at_mut(middle_end);
     debug_assert!(left.len()+middle.len()+right.len()==bot_len);
     Binned{left:left,middle:middle,right:right}
-
-    /*
-    let (rest,right)=bots.split_at_mut(left_end);
-    let (left,middle)=rest.split_at_mut(middle_end);
-    debug_assert!(left.len()+middle.len()+right.len()==bot_len);
-    Binned{left:left,middle:middle,right:right}
-    */
 }
 
 pub fn compare_bots<T:HasAabb>(axis:impl AxisTrait,a:&T,b:&T)->std::cmp::Ordering{
@@ -207,27 +200,10 @@ pub fn compare_bots<T:HasAabb>(axis:impl AxisTrait,a:&T,b:&T)->std::cmp::Orderin
     }
     std::cmp::Ordering::Less
 }
-/*
-///Sorts the bots.
-pub fn sweeper_update_leaf<I:HasAabb,A:AxisTrait>(axis:A,values: &mut [I]) {
 
-    for i in 0..values.len() {
-        for j in (0..i).rev() {
-            unsafe{
-                let a=values.get_unchecked_mut(j) as *mut I;
-                let b=values.get_unchecked_mut(j+1) as *mut I;
-            
-                if compare_bots(axis,&*a,&*b)==std::cmp::Ordering::Greater {
-                    std::ptr::swap(a,b)
-                } else {
-                    break
-                }
-            }
-        }
-    }
-}
-*/
+
 ///Sorts the bots.
+#[inline]
 pub fn sweeper_update<I:HasAabb,A:AxisTrait>(axis:A,collision_botids: &mut [I]) {
 
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering {

@@ -5,7 +5,7 @@ use inner_prelude::*;
 
 
 use tree::dinotree::DinoTree;
-use tree::dinotree::Vistr;
+use tree::Vistr;
 
 
 

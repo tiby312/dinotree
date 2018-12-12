@@ -1,10 +1,196 @@
 
 
 pub mod dinotree;
-
+pub mod dinotree_no_copy;
 
 use inner_prelude::*;
 
+
+///Outputs the height given an desirned number of bots per node.
+#[inline]
+pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
+    
+    //we want each node to have space for around 300 bots.
+    //there are 2^h nodes.
+    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+
+    if num_bots <= num_per_node {
+        return 1;
+    } else {
+        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
+    }
+}
+
+#[inline]
+pub fn compute_default_level_switch_sequential(depth:Option<usize>,height:usize)->par::Parallel{
+    const DEPTH_SEQ:usize=4;
+
+    let dd=match depth{
+        Some(d)=>d,
+        None=>DEPTH_SEQ
+    };
+
+    let gg=if height<=dd{
+        0
+    }else{
+        height-dd
+    };
+    
+    par::Parallel::new(Depth(gg))
+}
+
+///Returns the height of a dyn tree for a given number of bots.
+///The height is chosen such that the nodes will each have a small amount of bots.
+///If we had a node per bot, the tree would be too big. 
+///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
+///This is provided so that users can allocate enough space for all the nodes
+///before the tree is constructed, perhaps for some graphics buffer.
+#[inline]
+pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
+    
+    //we want each node to have space for around num_per_node bots.
+    //there are 2^h nodes.
+    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+
+
+    //Make this number too small, and the tree will have too many levels,
+    //and too much time will be spent recursing.
+    //Make this number too high, and you will lose the properties of a tree,
+    //and you will end up with just sweep and prune.
+    //This number was chosen emprically from running the dinotree_alg_data project,
+    //on two different machines.
+    //const NUM_PER_NODE: usize = 32;  
+    const NUM_PER_NODE: usize = 20;  
+
+
+    if num_bots <= NUM_PER_NODE {
+        return 1;
+    } else {
+        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
+    }
+}
+
+
+
+
+/// Tree Iterator that returns a reference to each node.
+/// It also returns the non-leaf specific data when it applies.
+pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
+    inner:compt::dfs_order::Vistr<'a,Node3<N,T>>
+}
+
+impl<'a,N:'a,T:HasAabb+'a> Vistr<'a,N,T>{
+    ///It is safe to borrow the iterator and then produce mutable references from that
+    ///as long as by the time the borrow ends, all the produced references also go away.
+    pub fn create_wrap<'b>(&'b self)->Vistr<'b,N,T>{
+        Vistr{inner:self.inner.create_wrap()}
+    }
+
+    pub fn height(&self)->usize{
+        //Safe since we know Vistr implements FixedDepthVisitor.
+        self.inner.level_remaining_hint().0
+    }
+}
+
+unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for Vistr<'a,N,T>{}
+
+impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
+    type Item=NodeRef<'a,N,T>;
+    type NonLeafItem=Option<&'a FullComp<T::Num>>;
+    
+    fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
+        let (nn,rest)=self.inner.next();
+        
+        let k=match rest{
+            Some(((),left,right))=>{
+                let f=match &nn.fullcomp{
+                    FullCompOrEmpty::NonEmpty(f)=>{
+                        Some(f)
+                    },
+                    FullCompOrEmpty::Empty()=>{
+                        None
+                    }
+                };
+                Some((f,Vistr{inner:left},Vistr{inner:right}))
+            },
+            None=>{
+                None
+            }
+        };
+
+        let j=NodeRef{misc:&nn.n,range:unsafe{nn.mid.as_ref()}};
+        (j,k)
+
+
+    }
+    fn level_remaining_hint(&self)->(usize,Option<usize>){
+        self.inner.level_remaining_hint()
+    }
+}
+
+
+
+
+
+/// Tree Iterator that returns a reference to each node.
+/// It also returns the non-leaf specific data when it applies.
+pub struct VistrMut<'a,N:'a,T:HasAabb+'a>{
+    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>>
+}
+
+impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
+    ///It is safe to borrow the iterator and then produce mutable references from that
+    ///as long as by the time the borrow ends, all the produced references also go away.
+    pub fn create_wrap_mut<'b>(&'b mut self)->VistrMut<'b,N,T>{
+        VistrMut{inner:self.inner.create_wrap_mut()}
+    }
+
+
+    pub fn height(&self)->usize{
+        //Safe since we know Vistr implements FixedDepthVisitor.
+        self.inner.level_remaining_hint().0
+    }
+}
+
+unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for VistrMut<'a,N,T>{}
+impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
+    type Item=NodeRefMut<'a,N,T>;
+    type NonLeafItem=Option<&'a FullComp<T::Num>>;
+    
+    fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
+        let (nn,rest)=self.inner.next();
+        
+        let k=match rest{
+            Some(((),left,right))=>{
+                let f=match &nn.fullcomp{
+                    FullCompOrEmpty::NonEmpty(f)=>{
+                        Some(f)
+                    },
+                    FullCompOrEmpty::Empty()=>{
+                        None
+                    }
+                };
+                Some((f,VistrMut{inner:left},VistrMut{inner:right}))
+            },
+            None=>{
+                None
+            }
+        };
+
+        let j=NodeRefMut{misc:&mut nn.n,range:unsafe{nn.mid.as_mut()}};
+        (j,k)
+
+
+    }
+    fn level_remaining_hint(&self)->(usize,Option<usize>){
+        self.inner.level_remaining_hint()
+    }
+}
+pub struct Node3<N,T:HasAabb>{ 
+    pub n:N,
+    pub fullcomp:FullCompOrEmpty<T::Num>,
+    pub mid:std::ptr::Unique<[T]>
+}
 
 
 

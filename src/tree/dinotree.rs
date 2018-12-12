@@ -1,235 +1,6 @@
 use inner_prelude::*;
 
 
-/// Tree Iterator that returns a reference to each node.
-/// It also returns the non-leaf specific data when it applies.
-pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::Vistr<'a,Node3<N,T>>
-}
-
-impl<'a,N:'a,T:HasAabb+'a> Vistr<'a,N,T>{
-    ///It is safe to borrow the iterator and then produce mutable references from that
-    ///as long as by the time the borrow ends, all the produced references also go away.
-    pub fn create_wrap<'b>(&'b self)->Vistr<'b,N,T>{
-        Vistr{inner:self.inner.create_wrap()}
-    }
-}
-
-unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for Vistr<'a,N,T>{}
-
-impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
-    type Item=NodeRef<'a,N,T>;
-    type NonLeafItem=Option<&'a FullComp<T::Num>>;
-    
-    fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
-        let (nn,rest)=self.inner.next();
-        
-        let k=match rest{
-            Some(((),left,right))=>{
-                let f=match &nn.fullcomp{
-                    FullCompOrEmpty::NonEmpty(f)=>{
-                        Some(f)
-                    },
-                    FullCompOrEmpty::Empty()=>{
-                        None
-                    }
-                };
-                Some((f,Vistr{inner:left},Vistr{inner:right}))
-            },
-            None=>{
-                None
-            }
-        };
-
-        let j=NodeRef{misc:&nn.n,range:unsafe{nn.mid.as_ref()}};
-        (j,k)
-
-
-    }
-    fn level_remaining_hint(&self)->(usize,Option<usize>){
-        self.inner.level_remaining_hint()
-    }
-}
-
-
-
-
-
-/// Tree Iterator that returns a reference to each node.
-/// It also returns the non-leaf specific data when it applies.
-pub struct VistrMut<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>>
-}
-
-impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
-    ///It is safe to borrow the iterator and then produce mutable references from that
-    ///as long as by the time the borrow ends, all the produced references also go away.
-    pub fn create_wrap_mut<'b>(&'b mut self)->VistrMut<'b,N,T>{
-        VistrMut{inner:self.inner.create_wrap_mut()}
-    }
-}
-
-unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for VistrMut<'a,N,T>{}
-impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
-    type Item=NodeRefMut<'a,N,T>;
-    type NonLeafItem=Option<&'a FullComp<T::Num>>;
-    
-    fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
-        let (nn,rest)=self.inner.next();
-        
-        let k=match rest{
-            Some(((),left,right))=>{
-                let f=match &nn.fullcomp{
-                    FullCompOrEmpty::NonEmpty(f)=>{
-                        Some(f)
-                    },
-                    FullCompOrEmpty::Empty()=>{
-                        None
-                    }
-                };
-                Some((f,VistrMut{inner:left},VistrMut{inner:right}))
-            },
-            None=>{
-                None
-            }
-        };
-
-        let j=NodeRefMut{misc:&mut nn.n,range:unsafe{nn.mid.as_mut()}};
-        (j,k)
-
-
-    }
-    fn level_remaining_hint(&self)->(usize,Option<usize>){
-        self.inner.level_remaining_hint()
-    }
-}
-
-
-
-pub struct Node3<N,T:HasAabb>{ 
-    pub n:N,
-    pub fullcomp:FullCompOrEmpty<T::Num>,
-    pub mid:std::ptr::Unique<[T]>
-}
-
-
-pub use self::nocopy::DinoTreeNoCopy;
-mod nocopy{
-
-    use super::*;
-
-    pub struct DinoTreeNoCopy<'a,A:AxisTrait,N,T:HasAabb>{
-        axis:A,
-        bots:&'a mut [T],
-        nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
-        mover:Vec<u32>
-    }
-
-    impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
-
-        ///Safe to assume aabb_create is called for each bot in the slice in order.
-        ///Parallelization is done using rayon crate.
-        #[inline]
-        pub fn new(axis:A,n:N,bots:&'a mut [T])->DinoTreeNoCopy<'a,A,N,T>{  
-            advanced::new_adv_no_copy(None,axis,n,bots,None,&mut advanced::SplitterEmpty,None)
-        }
-
-
-        pub(crate) fn new_inner<JJ:par::Joiner,K:Splitter+Send>(
-            rebal_type:RebalStrat,axis:A,n:N,bots:&'a mut[T],ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTreeNoCopy<'a,A,N,T>
-        {   
-            let bots2=unsafe{&mut *(bots as *mut [_])};
-            use tree::cont_tree::*;
-            
-
-            let num_bots=bots.len();
-            let max=std::u32::MAX;
-            
-            assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
-
-
-            let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
-                Cont2{rect:*k.get(),index:index as u32}
-            }).collect();
-
-
-        
-            
-            let binstrat=match rebal_type{
-                RebalStrat::First=>{
-                    BinStrat::LeftMidRight
-                },
-                RebalStrat::Second=>{
-                    BinStrat::MidLeftRight
-                },
-                RebalStrat::Third=>{
-                    BinStrat::LeftRightMid
-                }
-            };
-
-            let mut cont_tree=ContTree::new(axis,par,&mut conts,sorter,ka,height,binstrat);
-
-
-
-
-            let new_bots={
-                impl<Num:NumTrait> reorder::HasIndex for Cont2<Num>{
-                    fn get(&self)->usize{
-                        self.index as usize
-                    }
-                    fn set(&mut self,index:usize){
-                        self.index=index as u32;
-                    }
-                }
-                //bots
-                reorder::reorder(bots,cont_tree.get_conts_mut())
-            };
-
-
-            let new_tree={
-                let new_nodes={
-                    let mut rest:Option<&mut [T]>=Some(new_bots);
-                    let mut new_nodes=Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
-                    for node in cont_tree.get_tree_mut().dfs_inorder_iter(){
-                        let (b,rest2)=rest.take().unwrap().split_at_mut(node.mid.len());
-                        rest=Some(rest2);
-                        new_nodes.push(Node3{n,fullcomp:node.fullcomp,mid:unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])}});
-                    }
-                    new_nodes
-                };
-
-                let tree2=compt::dfs_order::CompleteTree::from_vec(new_nodes,height).unwrap();
-                tree2
-            };
-
-            let mover=cont_tree.get_conts().iter().map(|a|a.index).collect();
-
-
-            DinoTreeNoCopy{mover,axis,bots:bots2,nodes:new_tree}
-
-        }
-
-        #[inline]
-        pub fn as_slice_mut(&mut self)->&mut [T]{
-            &mut self.bots
-        }
-
-        ///See iter_mut
-        #[inline]
-        pub fn as_slice(&self)->&[T]{
-            &self.bots
-        }
-        
-        pub fn vistr_mut(&mut self)->VistrMut<N,T>{
-            VistrMut{inner:self.nodes.vistr_mut()}
-        }
-        pub fn vistr(&self)->Vistr<N,T>{
-            Vistr{inner:self.nodes.vistr()}
-        }
-    }
-}
-
-
 ///The datastructure this crate revolves around.
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     axis:A,
@@ -238,11 +9,70 @@ pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     mover:Vec<u32>
 }
 
+
+
+///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
+pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K)->DinoTree<A,N,BBox<Num,T>>{   
+    let height=match height{
+        Some(height)=>height,
+        None=>compute_tree_height_heuristic(bots.len())
+    };
+
+
+    let rebal_strat=match rebal_strat{
+        Some(x)=>x,
+        None=>RebalStrat::First
+    };
+
+
+    #[repr(transparent)]
+    pub struct SplitterWrapper<T>(
+        pub T,
+    );
+
+    impl<T:Splitter> Splitter for SplitterWrapper<T>{
+        fn div(&mut self)->Self{
+            let a=self.0.div();
+            SplitterWrapper(a)
+        }
+        fn add(&mut self,a:Self){
+            self.0.add(a.0);
+        }
+        fn node_start(&mut self){self.0.node_start()}
+        fn node_end(&mut self){self.0.node_end()}
+    }        
+    unsafe impl<T> Send for SplitterWrapper<T>{}
+    unsafe impl<T> Sync for SplitterWrapper<T>{}
+
+    let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
+    DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter)
+    //(a,b.0)
+}
+///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
+pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   
+    //TODO make this the inner api????
+
+    let height=match height{
+        Some(height)=>height,
+        None=>compute_tree_height_heuristic(bots.len())
+    };
+
+    let dlevel=compute_default_level_switch_sequential(height_switch_seq,height);
+        
+
+    let rebal_strat=match rebal_strat{
+        Some(x)=>x,
+        None=>RebalStrat::First
+    };
+
+    
+    DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter)    
+}
+
+
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 
-
-    #[inline]
-	pub(crate) fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>>(
+    pub(crate) fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>>(
 	    rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
 	{   
         use tree::cont_tree::*;
@@ -300,14 +130,12 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
     
     ///Safe to assume aabb_create is called for each bot in the slice in order.
     ///Parallelization is done using rayon crate.
-    #[inline]
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{  
-        advanced::new_adv(None,axis,n,bots,aabb_create,None,&mut advanced::SplitterEmpty,None,)
+        new_adv(None,axis,n,bots,aabb_create,None,&mut advanced::SplitterEmpty,None,)
     }
 
-    #[inline]
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
-        advanced::new_adv_seq(None,axis,n,bots,aabb_create,None,&mut advanced::SplitterEmpty)
+        new_adv_seq(None,axis,n,bots,aabb_create,None,&mut advanced::SplitterEmpty)
     }
     
 }
@@ -316,7 +144,6 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
-    #[inline]
     pub fn apply<X>(&self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
         assert_eq!(bots.len(),self.num_bots());
         for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
@@ -326,7 +153,6 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     }
 
     ///Apply changes to the internals of the bots (not the aabb) back into the tree without recreating the tree.
-    #[inline]
     pub fn apply_into<X>(&mut self,bots:&[X],conv:impl Fn(&X,&mut T)){
         
         assert_eq!(bots.len(),self.num_bots());
@@ -352,22 +178,28 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
         self.bots.iter()
     }
     
+    #[inline]
     pub fn vistr_mut(&mut self)->VistrMut<N,T>{
         VistrMut{inner:self.tree.vistr_mut()}
     }
+    #[inline]
     pub fn vistr(&self)->Vistr<N,T>{
         Vistr{inner:self.tree.vistr()}
     }
 
+    #[inline]
     pub fn height(&self)->usize{
         self.tree.get_height()
     }
+    #[inline]
     pub fn num_nodes(&self)->usize{
         self.tree.get_nodes().len()
     }
+    #[inline]
     pub fn axis(&self)->A{
         self.axis
     }
+    #[inline]
     pub fn num_bots(&self)->usize{
         self.bots.len()
     }

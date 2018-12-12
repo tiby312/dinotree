@@ -58,19 +58,6 @@ impl Splitter for LevelTimer{
         if len<a.levels.len(){
             self.levels.extend_from_slice(&a.levels[len..]);
         }
-        /*
-        let (smaller,mut larger)=if self.levels.len()<a.levels.len(){
-            (*self,a)
-        }else{
-            (a,*self)
-        };
-
-
-        for (a,b) in larger.levels.iter_mut().zip(smaller.levels.iter()){
-            *a+=*b;
-        }
-        *self=larger;
-        */
     }
     #[inline]
     fn node_start(&mut self){
@@ -84,70 +71,10 @@ impl Splitter for LevelTimer{
 }
 
 
-///Outputs the height given an desirned number of bots per node.
-#[inline]
-pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
-    
-    //we want each node to have space for around 300 bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
 
-    if num_bots <= num_per_node {
-        return 1;
-    } else {
-        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
-    }
-}
-
-#[inline]
-pub fn compute_default_level_switch_sequential(depth:Option<usize>,height:usize)->par::Parallel{
-    const DEPTH_SEQ:usize=4;
-
-    let dd=match depth{
-        Some(d)=>d,
-        None=>DEPTH_SEQ
-    };
-
-    let gg=if height<=dd{
-        0
-    }else{
-        height-dd
-    };
-    
-    par::Parallel::new(Depth(gg))
-}
-
-///Returns the height of a dyn tree for a given number of bots.
-///The height is chosen such that the nodes will each have a small amount of bots.
-///If we had a node per bot, the tree would be too big. 
-///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
-///This is provided so that users can allocate enough space for all the nodes
-///before the tree is constructed, perhaps for some graphics buffer.
-#[inline]
-pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
-    
-    //we want each node to have space for around num_per_node bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-
-
-    //Make this number too small, and the tree will have too many levels,
-    //and too much time will be spent recursing.
-    //Make this number too high, and you will lose the properties of a tree,
-    //and you will end up with just sweep and prune.
-    //This number was chosen emprically from running the dinotree_alg_data project,
-    //on two different machines.
-    //const NUM_PER_NODE: usize = 32;  
-    const NUM_PER_NODE: usize = 20;  
-
-
-    if num_bots <= NUM_PER_NODE {
-        return 1;
-    } else {
-        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
-    }
-}
-
+pub use tree::compute_tree_height_heuristic_debug;
+pub use tree::compute_default_level_switch_sequential;
+pub use tree::compute_tree_height_heuristic;
 
 
 ///A trait that gives the user callbacks at events in a recursive algorithm on the tree.
@@ -182,147 +109,19 @@ impl Splitter for SplitterEmpty{
 
 
 pub use tree::dinotree::DinoTree;
-pub use tree::dinotree::DinoTreeNoCopy;
-//Todo use this
-pub struct NotSorted<A:AxisTrait,N,T:HasAabb>(pub DinoTree<A,N,T>);
+pub use tree::dinotree_no_copy::DinoTreeNoCopy;
+pub use notsorted::NotSorted;
+pub use oned::sweeper_update;
 
-impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
-    pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
-        let height=advanced::compute_tree_height_heuristic(bots.len()); 
-        let mut ka=advanced::SplitterEmpty;
-
-
-        let dlevel=compute_default_level_switch_sequential(None,height);
-        
-        NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
-    }
-    pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
-        let height=advanced::compute_tree_height_heuristic(bots.len()); 
-        let mut ka=advanced::SplitterEmpty;
-
-        let dlevel=par::Sequential;//Parallel::new(Depth(gg));
-
-        NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
-    }
-
-    pub fn new_adv_seq<K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:&mut K)->NotSorted<A,N,BBox<Num,T>>{
-
-        #[repr(transparent)]
-        pub struct SplitterWrapper<T>(
-            pub T,
-        );
-
-        impl<T:Splitter> Splitter for SplitterWrapper<T>{
-            fn div(&mut self)->Self{
-                let a=self.0.div();
-                SplitterWrapper(a)
-            }
-            fn add(&mut self,a:Self){
-                self.0.add(a.0);
-            }
-            fn node_start(&mut self){self.0.node_start()}
-            fn node_end(&mut self){self.0.node_end()}
-        }        
-        unsafe impl<T> Send for SplitterWrapper<T>{}
-        unsafe impl<T> Sync for SplitterWrapper<T>{}
-
-        let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
-        NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter))
-    }
-}
+pub use tree::dinotree::new_adv;
+pub use tree::dinotree::new_adv_seq;
+pub use tree::dinotree_no_copy::new_adv_no_copy;
 
 
-
-///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
-#[inline]
-pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   
-    //TODO make this the inner api????
-
-    let height=match height{
-        Some(height)=>height,
-        None=>compute_tree_height_heuristic(bots.len())
-    };
-
-    let dlevel=compute_default_level_switch_sequential(height_switch_seq,height);
-        
-
-    let rebal_strat=match rebal_strat{
-        Some(x)=>x,
-        None=>RebalStrat::First
-    };
-
-    
-    DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,splitter,height,dlevel,DefaultSorter)    
-}
-
-
-///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
-#[inline]
-pub fn new_adv_no_copy<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&'a mut[T],height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTreeNoCopy<'a,A,N,T>{   
-    //TODO make this the inner api????
-
-    let height=match height{
-        Some(height)=>height,
-        None=>compute_tree_height_heuristic(bots.len())
-    };
-
-    let dlevel=compute_default_level_switch_sequential(height_switch_seq,height);
-        
-
-    let rebal_strat=match rebal_strat{
-        Some(x)=>x,
-        None=>RebalStrat::First
-    };
-
-    
-    DinoTreeNoCopy::new_inner(rebal_strat,axis,n,bots,splitter,height,dlevel,DefaultSorter)    
-}
-
-///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
-#[inline]
-pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K)->DinoTree<A,N,BBox<Num,T>>{   
-    let height=match height{
-        Some(height)=>height,
-        None=>compute_tree_height_heuristic(bots.len())
-    };
-
-
-    let rebal_strat=match rebal_strat{
-        Some(x)=>x,
-        None=>RebalStrat::First
-    };
-
-
-    #[repr(transparent)]
-    pub struct SplitterWrapper<T>(
-        pub T,
-    );
-
-    impl<T:Splitter> Splitter for SplitterWrapper<T>{
-        fn div(&mut self)->Self{
-            let a=self.0.div();
-            SplitterWrapper(a)
-        }
-        fn add(&mut self,a:Self){
-            self.0.add(a.0);
-        }
-        fn node_start(&mut self){self.0.node_start()}
-        fn node_end(&mut self){self.0.node_end()}
-    }        
-    unsafe impl<T> Send for SplitterWrapper<T>{}
-    unsafe impl<T> Sync for SplitterWrapper<T>{}
-
-    let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
-    DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter)
-    //(a,b.0)
-}
 
 
 ///Returns Ok, then this tree's invariants are being met.
 ///Should always return true, unless the user corrupts the trees memory
 ///or if the contract of the HasAabb trait are not upheld.
-#[inline]
-pub fn are_invariants_met<A:AxisTrait,N:Copy,T:HasAabb+Copy>(tree:&dinotree::DinoTree<A,N,T>)->Result<(),()> where T::Num:std::fmt::Debug{
-    assert_invariants::are_invariants_met(tree)
-}
+pub use assert_invariants::are_invariants_met;
 
