@@ -88,6 +88,7 @@ mod tree;
 pub use tree::DinoTreeRef;
 pub use tree::DinoTreeRefMut;
 pub use tree::dinotree::DinoTree;
+pub use tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use tree::Vistr;
 pub use tree::VistrMut;
 pub use tree::FullComp;
