@@ -4,13 +4,14 @@ use is_sorted::IsSorted;
 use inner_prelude::*;
 
 
-use tree::dinotree::DinoTree;
 use tree::Vistr;
 
 
 
-pub fn are_invariants_met<A:AxisTrait,N,T:HasAabb>(tree:&DinoTree<A,N,T>)->Result<(),()> where T::Num : std::fmt::Debug{
-    inner(tree.axis(),tree.vistr().with_depth(compt::Depth(0)))
+pub fn are_invariants_met<A:AxisTrait,N,T:HasAabb>(tree:DinoTreeRef<A,N,T>)->Result<(),()> where T::Num : std::fmt::Debug{
+    let axis=tree.axis();
+
+    inner(axis,tree.vistr().with_depth(compt::Depth(0)))
 }
 
 fn a_bot_has_value<N:NumTrait>(it:impl Iterator<Item=N>,val:N)->bool{

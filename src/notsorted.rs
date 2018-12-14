@@ -19,7 +19,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
 
-        let dlevel=par::Sequential;//Parallel::new(Depth(gg));
+        let dlevel=par::Sequential;
 
         NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
     }

@@ -38,7 +38,7 @@ impl reorder::HasIndex for Index{
 pub struct DinoTreeNoCopy<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a mut [T],
-    nodes:compt::dfs_order::CompleteTree<Node3<N,T>>,
+    nodes:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::InOrder>,
     mover:Vec<Index>
 }
 
@@ -120,7 +120,7 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
                 new_nodes
             };
 
-            let tree2=compt::dfs_order::CompleteTree::from_vec(new_nodes,height).unwrap();
+            let tree2=compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap();
             tree2
         };
 
@@ -131,28 +131,11 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
 
     }
 
-    #[inline]
-    pub fn as_slice_mut(&mut self)->&mut [T]{
-        &mut self.bots
+    pub fn as_ref_mut(&mut self)->DinoTreeRefMut<A,N,T>{
+        DinoTreeRefMut{axis:self.axis,bots:self.bots,tree:&mut self.nodes}
+    }
+    pub fn as_ref(&self)->DinoTreeRef<A,N,T>{
+        DinoTreeRef{axis:self.axis,bots:self.bots,tree:&self.nodes}
     }
 
-    #[inline]
-    pub fn axis(&self)->A{
-        self.axis
-    }
-
-    ///See iter_mut
-    #[inline]
-    pub fn as_slice(&self)->&[T]{
-        &self.bots
-    }
-    
-    #[inline]
-    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
-        VistrMut{inner:self.nodes.vistr_mut()}
-    }
-    #[inline]
-    pub fn vistr(&self)->Vistr<N,T>{
-        Vistr{inner:self.nodes.vistr()}
-    }
 }

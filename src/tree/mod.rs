@@ -6,6 +6,81 @@ pub mod dinotree_no_copy;
 use inner_prelude::*;
 
 
+
+pub struct DinoTreeRefMut<'a,A:AxisTrait,N,T:HasAabb>{
+    axis:A,
+    bots:&'a mut [T],
+    tree:&'a mut compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::InOrder>
+}
+
+impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
+
+    pub fn as_ref_mut(&mut self)->DinoTreeRefMut<A,N,T>{
+        DinoTreeRefMut{axis:self.axis,bots:self.bots,tree:self.tree}
+    }
+
+    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
+        VistrMut{inner:self.tree.vistr_mut()}
+    }
+
+    ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.
+    #[inline]
+    pub fn iter_mut(&mut self)->std::slice::IterMut<T>{
+        self.bots.iter_mut()
+    }
+}
+
+impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
+    type Target=DinoTreeRef<'a,A,N,T>;
+    fn deref(&self)->&DinoTreeRef<'a,A,N,T>{
+        unsafe{std::mem::transmute(self)}
+    }
+}
+
+
+pub struct DinoTreeRef<'a,A:AxisTrait,N,T:HasAabb>{
+    axis:A,
+    bots:&'a [T],
+    tree:&'a compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::InOrder>
+}
+
+impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
+    pub fn as_ref(&self)->DinoTreeRef<A,N,T>{
+        DinoTreeRef{axis:self.axis,bots:self.bots,tree:self.tree}
+    }
+
+    pub fn axis(&self)->A{
+        self.axis
+    }
+
+    pub fn vistr(&self)->Vistr<N,T>{
+        Vistr{inner:self.tree.vistr()}
+    }
+
+    ///See iter_mut
+    #[inline]
+    pub fn iter(&self)->std::slice::Iter<T>{
+        self.bots.iter()
+    }
+
+
+    #[inline]
+    pub fn height(&self)->usize{
+        self.tree.get_height()
+    }
+    #[inline]
+    pub fn num_nodes(&self)->usize{
+        self.tree.get_nodes().len()
+    }
+
+    #[inline]
+    pub fn num_bots(&self)->usize{
+        self.bots.len()
+    }
+}
+
+
+
 ///Outputs the height given an desirned number of bots per node.
 #[inline]
 pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -> usize {
@@ -73,10 +148,11 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 
 
+
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
 pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::Vistr<'a,Node3<N,T>>
+    inner:compt::dfs_order::Vistr<'a,Node3<N,T>,compt::dfs_order::InOrder>
 }
 
 impl<'a,N:'a,T:HasAabb+'a> Vistr<'a,N,T>{
@@ -135,7 +211,7 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
 pub struct VistrMut<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>>
+    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>,compt::dfs_order::InOrder>
 }
 
 impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
@@ -291,15 +367,15 @@ mod cont_tree{
 
 
     pub struct ContTree<'a,Num:NumTrait>{
-        tree:compt::dfs_order::CompleteTree<Node2<'a,Num>>,
+        tree:compt::dfs_order::CompleteTreeContainer<Node2<'a,Num>,compt::dfs_order::InOrder>,
         conts:&'a mut [Cont2<Num>]
     }
 
     impl<'a,Num:NumTrait> ContTree<'a,Num>{
-        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,Num>>{
+        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::InOrder>{
             &mut self.tree
         }
-        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,Num>>{
+        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::InOrder>{
             &self.tree
         }
         pub fn get_conts_mut(&mut self)->&mut [Cont2<Num>]{
@@ -316,7 +392,7 @@ mod cont_tree{
             //let mut nodes=Vec::new(); //TODO use with_capacity().
             recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
 
-            let tree=compt::dfs_order::CompleteTree::from_vec(nodes,height).unwrap();
+            let tree=compt::dfs_order::CompleteTreeContainer::from_vec(nodes).unwrap();
             ContTree{tree,conts:rest2}
         }
     }

@@ -1,15 +1,19 @@
 use inner_prelude::*;
 
 
+
+
+
+
+
+
 ///The datastructure this crate revolves around.
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:Vec<T>,
-    tree:compt::dfs_order::CompleteTree<Node3<N,T>>,
+    tree:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::InOrder>,
     mover:Vec<u32>
 }
-
-
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
 pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K)->DinoTree<A,N,BBox<Num,T>>{   
@@ -117,7 +121,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
                 new_nodes
             };
 
-            (new_bots,compt::dfs_order::CompleteTree::from_vec(new_nodes,height).unwrap())
+            (new_bots,compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap())
         };
 
         let mover=conts.drain(..).map(|a|a.index).collect();
@@ -142,11 +146,18 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
 
 
 impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
+    pub fn as_ref_mut(&mut self)->DinoTreeRefMut<A,N,T>{
+        DinoTreeRefMut{axis:self.axis,bots:&mut self.bots,tree:&mut self.tree}
+    }
+    pub fn as_ref(&self)->DinoTreeRef<A,N,T>{
+        DinoTreeRef{axis:self.axis,bots:&self.bots,tree:&self.tree}
+    }
+    
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     pub fn apply<X>(&self,bots:&mut [X],conv:impl Fn(&T,&mut X)){
-        assert_eq!(bots.len(),self.num_bots());
-        for (bot,mov) in self.iter().zip_eq(self.mover.iter()){
+        assert_eq!(bots.len(),self.bots.len());
+        for (bot,mov) in self.bots.iter().zip_eq(self.mover.iter()){
             let target=unsafe{bots.get_unchecked_mut(*mov as usize)};
             conv(bot,target);
         }
@@ -155,7 +166,7 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
     ///Apply changes to the internals of the bots (not the aabb) back into the tree without recreating the tree.
     pub fn apply_into<X>(&mut self,bots:&[X],conv:impl Fn(&X,&mut T)){
         
-        assert_eq!(bots.len(),self.num_bots());
+        assert_eq!(bots.len(),self.bots.len());
 
         let treev=self.bots.iter_mut();
         
@@ -164,44 +175,6 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
             conv(source,bot)
         }
         
-    }
-
-    ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.
-    #[inline]
-    pub fn iter_mut(&mut self)->std::slice::IterMut<T>{
-        self.bots.iter_mut()
-    }
-
-    ///See iter_mut
-    #[inline]
-    pub fn iter(&self)->std::slice::Iter<T>{
-        self.bots.iter()
-    }
-    
-    #[inline]
-    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
-        VistrMut{inner:self.tree.vistr_mut()}
-    }
-    #[inline]
-    pub fn vistr(&self)->Vistr<N,T>{
-        Vistr{inner:self.tree.vistr()}
-    }
-
-    #[inline]
-    pub fn height(&self)->usize{
-        self.tree.get_height()
-    }
-    #[inline]
-    pub fn num_nodes(&self)->usize{
-        self.tree.get_nodes().len()
-    }
-    #[inline]
-    pub fn axis(&self)->A{
-        self.axis
-    }
-    #[inline]
-    pub fn num_bots(&self)->usize{
-        self.bots.len()
     }
 
 }
