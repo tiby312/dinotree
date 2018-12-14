@@ -25,6 +25,26 @@ pub fn new_adv_no_copy<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter+Send>(reb
 }
 
 
+///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
+#[inline]
+pub fn new_adv_no_copy_seq<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&'a mut[T],height:Option<usize>,splitter:&mut K)->DinoTreeNoCopy<'a,A,N,T>{   
+    //TODO make this the inner api????
+
+    let height=match height{
+        Some(height)=>height,
+        None=>compute_tree_height_heuristic(bots.len())
+    };
+
+    let rebal_strat=match rebal_strat{
+        Some(x)=>x,
+        None=>RebalStrat::First
+    };
+
+    
+    DinoTreeNoCopy::new_inner(rebal_strat,axis,n,bots,splitter,height,par::Sequential,DefaultSorter)    
+}
+
+
 struct Index(u32);
 impl reorder::HasIndex for Index{
     fn get(&self)->usize{
@@ -35,6 +55,8 @@ impl reorder::HasIndex for Index{
     }
 }
 
+
+///A version where the bots are not copied. 
 pub struct DinoTreeNoCopy<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a mut [T],
@@ -48,7 +70,11 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
     ///Parallelization is done using rayon crate.
     #[inline]
     pub fn new(axis:A,n:N,bots:&'a mut [T])->DinoTreeNoCopy<'a,A,N,T>{  
-        advanced::new_adv_no_copy(None,axis,n,bots,None,&mut advanced::SplitterEmpty,None)
+        new_adv_no_copy(None,axis,n,bots,None,&mut advanced::SplitterEmpty,None)
+    }
+
+    pub fn new_seq(axis:A,n:N,bots:&'a mut [T])->DinoTreeNoCopy<'a,A,N,T>{   
+        new_adv_no_copy_seq(None,axis,n,bots,None,&mut advanced::SplitterEmpty)
     }
 
     ///Returns the bots to their original ordering. This is what you would call after you used this tree

@@ -116,6 +116,7 @@ pub use oned::sweeper_update;
 pub use tree::dinotree::new_adv;
 pub use tree::dinotree::new_adv_seq;
 pub use tree::dinotree_no_copy::new_adv_no_copy;
+pub use tree::dinotree_no_copy::new_adv_no_copy_seq;
 
 
 
