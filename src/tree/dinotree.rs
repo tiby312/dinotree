@@ -3,11 +3,6 @@ use inner_prelude::*;
 
 
 
-
-
-
-
-
 ///The datastructure this crate revolves around.
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     axis:A,
@@ -55,8 +50,7 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
 }
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
 pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   
-    //TODO make this the inner api????
-
+    
     let height=match height{
         Some(height)=>height,
         None=>compute_tree_height_heuristic(bots.len())
@@ -154,6 +148,14 @@ impl<A:AxisTrait,N,T:HasAabb> DinoTree<A,N,T>{
         DinoTreeRef{axis:self.axis,bots:&self.bots,tree:&self.tree}
     }
     
+    pub fn with_extra<N2:Copy>(self,n2:N2)->DinoTree<A,N2,T>{
+        let mut old_nodes=self.tree.into_nodes();
+        let new_nodes=old_nodes.drain(..).map(|node|{
+            Node3{n:n2,fullcomp:node.fullcomp,mid:node.mid}
+        }).collect();
+        let new_tree=compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap();
+        DinoTree{axis:self.axis,bots:self.bots,tree:new_tree,mover:self.mover}
+    }
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     pub fn apply<X>(&self,bots:&mut [X],conv:impl Fn(&T,&mut X)){

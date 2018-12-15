@@ -37,7 +37,7 @@
 //!
 
 #![feature(ptr_internals)]
-#![feature(test)]
+#![feature(trusted_len)]
 
 
 extern crate axgeom;
@@ -47,9 +47,6 @@ extern crate pdqselect;
 extern crate is_sorted;
 extern crate itertools;
 extern crate reorder;
-
-#[cfg(test)]
-extern crate test;
 
 mod inner_prelude{
   pub use tree::*;

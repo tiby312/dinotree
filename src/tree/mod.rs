@@ -6,6 +6,8 @@ pub mod dinotree_no_copy;
 use inner_prelude::*;
 
 
+
+
 ///Mutable referance to a dinotree container.
 pub struct DinoTreeRefMut<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
@@ -20,6 +22,10 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
     }
 
     pub fn vistr_mut(&mut self)->VistrMut<N,T>{
+        VistrMut{inner:self.tree.vistr_mut()}
+    }
+
+    pub fn into_vistr_mut(self)->VistrMut<'a,N,T>{
         VistrMut{inner:self.tree.vistr_mut()}
     }
 
@@ -52,6 +58,10 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
 
     pub fn axis(&self)->A{
         self.axis
+    }
+
+    pub fn into_vistr(self)->Vistr<'a,N,T>{
+        Vistr{inner:self.tree.vistr()}
     }
 
     pub fn vistr(&self)->Vistr<N,T>{
@@ -391,7 +401,6 @@ mod cont_tree{
             let rest2=unsafe{&mut *(rest as *mut [_])};
             let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
                 
-            //let mut nodes=Vec::new(); //TODO use with_capacity().
             recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
 
             let tree=compt::dfs_order::CompleteTreeContainer::from_vec(nodes).unwrap();
@@ -424,7 +433,7 @@ mod cont_tree{
                 },
                 None=>{
                     //We don't want to return here since we still want to populate the whole tree!
-                    (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_]) //TODO rust should make this easier
+                    (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_])
                 }
             };
             
@@ -527,13 +536,6 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
         k.get().get_range(div_axis).left
     };
 
-    /*
-    for a in bots.iter(){ //TODO remove
-        let a=a.get().get_range(div_axis);
-        debug_assert!(a.left<=a.right);
-    }
-    */
-    
     
     //It is very important that the median bot end up be binned into the middile bin.
     //We know this must be true because we chose the divider to be the medians left border,
