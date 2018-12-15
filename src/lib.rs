@@ -85,6 +85,7 @@ mod tree;
 pub use crate::tree::DinoTreeRef;
 pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::dinotree::DinoTree;
+pub use crate::tree::dinotree::DinoTreeBuilder;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;

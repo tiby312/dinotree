@@ -1,8 +1,6 @@
 use crate::inner_prelude::*;
 
 
-
-
 ///The datastructure this crate revolves around.
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     axis:A,
@@ -10,6 +8,124 @@ pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     tree:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::InOrder>,
     mover:Vec<u32>
 }
+
+
+
+pub struct DinoTreeBuilder<'a,A:AxisTrait,N,T,Num:NumTrait,F:FnMut(&T)->Rect<Num>>{
+    axis:A,
+    n:N,
+    bots:&'a [T],
+    aabb_create:F,
+    rebal_strat:Option<RebalStrat>,
+    height:Option<usize>,
+    height_switch_seq:Option<usize>
+}
+
+impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<'a,A,N,T,Num,F>{
+    pub fn new(axis:A,n:N,bots:&[T],aabb_create:F)->DinoTreeBuilder<A,N,T,Num,F>{
+        DinoTreeBuilder{axis,n,bots,aabb_create,rebal_strat:None,height:None,height_switch_seq:None}
+    }
+
+    pub fn with_rebal_strat(&mut self,strat:RebalStrat){
+        self.rebal_strat=Some(strat);
+    }
+    pub fn with_height(&mut self,height:usize){
+        self.height=Some(height);
+    }
+    pub fn with_height_switch_seq(&mut self,height:usize){
+        self.height_switch_seq=Some(height);
+    }
+
+    pub fn build_with_splitter_seq<S:Splitter+Send>(self,splitter:&mut S)->DinoTree<A,N,BBox<Num,T>>{
+        assert_eq!(self.height_switch_seq,None);
+        self.build_inner(par::Sequential,DefaultSorter,splitter)
+    }
+
+    pub fn build_seq(self)->DinoTree<A,N,BBox<Num,T>>{
+        assert_eq!(self.height_switch_seq,None);
+        self.build_inner(par::Sequential,DefaultSorter,&mut crate::advanced::SplitterEmpty)
+    }
+    pub fn build_par(self)->DinoTree<A,N,BBox<Num,T>>{
+        let height=match self.height{
+            Some(height)=>height,
+            None=>compute_tree_height_heuristic(self.bots.len())
+        };
+        let dlevel=compute_default_level_switch_sequential(self.height_switch_seq,height);
+        self.build_inner(dlevel,DefaultSorter,&mut crate::advanced::SplitterEmpty)
+    }
+
+    fn build_inner<JJ:par::Joiner,S:Splitter+Send>(self,par:JJ,sorter:impl Sorter,ka:&mut S)->DinoTree<A,N,BBox<Num,T>>{
+        use crate::tree::cont_tree::*;
+
+
+        let bots=self.bots;
+        let axis=self.axis;
+        let mut aabb_create=self.aabb_create;
+        let n=self.n;
+
+
+        let height=match self.height{
+            Some(height)=>height,
+            None=>compute_tree_height_heuristic(bots.len())
+        };
+            
+        let rebal_type=match self.rebal_strat{
+            Some(x)=>x,
+            None=>RebalStrat::First
+        };
+
+
+
+
+        let num_bots=bots.len();
+        let max=std::u32::MAX;
+        
+        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported",max);
+
+        let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
+            Cont2{rect:aabb_create(k),index:index as u32}
+        }).collect();
+        
+        let (new_bots,new_tree)={
+            let binstrat=match rebal_type{
+                RebalStrat::First=>{
+                    BinStrat::LeftMidRight
+                },
+                RebalStrat::Second=>{
+                    //BinStrat::MidLeftRight
+                    BinStrat::LeftMidRightUnchecked
+                },
+                RebalStrat::Third=>{
+                    BinStrat::LeftRightMid
+                }
+            };
+
+            let mut cont_tree=ContTree::new(axis,par,&mut conts,sorter,ka,height,binstrat);
+
+            let mut new_bots:Vec<_>=cont_tree.get_conts().iter().map(|a|BBox{rect:a.rect,inner:*unsafe{bots.get_unchecked(a.index as usize)}}).collect();            
+
+            let new_nodes={
+                let mut rest:Option<&mut [BBox<Num,T>]>=Some(&mut new_bots);
+                let mut new_nodes=Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
+                for node in cont_tree.get_tree_mut().dfs_inorder_iter(){
+                    let (b,rest2)=rest.take().unwrap().split_at_mut(node.mid.len());
+                    rest=Some(rest2);
+                    let b=unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])};
+                    new_nodes.push(Node3{n,fullcomp:node.fullcomp,mid:b});
+                }
+                new_nodes
+            };
+
+            (new_bots,compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap())
+        };
+
+        let mover=conts.drain(..).map(|a|a.index).collect();
+
+        DinoTree{mover,axis,bots:new_bots,tree:new_tree}
+    }
+}
+
+
 
 ///Provides many of the same arguments as new_adv, with the exception of the height at which to switch to sequential, since this is already sequential.
 pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K)->DinoTree<A,N,BBox<Num,T>>{   
@@ -46,10 +162,12 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
 
     //let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
     let ss:&mut SplitterWrapper<K>=unsafe{&mut *(splitter as *mut K as *mut SplitterWrapper<K>)};
-    
+
     DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter)
     //(a,b.0)
 }
+
+
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
 pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(
         rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   

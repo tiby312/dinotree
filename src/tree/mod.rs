@@ -412,75 +412,93 @@ mod cont_tree{
             let rest2=unsafe{&mut *(rest as *mut [_])};
             let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
                 
-            recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
+            let r=Recurser{height,binstrat,sorter,_p:PhantomData};
+            r.recurse(div_axis,dlevel,rest,&mut nodes,splitter,0);
+            //recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
 
             let tree=compt::dfs_order::CompleteTreeContainer::from_vec(nodes).unwrap();
             ContTree{tree,conts:rest2}
         }
     }
 
-    fn recurse_rebal<'a,A:AxisTrait,Num:NumTrait,JJ:par::Joiner,K:Splitter+Send>(
-        div_axis:A,
-        dlevel:JJ,
-        rest:&'a mut [Cont2<Num>],
-        nodes:&mut Vec<Node2<'a,Num>>,
-        sorter:impl Sorter,
-        splitter:&mut K,
-        depth:usize,
+
+
+    struct Recurser<'a,Num:NumTrait,K:Splitter+Send,S:Sorter>{
         height:usize,
-        binstrat:BinStrat){
-        splitter.node_start();
-
-        if depth<height-1{
-            
-
-            let mut splitter2=splitter.div();
+        binstrat:BinStrat,
+        sorter:S,
+        _p:PhantomData<(std::sync::Mutex<K>,&'a (Num))>
+    }
 
 
-            let (node,left,right)=match construct_non_leaf(binstrat,sorter,div_axis,rest){
-                Some((fullcomp,left,mid,right))=>{
-                    
-                    (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
-                },
-                None=>{
-                    //We don't want to return here since we still want to populate the whole tree!
-                    (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_])
-                }
-            };
-            
-            let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
-                let splitter2=&mut splitter2;
+    impl<'a,Num:NumTrait,K:Splitter+Send,S:Sorter> Recurser<'a,Num,K,S>{
 
-                let af= move || {
-                    self::recurse_rebal(div_axis.next(),dlevel,left,nodes,sorter,splitter,depth+1,height,binstrat);
-                    (splitter,nodes)
+        fn recurse<A:AxisTrait,JJ:par::Joiner>(
+            &self,
+            axis:A,
+            dlevel:JJ,
+            rest:&'a mut [Cont2<Num>],
+            nodes:&mut Vec<Node2<'a,Num>>,
+            splitter:&mut K,
+            depth:usize
+            )
+        {
+            splitter.node_start();
+
+            if depth<self.height-1{
+                
+
+                let mut splitter2=splitter.div();
+
+
+                let (node,left,right)=match construct_non_leaf(self.binstrat,self.sorter,axis,rest){
+                    Some((fullcomp,left,mid,right))=>{
+                        
+                        (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
+                    },
+                    None=>{
+                        //We don't want to return here since we still want to populate the whole tree!
+                        (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_])
+                    }
                 };
+                
+                let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
+                    let splitter2=&mut splitter2;
 
-                let bf= move || {
+                    let af= move || {
+                        self.recurse(axis.next(),dlevel,left,nodes,splitter,depth+1);
+                        (splitter,nodes)
+                    };
 
-                    let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,height));
-                    nodes2.push(node);                
-                    self::recurse_rebal(div_axis.next(),dlevel,right,&mut nodes2,sorter,splitter2,depth+1,height,binstrat);
-                    nodes2
+                    let bf= move || {
+
+                        let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,self.height));
+                        nodes2.push(node);                
+                        self.recurse(axis.next(),dlevel,right,&mut nodes2,splitter2,depth+1);
+                        nodes2
+                    };
+                    let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
+                    nodes.append(&mut nodes2);
+                    splitter
+                }else{
+                    self.recurse(axis.next(),dlevel.into_seq(),left,nodes,splitter,depth+1);
+                    nodes.push(node);
+                    self.recurse(axis.next(),dlevel.into_seq(),right,nodes,&mut splitter2,depth+1);
+                    splitter
                 };
-                let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
-                nodes.append(&mut nodes2);
-                splitter
+                
+                splitter.add(splitter2);
             }else{
-                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),left,nodes,sorter,splitter,depth+1,height,binstrat);
+                let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
+                construct_leaf(self.sorter,axis,&mut node.mid);
                 nodes.push(node);
-                self::recurse_rebal(div_axis.next(),dlevel.into_seq(),right,nodes,sorter,&mut splitter2,depth+1,height,binstrat);
-                splitter
-            };
-            
-            splitter.add(splitter2);
-        }else{
-            let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
-            construct_leaf(sorter,div_axis,&mut node.mid);
-            nodes.push(node);
-            splitter.node_end();
+                splitter.node_end();
+            }            
+
         }
     }
+
+    
 }
 
 
