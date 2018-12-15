@@ -34,6 +34,11 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
     pub fn iter_mut(&mut self)->std::slice::IterMut<T>{
         self.bots.iter_mut()
     }
+
+    #[inline]
+    pub fn into_iter_mut(self)->std::slice::IterMut<'a,T>{
+        self.bots.iter_mut()
+    }
 }
 
 impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
@@ -74,6 +79,11 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
         self.bots.iter()
     }
 
+    #[inline]
+    pub fn into_iter(self)->std::slice::Iter<'a,T>{
+        self.bots.iter()
+    }
+
 
     #[inline]
     pub fn height(&self)->usize{
@@ -101,9 +111,9 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
     //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
 
     if num_bots <= num_per_node {
-        return 1;
+        1
     } else {
-        return (num_bots as f32 / num_per_node as f32).log2().ceil() as usize;
+        (num_bots as f32 / num_per_node as f32).log2().ceil() as usize
     }
 }
 
@@ -151,9 +161,9 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 
     if num_bots <= NUM_PER_NODE {
-        return 1;
+        1
     } else {
-        return (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize;
+        (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize
     }
 }
 
@@ -170,7 +180,7 @@ pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
 impl<'a,N:'a,T:HasAabb+'a> Vistr<'a,N,T>{
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
-    pub fn create_wrap<'b>(&'b self)->Vistr<'b,N,T>{
+    pub fn create_wrap(&self)->Vistr<N,T>{
         Vistr{inner:self.inner.create_wrap()}
     }
 
@@ -229,7 +239,7 @@ pub struct VistrMut<'a,N:'a,T:HasAabb+'a>{
 impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
-    pub fn create_wrap_mut<'b>(&'b mut self)->VistrMut<'b,N,T>{
+    pub fn create_wrap_mut(&mut self)->VistrMut<N,T>{
         VistrMut{inner:self.inner.create_wrap_mut()}
     }
 
@@ -518,7 +528,7 @@ pub enum BinStrat{
 }
 
 pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<(FullComp<T::Num>,&mut [T],&mut [T],&mut [T])>{
-    let med=if bots.len() == 0{
+    let med=if bots.is_empty(){
         return None;
     }
     else
@@ -558,7 +568,7 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
         }
     };
 
-    debug_assert!(binned.middle.len()!=0);
+    debug_assert!(!binned.middle.is_empty());
     
     
     sorter.sort(div_axis.next(),binned.middle);

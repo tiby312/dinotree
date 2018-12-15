@@ -2,8 +2,7 @@ use crate::inner_prelude::*;
 pub use crate::tree::RebalStrat;
 
 fn into_secs(elapsed:std::time::Duration)->f64{
-    let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
-    sec
+    (elapsed.as_secs() as f64) + (f64::from(elapsed.subsec_nanos()) / 1_000_000_000.0)   
 }
 
 ///Measure the time each level of a recursive algorithm takes that supports the Splitter trait.

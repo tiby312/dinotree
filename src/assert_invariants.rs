@@ -21,7 +21,7 @@ fn a_bot_has_value<N:NumTrait>(it:impl Iterator<Item=N>,val:N)->bool{
             return true;
         }
     }
-    return false;
+    false
 }
 
 fn inner<A:AxisTrait,N,T:HasAabb>(axis:A,iter:compt::LevelIter<Vistr<N,T>>)->Result<(),()> where T::Num : std::fmt::Debug{
@@ -37,53 +37,45 @@ fn inner<A:AxisTrait,N,T:HasAabb>(axis:A,iter:compt::LevelIter<Vistr<N,T>>)->Res
     let ((_depth,nn),rest)=iter.next();
 
     let axis_next=axis.next();
-    
 
-    assert2!(nn.range.iter().is_sorted_by(|a,b|{
+    let f=|a:&&T,b:&&T|->std::cmp::Ordering{
         a.get().get_range(axis_next).left.cmp(&b.get().get_range(axis_next).left)
-    }));
+    };
+    assert2!(nn.range.iter().is_sorted_by(f));
     
-    match rest{
-        Some((extra,left,right))=>{
-            match extra{
-                Some(compt)=>{
-                    for bot in nn.range.iter(){
-                        assert2!(bot.get().get_range(axis).contains(compt.div));
+    if let Some((extra,left,right))=rest{
+        match extra{
+            Some(compt)=>{
+                for bot in nn.range.iter(){
+                    assert2!(bot.get().get_range(axis).contains(compt.div));
+                }
+                
+                for bot in nn.range.iter(){
+                    assert2!(compt.cont.contains_range(bot.get().get_range(axis)));
+                } 
+                
+                assert2!(a_bot_has_value(nn.range.iter().map(|b|b.get().get_range(axis).left),compt.div));
+                assert2!(a_bot_has_value(nn.range.iter().map(|b|b.get().get_range(axis).left),compt.cont.left));
+                assert2!(a_bot_has_value(nn.range.iter().map(|b|b.get().get_range(axis).right),compt.cont.right));
+
+                
+                inner(axis_next,left)?;
+                inner(axis_next,right)?;
+
+            },
+            None=>{
+                assert2!(nn.range.is_empty());
+                
+                for ((_depth,n),e) in left.dfs_preorder_iter().chain(right.dfs_preorder_iter()){
+                    if let Some(cc)=e{
+                        assert2!(cc.is_none());
                     }
-                    
-                    for bot in nn.range.iter(){
-                        assert2!(compt.cont.contains_range(bot.get().get_range(axis)));
-                    } 
-                    
-                    assert2!(a_bot_has_value(nn.range.iter().map(|b|b.get().get_range(axis).left),compt.div));
-                    assert2!(a_bot_has_value(nn.range.iter().map(|b|b.get().get_range(axis).left),compt.cont.left));
-                    assert2!(a_bot_has_value(nn.range.iter().map(|b|b.get().get_range(axis).right),compt.cont.right));
-
-                    
-                    inner(axis_next,left)?;
-                    inner(axis_next,right)?;
-
-                },
-                None=>{
-                    assert2!(nn.range.is_empty());
-                    
-                    for ((_depth,n),e) in left.dfs_preorder_iter().chain(right.dfs_preorder_iter()){
-                        match e{
-                            Some(cc)=>{
-                                assert2!(cc.is_none());
-                            },
-                            None=>{
-
-                            }
-                        }
-                        assert2!(n.range.is_empty());
-                    }
+                    assert2!(n.range.is_empty());
                 }
             }
-
-        },
-        None=>{
         }
+
+    
     }
     Ok(())
 }

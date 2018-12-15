@@ -17,7 +17,7 @@ unsafe fn swap_unchecked<T>(arr:&mut [T],a:usize,b:usize){
     std::mem::swap(a,b)
 }
 
-pub unsafe fn bin_left_middle_right_unchecked<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub unsafe fn bin_left_middle_right_unchecked<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
@@ -56,12 +56,12 @@ pub unsafe fn bin_left_middle_right_unchecked<'a,'b,A:AxisTrait,X:HasAabb>(axis:
     let (rest,right)=bots.split_at_mut(left_end);
     let (left,middle)=rest.split_at_mut(middle_end);
     debug_assert!(left.len()+middle.len()+right.len()==bot_len);
-    Binned{left:left,middle:middle,right:right}
+    Binned{left,middle,right}
 
 
 }
 
-pub fn bin_left_middle_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_left_middle_right<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
@@ -100,14 +100,14 @@ pub fn bin_left_middle_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
     let (rest,right)=bots.split_at_mut(left_end);
     let (left,middle)=rest.split_at_mut(middle_end);
     debug_assert!(left.len()+middle.len()+right.len()==bot_len);
-    Binned{left:left,middle:middle,right:right}
+    Binned{left,middle,right}
 
 
 }
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
 
-pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+pub fn bin_middle_left_right<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
     let mut left_end=0;
@@ -147,7 +147,7 @@ pub fn bin_middle_left_right<'a,'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bot
     let (rest,right)=bots.split_at_mut(left_end);
     let (middle,left)=rest.split_at_mut(middle_end);
     debug_assert!(left.len()+right.len()+middle.len()==bot_len);
-    Binned{left:left,middle:middle,right:right}
+    Binned{left,middle,right}
 }
 
 pub fn bin_left_right_middle<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
@@ -190,7 +190,7 @@ pub fn bin_left_right_middle<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&
     let (rest,middle)=bots.split_at_mut(left_end);
     let (left,right)=rest.split_at_mut(middle_end);
     debug_assert!(left.len()+middle.len()+right.len()==bot_len);
-    Binned{left:left,middle:middle,right:right}
+    Binned{left,middle,right}
 }
 
 pub fn compare_bots<T:HasAabb>(axis:impl AxisTrait,a:&T,b:&T)->std::cmp::Ordering{

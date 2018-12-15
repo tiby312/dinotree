@@ -94,7 +94,7 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
         let num_bots=bots.len();
         let max=std::u32::MAX;
         
-        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
+        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported",max);
 
 
         let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
@@ -147,8 +147,7 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
                 new_nodes
             };
 
-            let tree2=compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap();
-            tree2
+            compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap()
         };
 
         let mover=cont_tree.get_conts().iter().map(|a|Index(a.index)).collect();

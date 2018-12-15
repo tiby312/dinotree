@@ -49,7 +49,8 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
     //(a,b.0)
 }
 ///A more advanced tree construction function where the use can choose, the height of the tree, the height at which to switch to sequential recursion, and a splitter callback (useful to measuring the time each level of the tree took, for example).
-pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   
+pub fn new_adv<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter+Send>(
+        rebal_strat:Option<RebalStrat>,axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:Option<usize>,splitter:&mut K,height_switch_seq:Option<usize>)->DinoTree<A,N,BBox<Num,T>>{   
     
     let height=match height{
         Some(height)=>height,
@@ -80,7 +81,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
         let num_bots=bots.len();
         let max=std::u32::MAX;
         
-        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported");
+        assert!(num_bots < max as usize,"problems of size {} are bigger are not supported",max);
 
         let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
             Cont2{rect:aabb_create(k),index:index as u32}

@@ -141,11 +141,7 @@ mod chunk{
 #[allow(dead_code)]
 pub fn are_adjacent<'a, T1,T2>(first: &'a [T1], second: &'a [T2]) -> bool {
     let fl = first.len();
-    if first[fl..].as_ptr() == second.as_ptr() as *const T1 {
-        true
-    }else{
-        false
-    }
+    first[fl..].as_ptr() == second.as_ptr() as *const T1
 }
 
 #[allow(dead_code)]
