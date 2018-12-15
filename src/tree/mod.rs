@@ -44,7 +44,8 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
 impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
     type Target=DinoTreeRef<'a,A,N,T>;
     fn deref(&self)->&DinoTreeRef<'a,A,N,T>{
-        unsafe{std::mem::transmute(self)}
+        unsafe{&*(self as *const tree::DinoTreeRefMut<'a, A, N, T> as *const tree::DinoTreeRef<'a, A, N, T>)}
+        //unsafe{std::mem::transmute(self)}
     }
 }
 

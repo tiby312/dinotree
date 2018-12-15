@@ -9,6 +9,7 @@ fn into_secs(elapsed:std::time::Duration)->f64{
 ///Note that the number of elements in the returned Vec could be less than the height of the tree.
 ///This can happen if the recursive algorithm does not recurse all the way to the leafs because it
 ///deemed it not necessary.
+#[derive(Default)]
 pub struct LevelTimer{
     levels:Vec<f64>,
     time:Option<Instant>,

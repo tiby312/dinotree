@@ -45,7 +45,10 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         unsafe impl<T> Send for SplitterWrapper<T>{}
         unsafe impl<T> Sync for SplitterWrapper<T>{}
 
-        let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
+        //let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
+        let ss:&mut SplitterWrapper<K>=unsafe{&mut *(splitter as *mut K as *mut SplitterWrapper<K>)};
+
+
         NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter))
     }
 }

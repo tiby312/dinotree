@@ -44,7 +44,9 @@ pub fn new_adv_seq<A:AxisTrait,N:Copy,Num:NumTrait,T:Copy,K:Splitter>(rebal_stra
     unsafe impl<T> Send for SplitterWrapper<T>{}
     unsafe impl<T> Sync for SplitterWrapper<T>{}
 
-    let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
+    //let ss:&mut SplitterWrapper<K>=unsafe{std::mem::transmute(splitter)};
+    let ss:&mut SplitterWrapper<K>=unsafe{&mut *(splitter as *mut K as *mut SplitterWrapper<K>)};
+    
     DinoTree::new_inner(rebal_strat,axis,n,bots,aabb_create,ss,height,par::Sequential,DefaultSorter)
     //(a,b.0)
 }
