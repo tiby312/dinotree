@@ -143,19 +143,3 @@ pub unsafe trait HasAabb{
     type Num:NumTrait;
     fn get(&self)->&axgeom::Rect<Self::Num>;
 }
-
-
-
-use axgeom::AxisTrait;
-pub struct AxisWrap<A:AxisTrait,T>{
-    axis:A,
-    inner:T
-}
-impl<A:AxisTrait,T> AxisWrap<A,T>{
-    pub fn axis(&self)->A{
-        self.axis
-    }
-    pub fn into_inner(self)->T{
-        self.inner
-    }
-}

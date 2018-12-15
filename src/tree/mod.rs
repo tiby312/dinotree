@@ -6,7 +6,7 @@ pub mod dinotree_no_copy;
 use inner_prelude::*;
 
 
-
+///Mutable referance to a dinotree container.
 pub struct DinoTreeRefMut<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a mut [T],
@@ -38,6 +38,7 @@ impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
 }
 
 
+///Referance to a dinotree container.
 pub struct DinoTreeRef<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a [T],
@@ -96,6 +97,7 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
     }
 }
 
+///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
 #[inline]
 pub fn compute_default_level_switch_sequential(depth:Option<usize>,height:usize)->par::Parallel{
     const DEPTH_SEQ:usize=4;

@@ -73,6 +73,7 @@ impl Splitter for LevelTimer{
 
 
 pub use tree::compute_tree_height_heuristic_debug;
+
 pub use tree::compute_default_level_switch_sequential;
 pub use tree::compute_tree_height_heuristic;
 
@@ -121,8 +122,6 @@ pub use tree::dinotree_no_copy::new_adv_no_copy_seq;
 
 
 
-///Returns Ok, then this tree's invariants are being met.
-///Should always return true, unless the user corrupts the trees memory
-///or if the contract of the HasAabb trait are not upheld.
+
 pub use assert_invariants::are_invariants_met;
 
