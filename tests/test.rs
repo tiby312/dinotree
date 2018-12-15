@@ -24,7 +24,7 @@ fn test_zero_sized(){
         axgeom::Rect::new(0isize,0,0,0)
     });
 
-    let n=tree.as_ref().vistr().next();
+    let n=tree.as_ref().into_vistr().next();
     assert_eq!(n.1.is_none(),true);
     assert_eq!(n.0.range.len(),1);
 
@@ -38,7 +38,7 @@ fn test_one(){
         axgeom::Rect::new(0isize,0,0,0)
     });
 
-    let n=tree.as_ref().vistr().next();
+    let n=tree.as_ref().into_vistr().next();
     assert_eq!(n.1.is_none(),true);
     assert_eq!(n.0.range.len(),1);
 }
@@ -76,7 +76,7 @@ fn test_empty(){
         axgeom::Rect::new(0isize,0,0,0)
     });
 
-    let n=tree.as_ref().vistr().next();
+    let n=tree.as_ref().into_vistr().next();
     assert_eq!(n.0.range.len(),0);
 }
 

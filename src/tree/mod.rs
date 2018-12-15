@@ -3,7 +3,7 @@
 pub mod dinotree;
 pub mod dinotree_no_copy;
 
-use inner_prelude::*;
+use crate::inner_prelude::*;
 
 
 

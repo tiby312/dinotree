@@ -1,10 +1,9 @@
 use axgeom::AxisTrait;
 use compt::Visitor;
 use is_sorted::IsSorted;
-use inner_prelude::*;
+use crate::inner_prelude::*;
 
-
-use tree::Vistr;
+use crate::tree::Vistr;
 
 
 ///Returns Ok, then this tree's invariants are being met.

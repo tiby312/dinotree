@@ -88,7 +88,7 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
         rebal_type:RebalStrat,axis:A,n:N,bots:&'a mut[T],ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTreeNoCopy<'a,A,N,T>
     {   
         let bots2=unsafe{&mut *(bots as *mut [_])};
-        use tree::cont_tree::*;
+        use crate::tree::cont_tree::*;
         
 
         let num_bots=bots.len();

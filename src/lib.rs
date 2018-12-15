@@ -49,7 +49,6 @@ extern crate itertools;
 extern crate reorder;
 
 mod inner_prelude{
-  pub use tree::*;
   pub use std::mem::*;
   pub use std::marker::PhantomData;
   pub use std::iter::*;
@@ -58,12 +57,13 @@ mod inner_prelude{
   pub use itertools::Itertools;
   pub use std::time::Instant;
   
-  pub(crate) use par;
-  pub(crate) use tree;
-  pub(crate) use advanced;
-  pub(crate) use advanced::Splitter;
-  pub(crate) use compt::Depth;
-  pub(crate) use compt::Visitor;
+  pub(crate) use crate::tree::*;
+  pub(crate) use crate::par;
+  pub(crate) use crate::tree;
+  pub(crate) use crate::advanced;
+  pub(crate) use crate::advanced::Splitter;
+  pub(crate) use crate::compt::Depth;
+  pub(crate) use crate::compt::Visitor;
   pub(crate) use super::*;
 }
 
@@ -82,16 +82,16 @@ mod notsorted;
 
 mod tree;
 
-pub use tree::DinoTreeRef;
-pub use tree::DinoTreeRefMut;
-pub use tree::dinotree::DinoTree;
-pub use tree::dinotree_no_copy::DinoTreeNoCopy;
-pub use tree::Vistr;
-pub use tree::VistrMut;
-pub use tree::FullComp;
-pub use tree::NodeRef;
-pub use tree::NodeRefMut;
-pub use tree::BBox;
+pub use crate::tree::DinoTreeRef;
+pub use crate::tree::DinoTreeRefMut;
+pub use crate::tree::dinotree::DinoTree;
+pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
+pub use crate::tree::Vistr;
+pub use crate::tree::VistrMut;
+pub use crate::tree::FullComp;
+pub use crate::tree::NodeRef;
+pub use crate::tree::NodeRefMut;
+pub use crate::tree::BBox;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one

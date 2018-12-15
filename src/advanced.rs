@@ -1,6 +1,5 @@
-use inner_prelude::*;
-
-pub use tree::RebalStrat;
+use crate::inner_prelude::*;
+pub use crate::tree::RebalStrat;
 
 fn into_secs(elapsed:std::time::Duration)->f64{
     let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
@@ -72,10 +71,9 @@ impl Splitter for LevelTimer{
 
 
 
-pub use tree::compute_tree_height_heuristic_debug;
-
-pub use tree::compute_default_level_switch_sequential;
-pub use tree::compute_tree_height_heuristic;
+pub use crate::tree::compute_tree_height_heuristic_debug;
+pub use crate::tree::compute_default_level_switch_sequential;
+pub use crate::tree::compute_tree_height_heuristic;
 
 
 ///A trait that gives the user callbacks at events in a recursive algorithm on the tree.
@@ -87,7 +85,7 @@ pub trait Splitter:Sized{
     fn div(&mut self)->Self;
 
     ///Called to add the results of the recursive calls on the children.
-    fn add(&mut self,Self);
+    fn add(&mut self,b:Self);
 
     ///Called at the start of the recursive call.
     fn node_start(&mut self);
@@ -109,19 +107,19 @@ impl Splitter for SplitterEmpty{
 
 
 
-pub use tree::dinotree::DinoTree;
-pub use tree::dinotree_no_copy::DinoTreeNoCopy;
-pub use notsorted::NotSorted;
-pub use oned::sweeper_update;
+pub use crate::tree::dinotree::DinoTree;
+pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
+pub use crate::notsorted::NotSorted;
+pub use crate::oned::sweeper_update;
 
-pub use tree::dinotree::new_adv;
-pub use tree::dinotree::new_adv_seq;
-pub use tree::dinotree_no_copy::new_adv_no_copy;
-pub use tree::dinotree_no_copy::new_adv_no_copy_seq;
-
-
+pub use crate::tree::dinotree::new_adv;
+pub use crate::tree::dinotree::new_adv_seq;
+pub use crate::tree::dinotree_no_copy::new_adv_no_copy;
+pub use crate::tree::dinotree_no_copy::new_adv_no_copy_seq;
 
 
 
-pub use assert_invariants::are_invariants_met;
+
+
+pub use crate::assert_invariants::are_invariants_met;
 

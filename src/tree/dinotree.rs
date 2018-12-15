@@ -1,4 +1,4 @@
-use inner_prelude::*;
+use crate::inner_prelude::*;
 
 
 
@@ -74,7 +74,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
     pub(crate) fn new_inner<JJ:par::Joiner,K:Splitter+Send,F:FnMut(&T)->Rect<Num>>(
 	    rebal_type:RebalStrat,axis:A,n:N,bots:&[T],mut aabb_create:F,ka:&mut K,height:usize,par:JJ,sorter:impl Sorter)->DinoTree<A,N,BBox<Num,T>>
 	{   
-        use tree::cont_tree::*;
+        use crate::tree::cont_tree::*;
             
 
         let num_bots=bots.len();
