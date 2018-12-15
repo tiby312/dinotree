@@ -7,6 +7,8 @@ pub struct NotSorted<A:AxisTrait,N,T:HasAabb>(pub DinoTree<A,N,T>);
 
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
+        unimplemented!()
+        /*
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
 
@@ -14,18 +16,23 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
         let dlevel=advanced::compute_default_level_switch_sequential(None,height);
         
         NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+        */
     }
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->NotSorted<A,N,BBox<Num,T>>{
+        unimplemented!()
+        /*
         let height=advanced::compute_tree_height_heuristic(bots.len()); 
         let mut ka=advanced::SplitterEmpty;
 
         let dlevel=par::Sequential;
 
         NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,&mut ka,height,dlevel,NoSorter))
+        */
     }
 
     pub fn new_adv_seq<K:Splitter>(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>,height:usize,splitter:&mut K)->NotSorted<A,N,BBox<Num,T>>{
-
+        unimplemented!();
+        /*
         #[repr(transparent)]
         pub struct SplitterWrapper<T>(
             pub T,
@@ -50,5 +57,6 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> NotSorted<A,N,BBox<Num,T>>{
 
 
         NotSorted(DinoTree::new_inner(RebalStrat::First,axis,n,bots,aabb_create,ss,height,par::Sequential,NoSorter))
+        */
     }
 }

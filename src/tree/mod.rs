@@ -118,16 +118,20 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
     }
 }
 
+
 ///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
 #[inline]
-pub fn compute_default_level_switch_sequential(depth:Option<usize>,height:usize)->par::Parallel{
+pub fn default_level_switch_sequential()->usize{
     const DEPTH_SEQ:usize=4;
+    DEPTH_SEQ
+}
 
-    let dd=match depth{
-        Some(d)=>d,
-        None=>DEPTH_SEQ
-    };
-
+///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
+#[inline]
+pub fn compute_default_level_switch_sequential(depth:usize,height:usize)->par::Parallel{
+    const DEPTH_SEQ:usize=4;
+    let dd=depth;
+    
     let gg=if height<=dd{
         0
     }else{
