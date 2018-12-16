@@ -30,42 +30,76 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
         DinoTreeBuilder{axis,n,bots,aabb_create,rebal_strat,height,height_switch_seq}
     }
 
-    pub fn with_rebal_strat(&mut self,strat:RebalStrat){
+    pub fn with_rebal_strat(&mut self,strat:RebalStrat)->&mut Self{
         self.rebal_strat=strat;
+        self
     }
-    pub fn with_height(&mut self,height:usize){
+    pub fn with_height(&mut self,height:usize)->&mut Self{
         self.height=height;
+        self
     }
-    pub fn with_height_switch_seq(&mut self,height:usize){
+    pub fn with_height_switch_seq(&mut self,height:usize)->&mut Self{
         self.height_switch_seq=height;
+        self
     }
 
-    pub fn build_with_splitter_seq<S:Splitter+Send>(self,splitter:&mut S)->DinoTree<A,N,BBox<Num,T>>{
+    pub fn build_with_splitter_seq<S:Splitter>(&mut self,splitter:&mut S)->DinoTree<A,N,BBox<Num,T>>{
+        //unimplemented!()
+
+
+        #[repr(transparent)]
+        pub struct SplitterWrap<S>{
+            inner:S
+        }
+        impl<S:Splitter> Splitter for SplitterWrap<S>{
+            fn div(&mut self)->Self{
+                SplitterWrap{inner:self.inner.div()}
+            }
+            fn add(&mut self,a:Self){
+                self.inner.add(a.inner)
+            }
+            fn node_start(&mut self){
+                self.inner.node_start();
+            }
+            fn node_end(&mut self){
+                self.inner.node_end()
+            }
+        }
+        unsafe impl<S> Send for SplitterWrap<S>{}
+
+        let splitter:&mut SplitterWrap<S>=unsafe{&mut *((splitter as *mut S) as *mut SplitterWrap<S>)};
+
+
         self.build_inner(par::Sequential,DefaultSorter,splitter)
     }
 
-    pub fn build_seq(self)->DinoTree<A,N,BBox<Num,T>>{
+    pub fn build_seq(&mut self)->DinoTree<A,N,BBox<Num,T>>{
         self.build_inner(par::Sequential,DefaultSorter,&mut crate::advanced::SplitterEmpty)
     }
 
-    pub fn build_par(self)->DinoTree<A,N,BBox<Num,T>>{
+    pub fn build_par(&mut self)->DinoTree<A,N,BBox<Num,T>>{
         let dlevel=compute_default_level_switch_sequential(self.height_switch_seq,self.height);
         self.build_inner(dlevel,DefaultSorter,&mut crate::advanced::SplitterEmpty)
     }
 
 
-    pub fn build_not_sorted_seq(self)->NotSorted<A,N,BBox<Num,T>>{
+    pub fn build_not_sorted_seq(&mut self)->NotSorted<A,N,BBox<Num,T>>{
         NotSorted(self.build_inner(par::Sequential,NoSorter,&mut crate::advanced::SplitterEmpty))
     }
 
+    pub fn build_not_sorted_par(&mut self)->NotSorted<A,N,BBox<Num,T>>{
+        let dlevel=compute_default_level_switch_sequential(self.height_switch_seq,self.height);
+        NotSorted(self.build_inner(dlevel,NoSorter,&mut crate::advanced::SplitterEmpty))
+    }
 
-    fn build_inner<JJ:par::Joiner,S:Splitter+Send>(self,par:JJ,sorter:impl Sorter,ka:&mut S)->DinoTree<A,N,BBox<Num,T>>{
+
+    fn build_inner<JJ:par::Joiner,S:Splitter+Send>(&mut self,par:JJ,sorter:impl Sorter,ka:&mut S)->DinoTree<A,N,BBox<Num,T>>{
         use crate::tree::cont_tree::*;
 
 
         let bots=self.bots;
         let axis=self.axis;
-        let mut aabb_create=self.aabb_create;
+        let mut aabb_create=&mut self.aabb_create;
         let n=self.n;
 
         let height=self.height;
@@ -80,7 +114,7 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
         
         assert!(num_bots < max as usize,"problems of size {} are bigger are not supported",max);
 
-        let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
+        let mut conts:Vec<_>=bots.iter().enumerate().map(move |(index,k)|{
             Cont2{rect:aabb_create(k),index:index as u32}
         }).collect();
         
@@ -121,24 +155,6 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
 
         DinoTree{mover,axis,bots:new_bots,tree:new_tree}
     }
-}
-
-
-
-impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
-    
-    /*
-    ///Safe to assume aabb_create is called for each bot in the slice in order.
-    ///Parallelization is done using rayon crate.
-    pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{ 
-        DinoTreeBuilder::new(axis,n,bots,aabb_create).build_par() 
-    }
-
-    pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
-        DinoTreeBuilder::new(axis,n,bots,aabb_create).build_seq()
-    }
-    */
-    
 }
 
 

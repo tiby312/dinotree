@@ -34,28 +34,28 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,N,T>{
 
 
     fn build_inner<JJ:par::Joiner,K:Splitter+Send>
-        (self,par:JJ,sorter:impl Sorter,ka:&mut K)->DinoTreeNoCopy<'a,A,N,T>
+        (mut self,par:JJ,sorter:impl Sorter,ka:&mut K)->DinoTreeNoCopy<'a,A,N,T>
     {   
         let axis=self.axis;
         let n=self.n;
-        let bots=self.bots;
+        //let bots=self.bots;
 
         let height=self.height;
         let rebal_type=self.rebal_strat;
 
 
 
-        let bots2=unsafe{&mut *(bots as *mut [_])};
+        let bots2=unsafe{&mut *(self.bots as *mut [_])};
         use crate::tree::cont_tree::*;
         
 
-        let num_bots=bots.len();
+        let num_bots=self.bots.len();
         let max=std::u32::MAX;
         
         assert!(num_bots < max as usize,"problems of size {} are bigger are not supported",max);
 
 
-        let mut conts:Vec<_>=bots.iter().enumerate().map(|(index,k)|{
+        let mut conts:Vec<_>=self.bots.iter().enumerate().map(|(index,k)|{
             Cont2{rect:*k.get(),index:index as u32}
         }).collect();
 
@@ -89,7 +89,7 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,N,T>{
                 }
             }
             //bots
-            reorder::reorder(bots,cont_tree.get_conts_mut())
+            reorder::reorder(&mut self.bots,cont_tree.get_conts_mut())
         };
 
 
