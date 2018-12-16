@@ -2,6 +2,7 @@
 
 pub mod dinotree;
 pub mod dinotree_no_copy;
+pub mod notsorted;
 
 use crate::inner_prelude::*;
 

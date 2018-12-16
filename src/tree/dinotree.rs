@@ -1,5 +1,5 @@
 use crate::inner_prelude::*;
-use crate::notsorted::*;
+use super::notsorted::*;
 
 ///The datastructure this crate revolves around.
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
@@ -127,6 +127,7 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
 
 impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
     
+    /*
     ///Safe to assume aabb_create is called for each bot in the slice in order.
     ///Parallelization is done using rayon crate.
     pub fn new(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{ 
@@ -136,6 +137,7 @@ impl<A:AxisTrait,N:Copy,T:Copy,Num:NumTrait> DinoTree<A,N,BBox<Num,T>>{
     pub fn new_seq(axis:A,n:N,bots:&[T],aabb_create:impl FnMut(&T)->Rect<Num>)->DinoTree<A,N,BBox<Num,T>>{   
         DinoTreeBuilder::new(axis,n,bots,aabb_create).build_seq()
     }
+    */
     
 }
 

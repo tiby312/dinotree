@@ -109,7 +109,8 @@ impl Splitter for SplitterEmpty{
 
 pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
-pub use crate::notsorted::NotSorted;
+pub use crate::tree::notsorted::NotSorted;
+
 pub use crate::oned::sweeper_update;
 
 //pub use crate::tree::dinotree::new_adv;

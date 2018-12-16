@@ -78,7 +78,6 @@ pub mod par;
 mod assert_invariants;
 
 
-mod notsorted;
 
 mod tree;
 
