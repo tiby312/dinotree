@@ -51,6 +51,7 @@ impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
 }
 
 
+
 ///Referance to a dinotree container.
 pub struct DinoTreeRef<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
@@ -81,10 +82,6 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
         self.bots.iter()
     }
 
-    #[inline]
-    pub fn into_iter(self)->std::slice::Iter<'a,T>{
-        self.bots.iter()
-    }
 
 
     #[inline]
@@ -130,7 +127,7 @@ pub fn default_level_switch_sequential()->usize{
 ///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
 #[inline]
 pub fn compute_default_level_switch_sequential(depth:usize,height:usize)->par::Parallel{
-    const DEPTH_SEQ:usize=4;
+    //const DEPTH_SEQ:usize=4;
     let dd=depth;
     
     let gg=if height<=dd{
@@ -457,9 +454,9 @@ mod cont_tree{
 
 
                 let (node,left,right)=match construct_non_leaf(self.binstrat,self.sorter,axis,rest){
-                    Some((fullcomp,left,mid,right))=>{
+                    Some(ConstructResult{fullcomp,left,middle,right})=>{
                         
-                        (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid},left,right)
+                        (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid:middle},left,right)
                     },
                     None=>{
                         //We don't want to return here since we still want to populate the whole tree!
@@ -551,7 +548,16 @@ pub enum BinStrat{
     LeftRightMid
 }
 
-pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<(FullComp<T::Num>,&mut [T],&mut [T],&mut [T])>{
+
+pub struct ConstructResult<'a,T:HasAabb>{
+    fullcomp:FullComp<T::Num>,
+    left:&'a mut [T],
+    middle:&'a mut [T],
+    right:&'a mut [T]
+}
+
+
+pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<ConstructResult<T>>{
     let med=if bots.is_empty(){
         return None;
     }
@@ -600,8 +606,9 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
     //We already know that the middile is non zero in length.
     let container_box=create_cont(div_axis,binned.middle).unwrap();
     
-    let full=FullComp{div:med,cont:container_box};
-    Some((full,binned.left,binned.middle,binned.right))
+    let fullcomp=FullComp{div:med,cont:container_box};
+    Some(ConstructResult{fullcomp,left:binned.left,middle:binned.middle,right:binned.right})
+    //Some((full,binned.left,binned.middle,binned.right))
 }
 
 

@@ -99,7 +99,7 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
 
         let bots=self.bots;
         let axis=self.axis;
-        let mut aabb_create=&mut self.aabb_create;
+        let aabb_create=&mut self.aabb_create;
         let n=self.n;
 
         let height=self.height;

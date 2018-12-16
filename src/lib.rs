@@ -60,7 +60,6 @@ mod inner_prelude{
   pub(crate) use crate::tree::*;
   pub(crate) use crate::par;
   pub(crate) use crate::tree;
-  pub(crate) use crate::advanced;
   pub(crate) use crate::advanced::Splitter;
   pub(crate) use crate::compt::Depth;
   pub(crate) use crate::compt::Visitor;
