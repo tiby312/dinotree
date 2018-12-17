@@ -10,7 +10,7 @@ pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
 }
 
 
-
+///Builder for a DinoTree
 pub struct DinoTreeBuilder<'a,A:AxisTrait,N,T,Num:NumTrait,F:FnMut(&T)->Rect<Num>>{
     axis:A,
     n:N,
@@ -30,22 +30,28 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
         DinoTreeBuilder{axis,n,bots,aabb_create,rebal_strat,height,height_switch_seq}
     }
 
+    ///Choose a custom rebalance stratagy.
     pub fn with_rebal_strat(&mut self,strat:RebalStrat)->&mut Self{
         self.rebal_strat=strat;
         self
     }
+
+    ///Choose a custom height for the tree.
     pub fn with_height(&mut self,height:usize)->&mut Self{
         self.height=height;
         self
+        //TODO test corner cases of this
     }
+
+    ///Choose the height at which to switch from parallel to sequential.
+    ///If you end up building sequentially, this argument is ignored.
     pub fn with_height_switch_seq(&mut self,height:usize)->&mut Self{
         self.height_switch_seq=height;
         self
     }
 
-    pub fn build_with_splitter_seq<S:Splitter>(&mut self,splitter:&mut S)->DinoTree<A,N,BBox<Num,T>>{
-        //unimplemented!()
 
+    pub fn build_with_splitter_seq<S:Splitter>(&mut self,splitter:&mut S)->DinoTree<A,N,BBox<Num,T>>{
 
         #[repr(transparent)]
         pub struct SplitterWrap<S>{
