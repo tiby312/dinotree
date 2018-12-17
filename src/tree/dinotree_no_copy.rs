@@ -139,19 +139,6 @@ pub struct DinoTreeNoCopy<'a,A:AxisTrait,N,T:HasAabb>{
 
 impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,N,T>{
 
-    /*
-    ///Safe to assume aabb_create is called for each bot in the slice in order.
-    ///Parallelization is done using rayon crate.
-    #[inline]
-    pub fn new(axis:A,n:N,bots:&'a mut [T])->DinoTreeNoCopy<'a,A,N,T>{  
-        DinoTreeNoCopyBuilder::new(axis,n,bots).build_par() 
-    }
-
-    pub fn new_seq(axis:A,n:N,bots:&'a mut [T])->DinoTreeNoCopy<'a,A,N,T>{ 
-        DinoTreeNoCopyBuilder::new(axis,n,bots).build_seq() 
-    }
-    */
-
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     pub fn into_original(mut self)->&'a mut [T]{

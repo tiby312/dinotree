@@ -120,7 +120,7 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize,num_per_node:usize) -
 ///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
 #[inline]
 pub fn default_level_switch_sequential()->usize{
-    const DEPTH_SEQ:usize=4;
+    const DEPTH_SEQ:usize=6;
     DEPTH_SEQ
 }
 
