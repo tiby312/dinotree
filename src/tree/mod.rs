@@ -13,7 +13,7 @@ use crate::inner_prelude::*;
 pub struct DinoTreeRefMut<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a mut [T],
-    tree:&'a mut compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::InOrder>
+    tree:&'a mut compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::PreOrder>
 }
 
 impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
@@ -56,7 +56,7 @@ impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
 pub struct DinoTreeRef<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a [T],
-    tree:&'a compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::InOrder>
+    tree:&'a compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::PreOrder>
 }
 
 impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
@@ -82,7 +82,11 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
         self.bots.iter()
     }
 
-
+    ///See iter_mut
+    #[inline]
+    pub fn into_iter(self)->std::slice::Iter<'a,T>{
+        self.bots.iter()
+    }
 
     #[inline]
     pub fn height(&self)->usize{
@@ -177,7 +181,7 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
 pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::Vistr<'a,Node3<N,T>,compt::dfs_order::InOrder>
+    inner:compt::dfs_order::Vistr<'a,Node3<N,T>,compt::dfs_order::PreOrder>
 }
 
 impl<'a,N:'a,T:HasAabb+'a> Vistr<'a,N,T>{
@@ -236,7 +240,7 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
 pub struct VistrMut<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>,compt::dfs_order::InOrder>
+    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>,compt::dfs_order::PreOrder>
 }
 
 impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
@@ -392,15 +396,15 @@ mod cont_tree{
 
 
     pub struct ContTree<'a,Num:NumTrait>{
-        tree:compt::dfs_order::CompleteTreeContainer<Node2<'a,Num>,compt::dfs_order::InOrder>,
+        tree:compt::dfs_order::CompleteTreeContainer<Node2<'a,Num>,compt::dfs_order::PreOrder>,
         conts:&'a mut [Cont2<Num>]
     }
 
     impl<'a,Num:NumTrait> ContTree<'a,Num>{
-        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::InOrder>{
+        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::PreOrder>{
             &mut self.tree
         }
-        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::InOrder>{
+        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::PreOrder>{
             &self.tree
         }
         pub fn get_conts_mut(&mut self)->&mut [Cont2<Num>]{
@@ -411,6 +415,7 @@ mod cont_tree{
         }
 
         pub fn new<A:AxisTrait,JJ:par::Joiner,K:Splitter+Send>(div_axis:A,dlevel:JJ,rest:&'a mut [Cont2<Num>],sorter:impl Sorter,splitter:&mut K,height:usize,binstrat:BinStrat)->ContTree<'a,Num>{
+            let num_bots=rest.len();
             let rest2=unsafe{&mut *(rest as *mut [_])};
             let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
                 
@@ -418,7 +423,20 @@ mod cont_tree{
             r.recurse(div_axis,dlevel,rest,&mut nodes,splitter,0);
             //recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
 
+
+
             let tree=compt::dfs_order::CompleteTreeContainer::from_vec(nodes).unwrap();
+
+            //TODO remove
+            for arr in tree.get_nodes().windows(2){
+                let a=&arr[0];
+                let b=&arr[1];
+                assert_eq!(a.mid[a.mid.len()..].as_ptr() , b.mid.as_ptr());
+            }
+
+            let k=tree.get_nodes().iter().fold(0,|acc,a|acc+a.mid.len());
+            assert_eq!(k,num_bots);
+
             ContTree{tree,conts:rest2}
         }
     }
@@ -452,6 +470,7 @@ mod cont_tree{
 
                 let mut splitter2=splitter.div();
 
+                let rest_ptr=rest.as_mut_ptr(); //TODO ugly
 
                 let (node,left,right)=match construct_non_leaf(self.binstrat,self.sorter,axis,rest){
                     Some(ConstructResult{fullcomp,left,middle,right})=>{
@@ -460,22 +479,33 @@ mod cont_tree{
                     },
                     None=>{
                         //We don't want to return here since we still want to populate the whole tree!
-                        (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:&mut []},&mut [] as &mut [_],&mut [] as &mut [_])
+                        let (a,b,c)=unsafe{
+                            let a=std::slice::from_raw_parts_mut(rest_ptr,0);
+                            let b=std::slice::from_raw_parts_mut(rest_ptr,0);
+                            let c=std::slice::from_raw_parts_mut(rest_ptr,0);
+                            (a,b,c)
+                        };
+                        (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:a},b,c)
                     }
                 };
                 
+                nodes.push(node);
+
                 let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
                     let splitter2=&mut splitter2;
 
                     let af= move || {
+                
                         self.recurse(axis.next(),dlevel,left,nodes,splitter,depth+1);
                         (splitter,nodes)
                     };
 
+                    //TODO do this inside closure?
+                    let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,self.height));
+                        
                     let bf= move || {
 
-                        let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,self.height));
-                        nodes2.push(node);                
+                        //nodes2.push(node);                
                         self.recurse(axis.next(),dlevel,right,&mut nodes2,splitter2,depth+1);
                         nodes2
                     };
@@ -484,7 +514,7 @@ mod cont_tree{
                     splitter
                 }else{
                     self.recurse(axis.next(),dlevel.into_seq(),left,nodes,splitter,depth+1);
-                    nodes.push(node);
+                    //nodes.push(node);
                     self.recurse(axis.next(),dlevel.into_seq(),right,nodes,&mut splitter2,depth+1);
                     splitter
                 };
@@ -543,7 +573,6 @@ pub fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots
 #[derive(Copy,Clone,Debug)]
 pub enum BinStrat{
     LeftMidRight,
-    LeftMidRightUnchecked,
     MidLeftRight,
     LeftRightMid
 }
@@ -587,11 +616,28 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
         BinStrat::LeftMidRight=>{
             oned::bin_left_middle_right(div_axis,&med,bots)
         },
+        /*
         BinStrat::LeftMidRightUnchecked=>{
-            unsafe{oned::bin_left_middle_right_unchecked(div_axis,&med,bots)}
+            //unsafe{oned::bin_left_middle_right_unchecked(div_axis,&med,bots)}
         },
+        BinStrat::MidLeftRightUnchecked=>{
+            //unsafe{oned::bin_middle_left_right(div_axis,&med,bots)}
+        }
+        */
         BinStrat::MidLeftRight=>{
             oned::bin_middle_left_right(div_axis,&med,bots)
+            /*
+            let (a,b,c)={
+                let a=oned::bin_middle_left_right(div_axis,&med,bots);
+                (a.left.len(),a.middle.len(),a.right.len())
+            };
+
+            let d=oned::bin_left_middle_right(div_axis,&med,bots);
+            assert_eq!(a,d.left.len());
+            assert_eq!(b,d.middle.len());
+            assert_eq!(c,d.right.len() );
+            d 
+            */                       
         },
         BinStrat::LeftRightMid=>{
             oned::bin_left_right_middle(div_axis,&med,bots)

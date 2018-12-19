@@ -5,7 +5,7 @@ use super::notsorted::*;
 pub struct DinoTree<A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:Vec<T>,
-    tree:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::InOrder>,
+    tree:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::PreOrder>,
     mover:Vec<u32>
 }
 
@@ -127,25 +127,31 @@ impl<'a,A:AxisTrait,N:Copy,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeB
         let (new_bots,new_tree)={
             let binstrat=match rebal_type{
                 RebalStrat::First=>{
-                    BinStrat::LeftMidRight
+                    BinStrat::MidLeftRight
+                    //BinStrat::LeftMidRight
+                    //BinStrat::MidLeftRightUnchecked
                 },
                 RebalStrat::Second=>{
+                    BinStrat::MidLeftRight
+                    
                     //BinStrat::MidLeftRight
-                    BinStrat::LeftMidRightUnchecked
+                    //BinStrat::LeftMidRightUnchecked
                 },
                 RebalStrat::Third=>{
-                    BinStrat::LeftRightMid
+                    BinStrat::MidLeftRight
                 }
             };
 
             let mut cont_tree=ContTree::new(axis,par,&mut conts,sorter,ka,height,binstrat);
 
+
             let mut new_bots:Vec<_>=cont_tree.get_conts().iter().map(|a|BBox{rect:a.rect,inner:*unsafe{bots.get_unchecked(a.index as usize)}}).collect();            
+
 
             let new_nodes={
                 let mut rest:Option<&mut [BBox<Num,T>]>=Some(&mut new_bots);
                 let mut new_nodes=Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
-                for node in cont_tree.get_tree_mut().dfs_inorder_iter(){
+                for node in cont_tree.get_tree_mut().dfs_iter(){
                     let (b,rest2)=rest.take().unwrap().split_at_mut(node.mid.len());
                     rest=Some(rest2);
                     let b=unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])};

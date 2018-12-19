@@ -97,7 +97,7 @@ impl<'a,A:AxisTrait,N:Copy,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,N,T>{
             let new_nodes={
                 let mut rest:Option<&mut [T]>=Some(new_bots);
                 let mut new_nodes=Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
-                for node in cont_tree.get_tree_mut().dfs_inorder_iter(){
+                for node in cont_tree.get_tree_mut().dfs_iter(){
                     let (b,rest2)=rest.take().unwrap().split_at_mut(node.mid.len());
                     rest=Some(rest2);
                     new_nodes.push(Node3{n,fullcomp:node.fullcomp,mid:unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])}});
@@ -133,7 +133,7 @@ impl reorder::HasIndex for Index{
 pub struct DinoTreeNoCopy<'a,A:AxisTrait,N,T:HasAabb>{
     axis:A,
     bots:&'a mut [T],
-    nodes:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::InOrder>,
+    nodes:compt::dfs_order::CompleteTreeContainer<Node3<N,T>,compt::dfs_order::PreOrder>,
     mover:Vec<Index>
 }
 
