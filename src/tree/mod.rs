@@ -420,9 +420,8 @@ mod cont_tree{
             let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
                 
             let r=Recurser{height,binstrat,sorter,_p:PhantomData};
-            r.recurse(div_axis,dlevel,rest,&mut nodes,splitter,0);
-            //recurse_rebal(div_axis,dlevel,rest,&mut nodes,sorter,splitter,0,height,binstrat);
-
+            r.recurse_preorder(div_axis,dlevel,rest,&mut nodes,splitter,0);
+            
 
 
             let tree=compt::dfs_order::CompleteTreeContainer::from_vec(nodes).unwrap();
@@ -453,7 +452,7 @@ mod cont_tree{
 
     impl<'a,Num:NumTrait,K:Splitter+Send,S:Sorter> Recurser<'a,Num,K,S>{
 
-        fn recurse<A:AxisTrait,JJ:par::Joiner>(
+        fn recurse_preorder<A:AxisTrait,JJ:par::Joiner>(
             &self,
             axis:A,
             dlevel:JJ,
@@ -470,21 +469,13 @@ mod cont_tree{
 
                 let mut splitter2=splitter.div();
 
-                let rest_ptr=rest.as_mut_ptr(); //TODO ugly
-
                 let (node,left,right)=match construct_non_leaf(self.binstrat,self.sorter,axis,rest){
-                    Some(ConstructResult{fullcomp,left,middle,right})=>{
-                        
+                    ConstructResult2::NonEmpty(ConstructResult{fullcomp,left,middle,right})=>{                        
                         (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid:middle},left,right)
                     },
-                    None=>{
-                        //We don't want to return here since we still want to populate the whole tree!
-                        let (a,b,c)=unsafe{
-                            let a=std::slice::from_raw_parts_mut(rest_ptr,0);
-                            let b=std::slice::from_raw_parts_mut(rest_ptr,0);
-                            let c=std::slice::from_raw_parts_mut(rest_ptr,0);
-                            (a,b,c)
-                        };
+                    ConstructResult2::Empty(empty)=>{
+                        let (a,b)=tools::duplicate_empty_slice(empty);
+                        let (b,c)=tools::duplicate_empty_slice(b);
                         (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:a},b,c)
                     }
                 };
@@ -494,28 +485,23 @@ mod cont_tree{
                 let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
                     let splitter2=&mut splitter2;
 
-                    let af= move || {
-                
-                        self.recurse(axis.next(),dlevel,left,nodes,splitter,depth+1);
+
+                    let ((splitter,nodes),mut nodes2)=rayon::join(
+                        move || {
+                        self.recurse_preorder(axis.next(),dlevel,left,nodes,splitter,depth+1);
                         (splitter,nodes)
-                    };
-
-                    //TODO do this inside closure?
-                    let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,self.height));
-                        
-                    let bf= move || {
-
-                        //nodes2.push(node);                
-                        self.recurse(axis.next(),dlevel,right,&mut nodes2,splitter2,depth+1);
+                        },
+                        move || {
+                        let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,self.height));
+                        self.recurse_preorder(axis.next(),dlevel,right,&mut nodes2,splitter2,depth+1);
                         nodes2
-                    };
-                    let ((splitter,nodes),mut nodes2)=rayon::join(af,bf);
+                    });
+
                     nodes.append(&mut nodes2);
                     splitter
                 }else{
-                    self.recurse(axis.next(),dlevel.into_seq(),left,nodes,splitter,depth+1);
-                    //nodes.push(node);
-                    self.recurse(axis.next(),dlevel.into_seq(),right,nodes,&mut splitter2,depth+1);
+                    self.recurse_preorder(axis.next(),dlevel.into_seq(),left,nodes,splitter,depth+1);
+                    self.recurse_preorder(axis.next(),dlevel.into_seq(),right,nodes,&mut splitter2,depth+1);
                     splitter
                 };
                 
@@ -585,10 +571,15 @@ pub struct ConstructResult<'a,T:HasAabb>{
     right:&'a mut [T]
 }
 
+pub enum ConstructResult2<'a,T:HasAabb>{
+    NonEmpty(ConstructResult<'a,T>),
+    Empty(&'a mut [T])
+}
 
-pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->Option<ConstructResult<T>>{
+
+pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->ConstructResult2<T>{
     let med=if bots.is_empty(){
-        return None;
+        return ConstructResult2::Empty(bots);//None;
     }
     else
     {
@@ -653,7 +644,7 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
     let container_box=create_cont(div_axis,binned.middle).unwrap();
     
     let fullcomp=FullComp{div:med,cont:container_box};
-    Some(ConstructResult{fullcomp,left:binned.left,middle:binned.middle,right:binned.right})
+    ConstructResult2::NonEmpty(ConstructResult{fullcomp,left:binned.left,middle:binned.middle,right:binned.right})
     //Some((full,binned.left,binned.middle,binned.right))
 }
 
