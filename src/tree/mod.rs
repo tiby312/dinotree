@@ -10,23 +10,26 @@ use crate::inner_prelude::*;
 
 
 ///Mutable referance to a dinotree container.
-pub struct DinoTreeRefMut<'a,A:AxisTrait,N,T:HasAabb>{
+pub struct DinoTreeRefMut<'a,A:AxisTrait,T:HasAabb>{
     axis:A,
     bots:&'a mut [T],
-    tree:&'a mut compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::PreOrder>
+    tree:&'a mut compt::dfs_order::CompleteTree<Node<T>,compt::dfs_order::PreOrder>
 }
 
-impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
+impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRefMut<'a,A,T>{
 
-    pub fn as_ref_mut(&mut self)->DinoTreeRefMut<A,N,T>{
+    #[inline]
+    pub fn as_ref_mut(&mut self)->DinoTreeRefMut<A,T>{
         DinoTreeRefMut{axis:self.axis,bots:self.bots,tree:self.tree}
     }
 
-    pub fn vistr_mut(&mut self)->VistrMut<N,T>{
+    #[inline]
+    pub fn vistr_mut(&mut self)->VistrMut<T>{
         VistrMut{inner:self.tree.vistr_mut()}
     }
 
-    pub fn into_vistr_mut(self)->VistrMut<'a,N,T>{
+    #[inline]
+    pub fn into_vistr_mut(self)->VistrMut<'a,T>{
         VistrMut{inner:self.tree.vistr_mut()}
     }
 
@@ -42,10 +45,11 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRefMut<'a,A,N,T>{
     }
 }
 
-impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
-    type Target=DinoTreeRef<'a,A,N,T>;
-    fn deref(&self)->&DinoTreeRef<'a,A,N,T>{
-        unsafe{&*(self as *const tree::DinoTreeRefMut<'a, A, N, T> as *const tree::DinoTreeRef<'a, A, N, T>)}
+impl<'a,A:AxisTrait,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,T>{
+    type Target=DinoTreeRef<'a,A,T>;
+    #[inline]
+    fn deref(&self)->&DinoTreeRef<'a,A,T>{
+        unsafe{&*(self as *const tree::DinoTreeRefMut<'a, A, T> as *const tree::DinoTreeRef<'a, A, T>)}
         //unsafe{std::mem::transmute(self)}
     }
 }
@@ -53,26 +57,27 @@ impl<'a,A:AxisTrait,N,T:HasAabb> std::ops::Deref for DinoTreeRefMut<'a,A,N,T>{
 
 
 ///Referance to a dinotree container.
-pub struct DinoTreeRef<'a,A:AxisTrait,N,T:HasAabb>{
+pub struct DinoTreeRef<'a,A:AxisTrait,T:HasAabb>{
     axis:A,
     bots:&'a [T],
-    tree:&'a compt::dfs_order::CompleteTree<Node3<N,T>,compt::dfs_order::PreOrder>
+    tree:&'a compt::dfs_order::CompleteTree<Node<T>,compt::dfs_order::PreOrder>
 }
 
-impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
-    pub fn as_ref(&self)->DinoTreeRef<A,N,T>{
+impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRef<'a,A,T>{
+    #[inline]
+    pub fn as_ref(&self)->DinoTreeRef<A,T>{
         DinoTreeRef{axis:self.axis,bots:self.bots,tree:self.tree}
     }
-
+    #[inline]
     pub fn axis(&self)->A{
         self.axis
     }
-
-    pub fn into_vistr(self)->Vistr<'a,N,T>{
+    #[inline]
+    pub fn into_vistr(self)->Vistr<'a,T>{
         Vistr{inner:self.tree.vistr()}
     }
-
-    pub fn vistr(&self)->Vistr<N,T>{
+    #[inline]
+    pub fn vistr(&self)->Vistr<T>{
         Vistr{inner:self.tree.vistr()}
     }
 
@@ -100,6 +105,17 @@ impl<'a,A:AxisTrait,N,T:HasAabb> DinoTreeRef<'a,A,N,T>{
     #[inline]
     pub fn num_bots(&self)->usize{
         self.bots.len()
+    }
+
+
+    ///Returns Ok, then this tree's invariants are being met.
+    ///Should always return true, unless the user corrupts the trees memory
+    ///or if the contract of the HasAabb trait are not upheld.
+    #[must_use]
+    pub fn are_invariants_met(&self)->bool{
+        let axis=self.axis();
+
+        crate::assert_invariants::inner(axis,self.vistr().with_depth(compt::Depth(0))).is_ok()
     }
 }
 
@@ -180,58 +196,52 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
-pub struct Vistr<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::Vistr<'a,Node3<N,T>,compt::dfs_order::PreOrder>
+pub struct Vistr<'a,T:HasAabb>{
+    inner:compt::dfs_order::Vistr<'a,Node<T>,compt::dfs_order::PreOrder>
 }
 
-impl<'a,N:'a,T:HasAabb+'a> Vistr<'a,N,T>{
+impl<'a,T:HasAabb> Vistr<'a,T>{
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
-    pub fn create_wrap(&self)->Vistr<N,T>{
+    #[inline]
+    pub fn create_wrap(&self)->Vistr<T>{
         Vistr{inner:self.inner.create_wrap()}
     }
 
+    #[inline]
     pub fn height(&self)->usize{
         //Safe since we know Vistr implements FixedDepthVisitor.
         self.inner.level_remaining_hint().0
     }
 }
 
-unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for Vistr<'a,N,T>{}
 
-impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
-    type Item=NodeRef<'a,N,T>;
-    type NonLeafItem=Option<&'a FullComp<T::Num>>;
+unsafe impl<'a,T:HasAabb> compt::FixedDepthVisitor for Vistr<'a,T>{}
+
+impl<'a,T:HasAabb+'a> Visitor for Vistr<'a,T>{
+    type Item=NodeRef<'a,T>;
     
-    fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
+    #[inline]
+    fn next(self)->(Self::Item,Option<[Self;2]>){
         let (nn,rest)=self.inner.next();
         
         let k=match rest{
-            Some(((),left,right))=>{
-                let f=match &nn.fullcomp{
-                    FullCompOrEmpty::NonEmpty(f)=>{
-                        Some(f)
-                    },
-                    FullCompOrEmpty::Empty()=>{
-                        None
-                    }
-                };
-                Some((f,Vistr{inner:left},Vistr{inner:right}))
+            Some([left,right])=>{
+                Some([Vistr{inner:left},Vistr{inner:right}])
             },
             None=>{
                 None
             }
         };
-
-        let j=NodeRef{misc:&nn.n,range:unsafe{nn.mid.as_ref()}};
-        (j,k)
-
+        (nn.get(),k)
 
     }
+    #[inline]
     fn level_remaining_hint(&self)->(usize,Option<usize>){
         self.inner.level_remaining_hint()
     }
 }
+
 
 
 
@@ -239,76 +249,104 @@ impl<'a,N:'a,T:HasAabb+'a> Visitor for Vistr<'a,N,T>{
 
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
-pub struct VistrMut<'a,N:'a,T:HasAabb+'a>{
-    inner:compt::dfs_order::VistrMut<'a,Node3<N,T>,compt::dfs_order::PreOrder>
+pub struct VistrMut<'a,T:HasAabb>{
+    inner:compt::dfs_order::VistrMut<'a,Node<T>,compt::dfs_order::PreOrder>
 }
 
-impl<'a,N:'a,T:HasAabb+'a> VistrMut<'a,N,T>{
+impl<'a,T:HasAabb> VistrMut<'a,T>{
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
-    pub fn create_wrap_mut(&mut self)->VistrMut<N,T>{
+    #[inline]
+    pub fn create_wrap_mut(&mut self)->VistrMut<T>{
         VistrMut{inner:self.inner.create_wrap_mut()}
     }
 
-
+    #[inline]
     pub fn height(&self)->usize{
         //Safe since we know Vistr implements FixedDepthVisitor.
         self.inner.level_remaining_hint().0
     }
 }
 
-unsafe impl<'a,N:'a,T:HasAabb+'a> compt::FixedDepthVisitor for VistrMut<'a,N,T>{}
-impl<'a,N:'a,T:HasAabb+'a> Visitor for VistrMut<'a,N,T>{
-    type Item=NodeRefMut<'a,N,T>;
-    type NonLeafItem=Option<&'a FullComp<T::Num>>;
+unsafe impl<'a,T:HasAabb> compt::FixedDepthVisitor for VistrMut<'a,T>{}
+impl<'a,T:HasAabb> Visitor for VistrMut<'a,T>{
+    type Item=NodeRefMut<'a,T>;
     
-    fn next(self)->(Self::Item,Option<(Self::NonLeafItem,Self,Self)>){
+    #[inline]
+    fn next(self)->(Self::Item,Option<[Self;2]>){
         let (nn,rest)=self.inner.next();
         
         let k=match rest{
-            Some(((),left,right))=>{
-                let f=match &nn.fullcomp{
-                    FullCompOrEmpty::NonEmpty(f)=>{
-                        Some(f)
-                    },
-                    FullCompOrEmpty::Empty()=>{
-                        None
-                    }
-                };
-                Some((f,VistrMut{inner:left},VistrMut{inner:right}))
+            Some([left,right])=>{
+                Some([VistrMut{inner:left},VistrMut{inner:right}])
             },
             None=>{
                 None
             }
         };
-
-        let j=NodeRefMut{misc:&mut nn.n,range:unsafe{nn.mid.as_mut()}};
-        (j,k)
-
+        (nn.get_mut(),k)
 
     }
+    #[inline]
     fn level_remaining_hint(&self)->(usize,Option<usize>){
         self.inner.level_remaining_hint()
     }
 }
-pub struct Node3<N,T:HasAabb>{ 
-    pub n:N,
-    pub fullcomp:FullCompOrEmpty<T::Num>,
-    pub mid:std::ptr::Unique<[T]>
+
+
+
+
+
+
+
+
+pub struct Node<T:HasAabb>{ 
+    range:std::ptr::Unique<[T]>,
+
+    //range is empty iff cont is none.
+    cont:axgeom::Range<T::Num>,
+    //for non leafs:
+    //  div is some iff mid is nonempty.
+    //  div is none iff mid is empty.
+    //for leafs:
+    //  div is none
+    div:Option<T::Num>
 }
 
-
-
-/// Reference to a node returned by the Vistr tree iterator.
-pub struct NodeRef<'a,N,T>{
-    pub misc:&'a N,
-    pub range:&'a [T]
+pub struct NodeRefMut<'a,T:HasAabb>{
+    pub bots:&'a mut [T],
+    pub cont:Option<&'a axgeom::Range<T::Num>>,
+    pub div:Option<&'a T::Num>
 }
 
-/// Reference to a node returned by the VistrMut tree iterator.
-pub struct NodeRefMut<'a,N,T>{
-    pub misc:&'a mut N,
-    pub range:&'a mut [T]
+pub struct NodeRef<'a,T:HasAabb>{
+    pub bots:&'a [T],
+    pub cont:Option<&'a axgeom::Range<T::Num>>,
+    pub div:Option<&'a T::Num>
+}
+
+impl<T:HasAabb> Node<T>{
+    fn get_mut(&mut self)->NodeRefMut<T>{
+        let bots=unsafe{&mut *self.range.as_ptr()};
+        let cont = if bots.is_empty(){
+            None
+        }else{
+            Some(&self.cont)
+        };
+
+        NodeRefMut{bots,cont,div:self.div.as_ref()}
+    }
+    
+    fn get(&self)->NodeRef<T>{
+        let bots=unsafe{&*self.range.as_ptr()};
+        let cont = if bots.is_empty(){
+            None
+        }else{
+            Some(&self.cont)
+        };
+
+        NodeRef{bots,cont,div:self.div.as_ref()}
+    }
 }
 
 
@@ -334,24 +372,6 @@ impl Sorter for NoSorter{
 }
 
 
-///A struct that contains data that only non leaf nodes contain.
-#[derive(Copy,Clone)]
-pub struct FullComp<N:NumTrait>{
-    ///The position of the splitting line for this node.
-    pub div:N,
-    ///The 1d bounding box for this node. All bots that intersect the splitting line are 
-    ///within this bounding box.
-    pub cont:axgeom::Range<N> ,
-
-}
-
-#[derive(Copy,Clone)]
-pub enum FullCompOrEmpty<N:NumTrait>{
-    NonEmpty(FullComp<N>),
-    Empty()
-}
-
-
 
 
 fn nodes_left(depth:usize,height:usize)->usize{
@@ -364,57 +384,40 @@ mod cont_tree{
 
     use super::*;
 
-
-    pub struct Node2<'a,Num:NumTrait+'a>{ 
-
-        //If this is a non leaf node, then,
-        //  div is None iff this node and children nodes do not have any bots in them.
-        // Also note, that it is impossible for a node to not have any bots in it but for its decendants to have bots in it.
-        // This is because we specifically pick the median.
-        // If it is a leaf node, then div being none still means it could have bots in it.
-        pub fullcomp:FullCompOrEmpty<Num>,
-        pub mid:&'a mut [Cont2<Num>]
-    }
-
-
-
-
-    #[derive(Copy,Clone)]
-    pub struct Cont2<N:NumTrait>{
-        pub rect:Rect<N>,
+    pub struct Cont2<Num:NumTrait>{
+        pub rect:axgeom::Rect<Num>,
         pub index:u32
     }
-    unsafe impl<N:NumTrait> HasAabb for Cont2<N>{
-        type Num=N;
-        fn get(&self)->&Rect<N>{
+    unsafe impl<Num:NumTrait> HasAabb for Cont2<Num>{
+        type Num=Num;
+        fn get(&self)->&axgeom::Rect<Num>{
             &self.rect
         }
-    }   
-
-
-
-
-
-    pub struct ContTree<'a,Num:NumTrait>{
-        tree:compt::dfs_order::CompleteTreeContainer<Node2<'a,Num>,compt::dfs_order::PreOrder>,
-        conts:&'a mut [Cont2<Num>]
     }
 
-    impl<'a,Num:NumTrait> ContTree<'a,Num>{
-        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::PreOrder>{
+    pub struct ContTree<'a,T:HasAabb>{
+        tree:compt::dfs_order::CompleteTreeContainer<Node<T>,compt::dfs_order::PreOrder>,
+        conts:&'a mut [T]
+    }
+
+    impl<'a,T:HasAabb+Send+Sync> ContTree<'a,T>{
+        pub fn get_tree_mut(&mut self)->&mut compt::dfs_order::CompleteTree<Node<T>,compt::dfs_order::PreOrder>{
             &mut self.tree
         }
-        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node2<'a,Num>,compt::dfs_order::PreOrder>{
+        
+        pub fn get_tree(&self)->&compt::dfs_order::CompleteTree<Node<T>,compt::dfs_order::PreOrder>{
             &self.tree
         }
-        pub fn get_conts_mut(&mut self)->&mut [Cont2<Num>]{
-            self.conts
-        }
-        pub fn get_conts(&self)->&[Cont2<Num>]{
+        
+        pub fn get_conts_mut(&mut self)->&mut [T]{
             self.conts
         }
 
-        pub fn new<A:AxisTrait,JJ:par::Joiner,K:Splitter+Send>(div_axis:A,dlevel:JJ,rest:&'a mut [Cont2<Num>],sorter:impl Sorter,splitter:&mut K,height:usize,binstrat:BinStrat)->ContTree<'a,Num>{
+        pub fn get_conts(&self)->&[T]{
+            self.conts
+        }
+
+        pub fn new<A:AxisTrait,JJ:par::Joiner,K:Splitter+Send>(div_axis:A,dlevel:JJ,rest:&'a mut [T],sorter:impl Sorter,splitter:&mut K,height:usize,binstrat:BinStrat)->ContTree<'a,T>{
             let num_bots=rest.len();
             let rest2=unsafe{&mut *(rest as *mut [_])};
             let mut nodes=Vec::with_capacity(tree::nodes_left(0,height));
@@ -422,18 +425,16 @@ mod cont_tree{
             let r=Recurser{height,binstrat,sorter,_p:PhantomData};
             r.recurse_preorder(div_axis,dlevel,rest,&mut nodes,splitter,0);
             
-
-
-            let tree=compt::dfs_order::CompleteTreeContainer::from_vec(nodes).unwrap();
+            let tree=compt::dfs_order::CompleteTreeContainer::<_,compt::dfs_order::PreOrder>::from_vec(nodes).unwrap();
 
             //TODO remove
             for arr in tree.get_nodes().windows(2){
                 let a=&arr[0];
                 let b=&arr[1];
-                assert_eq!(a.mid[a.mid.len()..].as_ptr() , b.mid.as_ptr());
+                assert_eq!(a.get().bots[a.get().bots.len()..].as_ptr() , b.get().bots.as_ptr());
             }
-
-            let k=tree.get_nodes().iter().fold(0,|acc,a|acc+a.mid.len());
+             
+            let k=tree.get_nodes().iter().fold(0,|acc,a|acc+a.get().bots.len());
             assert_eq!(k,num_bots);
 
             ContTree{tree,conts:rest2}
@@ -442,22 +443,22 @@ mod cont_tree{
 
 
 
-    struct Recurser<'a,Num:NumTrait,K:Splitter+Send,S:Sorter>{
+    struct Recurser<'a,T:HasAabb,K:Splitter+Send,S:Sorter>{
         height:usize,
         binstrat:BinStrat,
         sorter:S,
-        _p:PhantomData<(std::sync::Mutex<K>,&'a (Num))>
+        _p:PhantomData<(std::sync::Mutex<K>,&'a (T))>
     }
 
 
-    impl<'a,Num:NumTrait,K:Splitter+Send,S:Sorter> Recurser<'a,Num,K,S>{
+    impl<'a,T:HasAabb+Send+Sync,K:Splitter+Send,S:Sorter> Recurser<'a,T,K,S>{
 
         fn recurse_preorder<A:AxisTrait,JJ:par::Joiner>(
             &self,
             axis:A,
             dlevel:JJ,
-            rest:&'a mut [Cont2<Num>],
-            nodes:&mut Vec<Node2<'a,Num>>,
+            rest:&'a mut [T],
+            nodes:&mut Vec<Node<T>>,
             splitter:&mut K,
             depth:usize
             )
@@ -470,13 +471,16 @@ mod cont_tree{
                 let mut splitter2=splitter.div();
 
                 let (node,left,right)=match construct_non_leaf(self.binstrat,self.sorter,axis,rest){
-                    ConstructResult2::NonEmpty(ConstructResult{fullcomp,left,middle,right})=>{                        
-                        (Node2{fullcomp:FullCompOrEmpty::NonEmpty(fullcomp),mid:middle},left,right)
+                    ConstructResult::NonEmpty{cont,div,mid,left,right}=>{   
+                        (Node{range:std::ptr::Unique::new(mid as *mut [_]).unwrap(),cont,div:Some(div)},left,right)                     
                     },
-                    ConstructResult2::Empty(empty)=>{
+                    ConstructResult::Empty(empty)=>{
                         let (a,b)=tools::duplicate_empty_slice(empty);
                         let (b,c)=tools::duplicate_empty_slice(b);
-                        (Node2{fullcomp:FullCompOrEmpty::Empty(),mid:a},b,c)
+                        
+                        let x=std::default::Default::default();
+                        let cont=axgeom::Range{left:x,right:x};
+                        (Node{range:std::ptr::Unique::new(a as *mut [_]).unwrap(),cont,div:None},b,c)
                     }
                 };
                 
@@ -492,7 +496,7 @@ mod cont_tree{
                         (splitter,nodes)
                         },
                         move || {
-                        let mut nodes2:Vec<Node2<'a,Num>>=Vec::with_capacity(nodes_left(depth,self.height));
+                        let mut nodes2:Vec<Node<T>>=Vec::with_capacity(nodes_left(depth,self.height));
                         self.recurse_preorder(axis.next(),dlevel,right,&mut nodes2,splitter2,depth+1);
                         nodes2
                     });
@@ -507,8 +511,8 @@ mod cont_tree{
                 
                 splitter.add(splitter2);
             }else{
-                let mut node=Node2{fullcomp:FullCompOrEmpty::Empty(),mid:rest};
-                construct_leaf(self.sorter,axis,&mut node.mid);
+                let cont=construct_leaf(self.sorter,axis,rest);
+                let node=Node{range:std::ptr::Unique::new(rest as *mut [_]).unwrap(),cont,div:None};
                 nodes.push(node);
                 splitter.node_end();
             }            
@@ -524,34 +528,40 @@ mod cont_tree{
 
 
 
-pub fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middile:&[T])->Option<axgeom::Range<T::Num>>{
-  
+fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>{
+    match middle.split_first(){
+        None=>{
+            let d=std::default::Default::default();
+            axgeom::Range{left:d,right:d}
+        },
+        Some((first,rest))=>{
+            let mut min=first.get().get_range(axis).left;
+            let mut max=first.get().get_range(axis).right;
 
-    let (first,rest)=middile.split_first()?;
-    let mut min=first.get().get_range(axis).left;
-    let mut max=first.get().get_range(axis).right;
+            for a in rest.iter(){
+                let left=a.get().get_range(axis).left;
+                let right=a.get().get_range(axis).right;
 
-    for a in rest.iter(){
-        let left=a.get().get_range(axis).left;
-        let right=a.get().get_range(axis).right;
+                if left<min{
+                    min=left;
+                }
 
-        if left<min{
-            min=left;
-        }
+                if right>max{
+                    max=right;
+                }
+            }
 
-        if right>max{
-            max=right;
+            axgeom::Range{left:min,right:max}
         }
     }
-
-    Some(axgeom::Range{left:min,right:max})
-
 }
 
 
 
-pub fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T]){ 
+fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->axgeom::Range<T::Num>{ 
     sorter.sort(div_axis.next(),bots);
+    let cont=create_cont(div_axis,bots);
+    cont
 }
 
 
@@ -564,22 +574,21 @@ pub enum BinStrat{
 }
 
 
-pub struct ConstructResult<'a,T:HasAabb>{
-    fullcomp:FullComp<T::Num>,
-    left:&'a mut [T],
-    middle:&'a mut [T],
-    right:&'a mut [T]
-}
-
-pub enum ConstructResult2<'a,T:HasAabb>{
-    NonEmpty(ConstructResult<'a,T>),
+enum ConstructResult<'a,T:HasAabb>{
+    NonEmpty{
+        div:T::Num,
+        cont:axgeom::Range<T::Num>,
+        mid:&'a mut [T],
+        right:&'a mut [T],
+        left:&'a mut [T],
+    },
     Empty(&'a mut [T])
 }
 
 
-pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->ConstructResult2<T>{
+fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->ConstructResult<T>{
     let med=if bots.is_empty(){
-        return ConstructResult2::Empty(bots);//None;
+        return ConstructResult::Empty(bots);
     }
     else
     {
@@ -607,28 +616,8 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
         BinStrat::LeftMidRight=>{
             oned::bin_left_middle_right(div_axis,&med,bots)
         },
-        /*
-        BinStrat::LeftMidRightUnchecked=>{
-            //unsafe{oned::bin_left_middle_right_unchecked(div_axis,&med,bots)}
-        },
-        BinStrat::MidLeftRightUnchecked=>{
-            //unsafe{oned::bin_middle_left_right(div_axis,&med,bots)}
-        }
-        */
         BinStrat::MidLeftRight=>{
-            oned::bin_middle_left_right(div_axis,&med,bots)
-            /*
-            let (a,b,c)={
-                let a=oned::bin_middle_left_right(div_axis,&med,bots);
-                (a.left.len(),a.middle.len(),a.right.len())
-            };
-
-            let d=oned::bin_left_middle_right(div_axis,&med,bots);
-            assert_eq!(a,d.left.len());
-            assert_eq!(b,d.middle.len());
-            assert_eq!(c,d.right.len() );
-            d 
-            */                       
+            oned::bin_middle_left_right(div_axis,&med,bots)                      
         },
         BinStrat::LeftRightMid=>{
             oned::bin_left_right_middle(div_axis,&med,bots)
@@ -641,11 +630,10 @@ pub fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_a
     sorter.sort(div_axis.next(),binned.middle);
     
     //We already know that the middile is non zero in length.
-    let container_box=create_cont(div_axis,binned.middle).unwrap();
+    let cont = create_cont(div_axis,binned.middle);
     
-    let fullcomp=FullComp{div:med,cont:container_box};
-    ConstructResult2::NonEmpty(ConstructResult{fullcomp,left:binned.left,middle:binned.middle,right:binned.right})
-    //Some((full,binned.left,binned.middle,binned.right))
+    ConstructResult::NonEmpty{mid:binned.middle,cont,div:med,left:binned.left,right:binned.right}
+
 }
 
 

@@ -80,6 +80,8 @@ mod assert_invariants;
 
 mod tree;
 
+pub use crate::tree::NodeRefMut;
+pub use crate::tree::NodeRef;
 pub use crate::tree::DinoTreeRef;
 pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::dinotree::DinoTree;
@@ -87,9 +89,6 @@ pub use crate::tree::dinotree::DinoTreeBuilder;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;
-pub use crate::tree::FullComp;
-pub use crate::tree::NodeRef;
-pub use crate::tree::NodeRefMut;
 pub use crate::tree::BBox;
 
 ///Contains code to construct the dyntree.
@@ -112,10 +111,10 @@ pub mod advanced;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
+pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug+std::default::Default{}
 
 impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
+where T: Ord+Copy+Send+Sync+std::fmt::Debug+std::default::Default{}
 
 
 

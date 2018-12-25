@@ -122,6 +122,3 @@ pub use crate::tree::default_level_switch_sequential;
 
 
 
-
-pub use crate::assert_invariants::are_invariants_met;
-
