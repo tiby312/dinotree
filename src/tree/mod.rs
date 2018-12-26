@@ -313,15 +313,30 @@ pub struct Node<T:HasAabb>{
     div:Option<T::Num>
 }
 
+
+///Mutable reference to a node in the dinotree.
 pub struct NodeRefMut<'a,T:HasAabb>{
+
+    ///The bots that belong to this node.
     pub bots:&'a mut [T],
+
+    ///Is None iff bots is empty.
     pub cont:Option<&'a axgeom::Range<T::Num>>,
+
+    ///Is None if node is a leaf, or there are no bots in this node or in any decendants.
     pub div:Option<&'a T::Num>
 }
 
+///Reference to a node in the dinotree.
 pub struct NodeRef<'a,T:HasAabb>{
+    
+    ///The bots that belong to this node.
     pub bots:&'a [T],
+
+    ///Is None iff bots is empty.
     pub cont:Option<&'a axgeom::Range<T::Num>>,
+
+    ///Is None if node is a leaf, or there are no bots in this node or in any decendants.
     pub div:Option<&'a T::Num>
 }
 
