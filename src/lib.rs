@@ -87,6 +87,7 @@ pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree::DinoTreeBuilder;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
+pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;
 pub use crate::tree::BBox;
@@ -111,10 +112,10 @@ pub mod advanced;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug+std::default::Default{}
+pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync+std::fmt::Debug+std::default::Default{}
+where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
 
 
 

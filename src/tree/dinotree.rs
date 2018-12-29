@@ -15,14 +15,14 @@ pub struct DinoTreeBuilder<'a,A:AxisTrait,T,Num:NumTrait,F:FnMut(&T)->Rect<Num>>
     axis:A,
     bots:&'a [T],
     aabb_create:F,
-    rebal_strat:RebalStrat,
+    rebal_strat:BinStrat,
     height:usize,
     height_switch_seq:usize
 }
 
 impl<'a,A:AxisTrait,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<'a,A,T,Num,F>{
     pub fn new(axis:A,bots:&[T],aabb_create:F)->DinoTreeBuilder<A,T,Num,F>{
-        let rebal_strat=RebalStrat::First;
+        let rebal_strat=BinStrat::Checked;
         let height=compute_tree_height_heuristic(bots.len());
         let height_switch_seq=default_level_switch_sequential();
 
@@ -30,7 +30,7 @@ impl<'a,A:AxisTrait,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<
     }
 
     ///Choose a custom rebalance stratagy.
-    pub fn with_rebal_strat(&mut self,strat:RebalStrat)->&mut Self{
+    pub fn with_bin_strat(&mut self,strat:BinStrat)->&mut Self{
         self.rebal_strat=strat;
         self
     }
@@ -76,6 +76,34 @@ impl<'a,A:AxisTrait,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<
         self.build_inner(par::Sequential,DefaultSorter,splitter)
     }
 
+
+    pub fn build_not_sorted_with_splitter_seq<S:Splitter>(&mut self,splitter:&mut S)->NotSorted<A,BBox<Num,T>>{
+
+        #[repr(transparent)]
+        pub struct SplitterWrap<S>{
+            inner:S
+        }
+        impl<S:Splitter> Splitter for SplitterWrap<S>{
+            fn div(&mut self)->Self{
+                SplitterWrap{inner:self.inner.div()}
+            }
+            fn add(&mut self,a:Self){
+                self.inner.add(a.inner)
+            }
+            fn node_start(&mut self){
+                self.inner.node_start();
+            }
+            fn node_end(&mut self){
+                self.inner.node_end()
+            }
+        }
+        
+        unsafe impl<S> Send for SplitterWrap<S>{}
+        let splitter:&mut SplitterWrap<S>=unsafe{&mut *((splitter as *mut S) as *mut SplitterWrap<S>)};
+        NotSorted(self.build_inner(par::Sequential,NoSorter,splitter))
+    }
+
+
     pub fn build_seq(&mut self)->DinoTree<A,BBox<Num,T>>{
         self.build_inner(par::Sequential,DefaultSorter,&mut crate::advanced::SplitterEmpty)
     }
@@ -104,7 +132,7 @@ impl<'a,A:AxisTrait,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<
         let aabb_create=&mut self.aabb_create;
 
         let height=self.height;
-        let rebal_type=self.rebal_strat;
+        let binstrat=self.rebal_strat;
 
         let num_bots=bots.len();
         let max=std::u32::MAX;
@@ -116,17 +144,7 @@ impl<'a,A:AxisTrait,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<
         }).collect();
         
         let (new_bots,new_tree)={
-            let binstrat=match rebal_type{
-                RebalStrat::First=>{
-                    BinStrat::MidLeftRight
-                },
-                RebalStrat::Second=>{
-                    BinStrat::MidLeftRight
-                },
-                RebalStrat::Third=>{
-                    BinStrat::MidLeftRight
-                }
-            };
+            
 
             let mut cont_tree=ContTree::new(axis,par,&mut conts,sorter,ka,height,binstrat);
 
@@ -157,6 +175,11 @@ impl<'a,A:AxisTrait,T:Copy,Num:NumTrait,F:FnMut(&T)->Rect<Num>> DinoTreeBuilder<
 
 
 impl<A:AxisTrait,T:HasAabb> DinoTree<A,T>{
+    #[inline]
+    pub fn get_original_indicies(&self)->&[u32]{
+        &self.mover
+    }
+    
     #[inline]
     pub fn as_ref_mut(&mut self)->DinoTreeRefMut<A,T>{
         DinoTreeRefMut{axis:self.axis,bots:&mut self.bots,tree:&mut self.tree}

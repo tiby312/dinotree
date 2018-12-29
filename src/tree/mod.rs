@@ -63,6 +63,14 @@ pub struct DinoTreeRef<'a,A:AxisTrait,T:HasAabb>{
     tree:&'a compt::dfs_order::CompleteTree<Node<T>,compt::dfs_order::PreOrder>
 }
 
+impl<'a,A:AxisTrait,T:HasAabb> IntoIterator for DinoTreeRef<'a,A,T>{
+    type Item=&'a T;
+    type IntoIter=std::slice::Iter<'a,T>;
+    #[inline]
+    fn into_iter(self)->Self::IntoIter{
+        self.bots.iter()
+    }
+}
 impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRef<'a,A,T>{
     #[inline]
     pub fn as_ref(&self)->DinoTreeRef<A,T>{
@@ -84,12 +92,6 @@ impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRef<'a,A,T>{
     ///See iter_mut
     #[inline]
     pub fn iter(&self)->std::slice::Iter<T>{
-        self.bots.iter()
-    }
-
-    ///See iter_mut
-    #[inline]
-    pub fn into_iter(self)->std::slice::Iter<'a,T>{
         self.bots.iter()
     }
 
@@ -442,16 +444,15 @@ mod cont_tree{
             
             let tree=compt::dfs_order::CompleteTreeContainer::<_,compt::dfs_order::PreOrder>::from_vec(nodes).unwrap();
 
-            //TODO remove
             for arr in tree.get_nodes().windows(2){
                 let a=&arr[0];
                 let b=&arr[1];
-                assert_eq!(a.get().bots[a.get().bots.len()..].as_ptr() , b.get().bots.as_ptr());
+                debug_assert_eq!(a.get().bots[a.get().bots.len()..].as_ptr() , b.get().bots.as_ptr());
             }
              
             let k=tree.get_nodes().iter().fold(0,|acc,a|acc+a.get().bots.len());
-            assert_eq!(k,num_bots);
-
+            debug_assert_eq!(k,num_bots);
+            
             ContTree{tree,conts:rest2}
         }
     }
@@ -482,24 +483,24 @@ mod cont_tree{
 
             if depth<self.height-1{
                 
-
-                let mut splitter2=splitter.div();
-
                 let (node,left,right)=match construct_non_leaf(self.binstrat,self.sorter,axis,rest){
                     ConstructResult::NonEmpty{cont,div,mid,left,right}=>{   
                         (Node{range:std::ptr::Unique::new(mid as *mut [_]).unwrap(),cont,div:Some(div)},left,right)                     
                     },
                     ConstructResult::Empty(empty)=>{
-                        let (a,b)=tools::duplicate_empty_slice(empty);
-                        let (b,c)=tools::duplicate_empty_slice(b);
-                        
-                        let x=std::default::Default::default();
-                        let cont=axgeom::Range{left:x,right:x};
-                        (Node{range:std::ptr::Unique::new(a as *mut [_]).unwrap(),cont,div:None},b,c)
+                        for _ in 0..compt::compute_num_nodes(self.height-depth){
+                            let a=tools::duplicate_empty_slice(empty);
+                            let cont=unsafe{std::mem::uninitialized()};
+                            let node=Node{range:std::ptr::Unique::new(a as *mut [_]).unwrap(),cont,div:None};
+                            nodes.push(node);
+                        }
+                        return;
                     }
                 };
                 
                 nodes.push(node);
+
+                let mut splitter2=splitter.div();
 
                 let splitter=if !dlevel.should_switch_to_sequential(Depth(depth)){
                     let splitter2=&mut splitter2;
@@ -533,36 +534,30 @@ mod cont_tree{
             }            
 
         }
-    }
-
-    
+    }    
 }
 
 
-
-
-
-
 fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>{
+    
     match middle.split_first(){
         None=>{
-            let d=std::default::Default::default();
-            axgeom::Range{left:d,right:d}
+            unsafe{std::mem::uninitialized()}
         },
         Some((first,rest))=>{
             let mut min=first.get().get_range(axis).left;
             let mut max=first.get().get_range(axis).right;
 
             for a in rest.iter(){
-                let left=a.get().get_range(axis).left;
-                let right=a.get().get_range(axis).right;
+                let left=&a.get().get_range(axis).left;
+                let right=&a.get().get_range(axis).right;
 
-                if left<min{
-                    min=left;
+                if *left<min{
+                    min= *left;
                 }
 
-                if right>max{
-                    max=right;
+                if *right>max{
+                    max= *right;
                 }
             }
 
@@ -575,17 +570,15 @@ fn create_cont<A:AxisTrait,T:HasAabb>(axis:A,middle:&[T])->axgeom::Range<T::Num>
 
 fn construct_leaf<T:HasAabb>(sorter:impl Sorter,div_axis:impl AxisTrait,bots:&mut [T])->axgeom::Range<T::Num>{ 
     sorter.sort(div_axis.next(),bots);
-    let cont=create_cont(div_axis,bots);
-    cont
+    create_cont(div_axis,bots)
 }
 
 
 #[allow(dead_code)]
 #[derive(Copy,Clone,Debug)]
 pub enum BinStrat{
-    LeftMidRight,
-    MidLeftRight,
-    LeftRightMid
+    Checked,
+    NotChecked
 }
 
 
@@ -628,15 +621,12 @@ fn construct_non_leaf<T:HasAabb>(bin_strat:BinStrat,sorter:impl Sorter,div_axis:
     //If this were not true, there is no guarentee that the middile bin has bots in it even
     //though we did pick a divider.
     let binned=match bin_strat{
-        BinStrat::LeftMidRight=>{
-            oned::bin_left_middle_right(div_axis,&med,bots)
+        BinStrat::Checked=>{
+            oned::bin_middle_left_right(div_axis,&med,bots)
         },
-        BinStrat::MidLeftRight=>{
-            oned::bin_middle_left_right(div_axis,&med,bots)                      
+        BinStrat::NotChecked=>{
+            unsafe{oned::bin_middle_left_right_unchecked(div_axis,&med,bots)}                   
         },
-        BinStrat::LeftRightMid=>{
-            oned::bin_left_right_middle(div_axis,&med,bots)
-        }
     };
 
     debug_assert!(!binned.middle.is_empty());
@@ -690,17 +680,4 @@ unsafe impl<N:NumTrait,T> HasAabb for BBox<N,T>{
         &self.rect
     }
 }
-
-
-///Some alternate strategies for rebalancing.
-///Used to empirically show that the default (the first one) is a good default.
-#[derive(Debug,Copy,Clone)]
-pub enum RebalStrat{
-    First,
-    Second,
-    Third
-}
-
-
-
 

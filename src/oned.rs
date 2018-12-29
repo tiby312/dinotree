@@ -18,52 +18,9 @@ unsafe fn swap_unchecked<T>(arr:&mut [T],a:usize,b:usize){
 }
 
 
-pub fn bin_left_middle_right<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
-    let bot_len=bots.len();
-        
-    let mut left_end=0;
-    let mut middle_end=0;
-    
-    //     |    middile   |   left|              right              |---------|
-    //
-    //                ^           ^                                  ^
-    //              middile_end    left_end                      index_at
 
-    for index_at in 0..bot_len{
-        
-        match bots[index_at].get().get_range(axis).left_or_right_or_contain(med){
-            
-            //If the divider is less than the bot
-            std::cmp::Ordering::Equal=>{
-                bots.swap(index_at,left_end);
-                left_end+=1;
-            },
-            //If the divider is greater than the bot
-            std::cmp::Ordering::Greater=>{
-                
-                bots.swap(index_at,left_end);
-                bots.swap(left_end,middle_end);
-                middle_end+=1;
-                left_end+=1;
-            },
-            std::cmp::Ordering::Less=>{
-                                    
-            }
-        }
-        
-        
-    }
-
-    let (rest,right)=bots.split_at_mut(left_end);
-    let (left,middle)=rest.split_at_mut(middle_end);
-    debug_assert!(left.len()+middle.len()+right.len()==bot_len);
-    Binned{left,middle,right}
-
-
-}
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-
 pub fn bin_middle_left_right<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
     let bot_len=bots.len();
         
@@ -110,9 +67,10 @@ pub fn bin_middle_left_right<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&
 }
 
 
-pub fn bin_left_right_middle<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
-    
-     let bot_len=bots.len();
+/// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
+/// They will be laid out in memory s.t.  middile<left<right
+pub unsafe fn bin_middle_left_right_unchecked<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&'b mut [X])->Binned<'b,X>{
+    let bot_len=bots.len();
         
     let mut left_end=0;
     let mut middle_end=0;
@@ -124,34 +82,39 @@ pub fn bin_left_right_middle<'b,A:AxisTrait,X:HasAabb>(axis:A,med:&X::Num,bots:&
 
     for index_at in 0..bot_len{
         
-            match bots[index_at].get().get_range(axis).left_or_right_or_contain(med){
+            match bots.get_unchecked(index_at).get().get_range(axis).left_or_right_or_contain(med){
                 
                 //If the divider is less than the bot
                 std::cmp::Ordering::Equal=>{
+                    //left
                     
+                    swap_unchecked(bots,index_at,left_end);
+                    swap_unchecked(bots,left_end,middle_end);
+                    middle_end+=1;
+                    left_end+=1; 
                 },
                 //If the divider is greater than the bot
                 std::cmp::Ordering::Greater=>{
-                    
-                    bots.swap(index_at,left_end);
-                    bots.swap(left_end,middle_end);
-                    middle_end+=1;
+                    //middile
+                    swap_unchecked(bots,index_at,left_end);
                     left_end+=1;
                 },
                 std::cmp::Ordering::Less=>{
-                    bots.swap(index_at,left_end);
-                    left_end+=1;                  
+                    //right                    
                 }
             }
         
         
     }
 
-    let (rest,middle)=bots.split_at_mut(left_end);
-    let (left,right)=rest.split_at_mut(middle_end);
-    debug_assert!(left.len()+middle.len()+right.len()==bot_len);
+    let (rest,right)=bots.split_at_mut(left_end);
+    let (middle,left)=rest.split_at_mut(middle_end);
+    //println!("middile left right={:?}",(middle.len(),left.len(),right.len()));
+    debug_assert!(left.len()+right.len()+middle.len()==bot_len);
     Binned{left,middle,right}
 }
+
+
 
 pub fn compare_bots<T:HasAabb>(axis:impl AxisTrait,a:&T,b:&T)->std::cmp::Ordering{
     let (p1,p2)=(a.get().get_range(axis).left,b.get().get_range(axis).left);

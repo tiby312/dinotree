@@ -1,5 +1,4 @@
 use crate::inner_prelude::*;
-pub use crate::tree::RebalStrat;
 
 fn into_secs(elapsed:std::time::Duration)->f64{
     (elapsed.as_secs() as f64) + (f64::from(elapsed.subsec_nanos()) / 1_000_000_000.0)   
@@ -35,6 +34,7 @@ impl LevelTimer{
         let time=self.time.unwrap();
 
         let elapsed=time.elapsed();
+        //println!("elapsed={:?}",into_secs(elapsed));
         self.levels.push(into_secs(elapsed));
         self.time=None;
     }

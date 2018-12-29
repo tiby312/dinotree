@@ -1,10 +1,9 @@
 
 
-pub fn duplicate_empty_slice<T>(arr:&mut [T])->(&mut [T],&mut [T]){
+pub fn duplicate_empty_slice<T>(arr:&mut [T])->&mut [T]{
     assert!(arr.is_empty());
     unsafe{
-        let a=std::slice::from_raw_parts_mut(arr.as_mut_ptr(),0);
-        (arr,a)
+        std::slice::from_raw_parts_mut(arr.as_mut_ptr(),0)
     }
 }
 /*

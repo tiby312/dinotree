@@ -7,14 +7,15 @@ use super::*;
 pub struct DinoTreeNoCopyBuilder<'a,A:AxisTrait,T:HasAabb+Copy>{
     axis:A,
     bots:&'a mut [T],
-    rebal_strat:RebalStrat,
+    rebal_strat:BinStrat,
     height:usize,
     height_switch_seq:usize
 }
 impl<'a,A:AxisTrait,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,T>{
 
+    #[inline]
     pub fn new(axis:A,bots:&'a mut [T])->DinoTreeNoCopyBuilder<'a,A,T>{
-        let rebal_strat=RebalStrat::First;
+        let rebal_strat=BinStrat::Checked;
         let height=compute_tree_height_heuristic(bots.len());
         let height_switch_seq=default_level_switch_sequential();
 
@@ -22,10 +23,13 @@ impl<'a,A:AxisTrait,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,T>{
     }
 
 
+    #[inline]
     pub fn build_seq(self)->DinoTreeNoCopy<'a,A,T>{
         self.build_inner(par::Sequential,DefaultSorter,&mut crate::advanced::SplitterEmpty)
     }
 
+
+    #[inline]
     pub fn build_par(self)->DinoTreeNoCopy<'a,A,T>{
         let dlevel=compute_default_level_switch_sequential(self.height_switch_seq,self.height);
         self.build_inner(dlevel,DefaultSorter,&mut crate::advanced::SplitterEmpty)
@@ -38,7 +42,7 @@ impl<'a,A:AxisTrait,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,T>{
         let axis=self.axis;
         
         let height=self.height;
-        let rebal_type=self.rebal_strat;
+        let binstrat=self.rebal_strat;
 
 
 
@@ -58,59 +62,45 @@ impl<'a,A:AxisTrait,T:HasAabb+Copy> DinoTreeNoCopyBuilder<'a,A,T>{
 
 
     
-        
-        let binstrat=match rebal_type{
-            RebalStrat::First=>{
-                BinStrat::LeftMidRight
-            },
-            RebalStrat::Second=>{
-                BinStrat::MidLeftRight
-            },
-            RebalStrat::Third=>{
-                BinStrat::LeftRightMid
-            }
-        };
-
-        let mut cont_tree=ContTree::new(axis,par,&mut conts,sorter,ka,height,binstrat);
-
-
-
-
-        let new_bots={
-            impl<Num:NumTrait> reorder::HasIndex for Cont2<Num>{
-                fn get(&self)->usize{
-                    self.index as usize
-                }
-                fn set(&mut self,index:usize){
-                    self.index=index as u32;
-                }
-            }
-            //bots
-            reorder::reorder(&mut self.bots,cont_tree.get_conts_mut())
-        };
 
 
         let new_tree={
+            let mut cont_tree=ContTree::new(axis,par,&mut conts,sorter,ka,height,binstrat);
+
+            let new_bots={
+                impl<Num:NumTrait> reorder::HasIndex for Cont2<Num>{
+                    fn get(&self)->usize{
+                        self.index as usize
+                    }
+                    fn set(&mut self,index:usize){
+                        self.index=index as u32;
+                    }
+                }
+                //bots
+                reorder::reorder(&mut self.bots,cont_tree.get_conts_mut())
+            };
+
+
+
+
             let new_nodes={
                 let mut rest:Option<&mut [T]>=Some(new_bots);
                 let mut new_nodes=Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
                 for node in cont_tree.get_tree_mut().dfs_iter(){
                     let (b,rest2)=rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest=Some(rest2);
-                    //new_nodes.push(Node{fullcomp:node.fullcomp,mid:unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])}});
-                    unimplemented!()
+                    let b=unsafe{std::ptr::Unique::new_unchecked(b as *mut [_])};
+                    new_nodes.push(Node{range:b,cont:node.cont,div:node.div})
                 }
                 new_nodes
             };
 
             compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap()
+        
         };
-
-        let mover=cont_tree.get_conts().iter().map(|a|crate::tree::dinotree_no_copy::Index(a.index)).collect();
-
+        let mover=conts.drain(..).map(|a|crate::tree::dinotree_no_copy::Index(a.index)).collect();
 
         DinoTreeNoCopy{mover,axis,bots:bots2,nodes:new_tree}
-
     }
 }
 
@@ -136,7 +126,11 @@ pub struct DinoTreeNoCopy<'a,A:AxisTrait,T:HasAabb>{
 }
 
 impl<'a,A:AxisTrait,T:HasAabb+Copy> DinoTreeNoCopy<'a,A,T>{
-
+    #[inline]
+    pub fn get_original_indicies(&self)->&[u32]{
+        unsafe{&*(self.mover.as_ref() as *const[Index] as *const[u32])}
+    }
+    
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
