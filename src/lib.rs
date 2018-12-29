@@ -33,70 +33,62 @@
 //!
 //! # Unsafety
 //!
-//! The HasAabb trait is marked as unsafe. See its description. 
+//! The HasAabb trait is marked as unsafe. See its description.
 //!
 
 #![feature(ptr_internals)]
 #![feature(trusted_len)]
 
-
 extern crate axgeom;
 extern crate compt;
-extern crate rayon;
-extern crate pdqselect;
 extern crate is_sorted;
 extern crate itertools;
+extern crate pdqselect;
+extern crate rayon;
 extern crate reorder;
 
-mod inner_prelude{
-  pub use std::mem::*;
-  pub use std::marker::PhantomData;
-  pub use std::iter::*;
-  pub(crate) use compt;
-  pub use axgeom::*;
-  pub use itertools::Itertools;
-  pub use std::time::Instant;
-  
-  pub(crate) use crate::tree::*;
-  pub(crate) use crate::par;
-  pub(crate) use crate::tree;
-  pub(crate) use crate::advanced::Splitter;
-  pub(crate) use crate::compt::Depth;
-  pub(crate) use crate::compt::Visitor;
-  pub(crate) use super::*;
-}
+mod inner_prelude {
+    pub use axgeom::*;
+    pub(crate) use compt;
+    pub use itertools::Itertools;
+    pub use std::iter::*;
+    pub use std::marker::PhantomData;
+    pub use std::mem::*;
+    pub use std::time::Instant;
 
+    pub(crate) use super::*;
+    pub(crate) use crate::advanced::Splitter;
+    pub(crate) use crate::compt::Depth;
+    pub(crate) use crate::compt::Visitor;
+    pub(crate) use crate::par;
+    pub(crate) use crate::tree;
+    pub(crate) use crate::tree::*;
+}
 
 ///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
 ///Used by algorithms that operate on the tree.
 pub mod par;
 
-
 ///Provides low level functionality to construct a dyntree.
-
 mod assert_invariants;
-
-
 
 mod tree;
 
-pub use crate::tree::NodeRefMut;
-pub use crate::tree::NodeRef;
-pub use crate::tree::DinoTreeRef;
-pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree::DinoTreeBuilder;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
+pub use crate::tree::BBox;
+pub use crate::tree::DinoTreeRef;
+pub use crate::tree::DinoTreeRefMut;
+pub use crate::tree::NodeRef;
+pub use crate::tree::NodeRefMut;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;
-pub use crate::tree::BBox;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
-///segment of memory. 
-
-
+///segment of memory.
 mod tools;
 
 ///A collection of 1d functions that operate on lists of 2d objects.
@@ -106,18 +98,13 @@ mod oned;
 ///Also provides some debugging functions.
 pub mod advanced;
 
-
-
 ///The underlying number type used for the dinotree.
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait:Ord+Copy+Send+Sync+std::fmt::Debug{}
+pub trait NumTrait: Ord + Copy + Send + Sync + std::fmt::Debug {}
 
-impl<T> NumTrait for T
-where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
-
-
+impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + std::fmt::Debug {}
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
@@ -125,7 +112,7 @@ where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
 ///is marked unsafe.
 ///
 ///Additionally the aabb must not change while the object is contained in the tree.
-///Not doing so would violate invariants of the tree, and would thus make all the 
+///Not doing so would violate invariants of the tree, and would thus make all the
 ///query algorithms performed on the tree would not be correct.
 ///
 ///Not only will the algorithms not be correct, but undefined behavior may be introduced.
@@ -135,7 +122,7 @@ where T: Ord+Copy+Send+Sync+std::fmt::Debug{}
 ///The trait is marked as unsafe. The user is suggested to use the DinoTree builder.
 ///The builder will safely construct a tree of elements wrapped in a Bounding Box where the aabb
 ///is protected from being modified via visibility. The trait is still useful to keep the querying algorithms generic.
-pub unsafe trait HasAabb{
-    type Num:NumTrait;
-    fn get(&self)->&axgeom::Rect<Self::Num>;
+pub unsafe trait HasAabb {
+    type Num: NumTrait;
+    fn get(&self) -> &axgeom::Rect<Self::Num>;
 }

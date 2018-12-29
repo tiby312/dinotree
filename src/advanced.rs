@@ -1,7 +1,7 @@
 use crate::inner_prelude::*;
 
-fn into_secs(elapsed:std::time::Duration)->f64{
-    (elapsed.as_secs() as f64) + (f64::from(elapsed.subsec_nanos()) / 1_000_000_000.0)   
+fn into_secs(elapsed: std::time::Duration) -> f64 {
+    (elapsed.as_secs() as f64) + (f64::from(elapsed.subsec_nanos()) / 1_000_000_000.0)
 }
 
 ///Measure the time each level of a recursive algorithm takes that supports the Splitter trait.
@@ -9,83 +9,87 @@ fn into_secs(elapsed:std::time::Duration)->f64{
 ///This can happen if the recursive algorithm does not recurse all the way to the leafs because it
 ///deemed it not necessary.
 #[derive(Default)]
-pub struct LevelTimer{
-    levels:Vec<f64>,
-    time:Option<Instant>,
+pub struct LevelTimer {
+    levels: Vec<f64>,
+    time: Option<Instant>,
 }
 
-impl LevelTimer{
+impl LevelTimer {
     #[inline]
-    pub fn new()->LevelTimer{
-        LevelTimer{levels:Vec::new(),time:None}
+    pub fn new() -> LevelTimer {
+        LevelTimer {
+            levels: Vec::new(),
+            time: None,
+        }
     }
 
     #[inline]
-    pub fn with_height(height:usize)->LevelTimer{
-        LevelTimer{levels:Vec::with_capacity(height),time:None}
+    pub fn with_height(height: usize) -> LevelTimer {
+        LevelTimer {
+            levels: Vec::with_capacity(height),
+            time: None,
+        }
     }
     #[inline]
-    pub fn into_inner(self)->Vec<f64>{
+    pub fn into_inner(self) -> Vec<f64> {
         self.levels
     }
     #[inline]
-    fn node_end_common(&mut self){
+    fn node_end_common(&mut self) {
+        let time = self.time.unwrap();
 
-        let time=self.time.unwrap();
-
-        let elapsed=time.elapsed();
+        let elapsed = time.elapsed();
         //println!("elapsed={:?}",into_secs(elapsed));
         self.levels.push(into_secs(elapsed));
-        self.time=None;
+        self.time = None;
     }
 }
-impl Splitter for LevelTimer{
+impl Splitter for LevelTimer {
     #[inline]
-    fn div(&mut self)->Self{
+    fn div(&mut self) -> Self {
         self.node_end_common();
 
-        let length=self.levels.len();
+        let length = self.levels.len();
 
-        LevelTimer{levels:std::iter::repeat(0.0).take(length).collect(),time:None}
+        LevelTimer {
+            levels: std::iter::repeat(0.0).take(length).collect(),
+            time: None,
+        }
     }
     #[inline]
-    fn add(&mut self,a:Self){
-        let len=self.levels.len();
-        for (a,b) in self.levels.iter_mut().zip(a.levels.iter()){
-            *a+=*b;
+    fn add(&mut self, a: Self) {
+        let len = self.levels.len();
+        for (a, b) in self.levels.iter_mut().zip(a.levels.iter()) {
+            *a += *b;
         }
-        if len<a.levels.len(){
+        if len < a.levels.len() {
             self.levels.extend_from_slice(&a.levels[len..]);
         }
     }
     #[inline]
-    fn node_start(&mut self){
+    fn node_start(&mut self) {
         assert!(self.time.is_none());
-        self.time=Some(Instant::now());
+        self.time = Some(Instant::now());
     }
     #[inline]
-    fn node_end(&mut self){
+    fn node_end(&mut self) {
         self.node_end_common();
-    } 
+    }
 }
 
-
-
-pub use crate::tree::compute_tree_height_heuristic_debug;
 pub use crate::tree::compute_default_level_switch_sequential;
 pub use crate::tree::compute_tree_height_heuristic;
-
+pub use crate::tree::compute_tree_height_heuristic_debug;
 
 ///A trait that gives the user callbacks at events in a recursive algorithm on the tree.
 ///The main motivation behind this trait was to track the time spent taken at each level of the tree
 ///during construction.
-pub trait Splitter:Sized{
-
+pub trait Splitter: Sized {
     ///Called to split this into two to be passed to the children.
-    fn div(&mut self)->Self;
+    fn div(&mut self) -> Self;
 
     ///Called to add the results of the recursive calls on the children.
-    fn add(&mut self,b:Self);
+    fn add(&mut self, b: Self);
 
     ///Called at the start of the recursive call.
     fn node_start(&mut self);
@@ -98,14 +102,14 @@ pub trait Splitter:Sized{
 ///For cases where you don't care about any of the callbacks that Splitter provides, this implements them all to do nothing.
 pub struct SplitterEmpty;
 
-impl Splitter for SplitterEmpty{
-  fn div(&mut self)->Self{SplitterEmpty}
-  fn add(&mut self,_:Self){}
-  fn node_start(&mut self){}
-  fn node_end(&mut self){}
+impl Splitter for SplitterEmpty {
+    fn div(&mut self) -> Self {
+        SplitterEmpty
+    }
+    fn add(&mut self, _: Self) {}
+    fn node_start(&mut self) {}
+    fn node_end(&mut self) {}
 }
-
-
 
 pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
@@ -119,6 +123,3 @@ pub use crate::oned::sweeper_update;
 //pub use crate::tree::dinotree_no_copy::new_adv_no_copy;
 //pub use crate::tree::dinotree_no_copy::new_adv_no_copy_seq;
 pub use crate::tree::default_level_switch_sequential;
-
-
-
