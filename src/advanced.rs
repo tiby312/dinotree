@@ -111,15 +111,11 @@ impl Splitter for SplitterEmpty {
     fn node_end(&mut self) {}
 }
 
+
 pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
-pub use crate::tree::notsorted::NotSorted;
-
 pub use crate::oned::sweeper_update;
-
-//pub use crate::tree::dinotree::new_adv;
-//pub use crate::tree::dinotree::new_adv_seq;
-//pub use crate::tree::dinotree_no_copy::new_adv_no_copy;
-//pub use crate::tree::dinotree_no_copy::new_adv_no_copy_seq;
 pub use crate::tree::default_level_switch_sequential;
+pub use crate::tree::notsorted::NotSorted;
+pub use crate::tree::BinStrat;

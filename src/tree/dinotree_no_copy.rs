@@ -1,5 +1,7 @@
 use super::*;
 
+
+///Builder for a DinoTree
 pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, T: HasAabb + Copy> {
     axis: A,
     bots: &'a mut [T],

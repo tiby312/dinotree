@@ -568,7 +568,13 @@ mod cont_tree {
 
                 splitter.add(splitter2);
             } else {
-                let cont = construct_leaf(self.sorter, axis, rest);
+                let cont=if !rest.is_empty(){
+                    self.sorter.sort(axis.next(), rest);
+                    create_cont(axis, rest)
+                }else{
+                    unsafe{std::mem::uninitialized()}
+                };
+                
                 let node = Node {
                     range: std::ptr::Unique::new(rest as *mut [_]).unwrap(),
                     cont,
@@ -581,42 +587,81 @@ mod cont_tree {
     }
 }
 
+
+
+#[bench]
+fn bench_cont(b:&mut test::Bencher){
+    let grow=2.0;
+    let s=dists::spiral::Spiral::new([400.0,400.0],17.0,grow);
+    
+    fn aabb_create_isize(pos:[isize;2],radius:isize)->axgeom::Rect<isize>{
+        axgeom::Rect::new(pos[0]-radius,pos[0]+radius,pos[1]-radius,pos[1]+radius)
+    }
+    let bots:Vec<_>=s.as_isize().take(100_000).map(|pos|unsafe{BBox::new(aabb_create_isize(pos,5),())}).collect();
+
+
+    b.iter(||{
+        let k=create_cont(axgeom::XAXISS,&bots);
+        let _ =test::black_box(k);    
+    });
+
+}
+
+
+#[bench]
+fn bench_cont2(b:&mut test::Bencher){
+
+    fn create_cont2<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
+        let left=middle.iter().map(|a|a.get().get_range(axis).left).min().unwrap();
+        let right=middle.iter().map(|a|a.get().get_range(axis).right).max().unwrap();
+        axgeom::Range{left,right}
+    }
+
+    let grow=2.0;
+    let s=dists::spiral::Spiral::new([400.0,400.0],17.0,grow);
+    
+    fn aabb_create_isize(pos:[isize;2],radius:isize)->axgeom::Rect<isize>{
+        axgeom::Rect::new(pos[0]-radius,pos[0]+radius,pos[1]-radius,pos[1]+radius)
+    }
+    let bots:Vec<_>=s.as_isize().take(100_000).map(|pos|unsafe{BBox::new(aabb_create_isize(pos,5),())}).collect();
+
+
+    b.iter(||{
+        let k=create_cont2(axgeom::XAXISS,&bots);
+        let _ =test::black_box(k);    
+    });
+
+}
+
+
 fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
-    match middle.split_first() {
-        None => unsafe { std::mem::uninitialized() },
-        Some((first, rest)) => {
-            let mut min = first.get().get_range(axis).left;
-            let mut max = first.get().get_range(axis).right;
+    let (first,rest)= middle.split_first().unwrap();
 
-            for a in rest.iter() {
-                let left = &a.get().get_range(axis).left;
-                let right = &a.get().get_range(axis).right;
 
-                if *left < min {
-                    min = *left;
-                }
+    let mut min = first.get().get_range(axis).left;
+    let mut max = first.get().get_range(axis).right;
 
-                if *right > max {
-                    max = *right;
-                }
-            }
+    for a in rest.iter() {
+        let left = &a.get().get_range(axis).left;
+        let right = &a.get().get_range(axis).right;
 
-            axgeom::Range {
-                left: min,
-                right: max,
-            }
+        if *left < min {
+            min = *left;
+        }
+
+        if *right > max {
+            max = *right;
         }
     }
+
+    axgeom::Range {
+        left: min,
+        right: max,
+    }
+
 }
 
-fn construct_leaf<T: HasAabb>(
-    sorter: impl Sorter,
-    div_axis: impl AxisTrait,
-    bots: &mut [T],
-) -> axgeom::Range<T::Num> {
-    sorter.sort(div_axis.next(), bots);
-    create_cont(div_axis, bots)
-}
+
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]

@@ -36,8 +36,14 @@
 //! The HasAabb trait is marked as unsafe. See its description.
 //!
 
+#![feature(test)]
 #![feature(ptr_internals)]
 #![feature(trusted_len)]
+
+#[cfg(test)]
+extern crate test;
+#[cfg(test)]
+extern crate dists;
 
 extern crate axgeom;
 extern crate compt;
@@ -46,6 +52,8 @@ extern crate itertools;
 extern crate pdqselect;
 extern crate rayon;
 extern crate reorder;
+
+
 
 mod inner_prelude {
     pub use axgeom::*;
