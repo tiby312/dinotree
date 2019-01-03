@@ -6,6 +6,9 @@ use dinotree::*;
 extern crate compt;
 use compt::*;
 
+
+
+
 fn assert_length<I: std::iter::TrustedLen>(it: I) {
     let len = it.size_hint().0;
 
@@ -58,7 +61,6 @@ fn test_many() {
         if let Some(_) = b.div {
             if let Some(_) = b.cont {
                 num_div += 1;
-                //assert_eq!(non_empty.div, 0);
             }
         }
     }

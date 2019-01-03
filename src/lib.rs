@@ -86,7 +86,6 @@ pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree::DinoTreeBuilder;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
-pub use crate::tree::BBox;
 pub use crate::tree::DinoTreeRef;
 pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::NodeRef;
@@ -116,21 +115,56 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + std::fmt::Debug {}
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
-///to each simultaneously. Not upholding this contract can result to undefined behavior so this trait
-///is marked unsafe.
+///to each simultaneously. 
 ///
-///Additionally the aabb must not change while the object is contained in the tree.
+///The aabb must not change while the object is contained in the tree.
+///So multiple calls to get() must return the same bounding box region while the object is in the tree.
 ///Not doing so would violate invariants of the tree, and would thus make all the
 ///query algorithms performed on the tree would not be correct.
 ///
 ///Not only will the algorithms not be correct, but undefined behavior may be introduced.
 ///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
 ///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
-///
-///The trait is marked as unsafe. The user is suggested to use the DinoTree builder.
-///The builder will safely construct a tree of elements wrapped in a Bounding Box where the aabb
-///is protected from being modified via visibility. The trait is still useful to keep the querying algorithms generic.
 pub unsafe trait HasAabb {
     type Num: NumTrait;
     fn get(&self) -> &axgeom::Rect<Self::Num>;
+}
+
+
+
+///A wrapper type around a type T and bounding box where the bounding box is hidden.
+///This is what is inserted into the tree. This way the user
+///cannot modify the bounding box since it is hidden, with only read access.
+#[derive(Copy, Clone)]
+pub struct BBox<N: NumTrait, T> {
+    rect: axgeom::Rect<N>,
+    pub inner: T,
+}
+
+use std::fmt::Debug;
+use std::fmt::Formatter;
+
+impl<N: NumTrait + Debug, T: Debug> Debug for BBox<N, T> {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        self.rect.fmt(f)?;
+        self.inner.fmt(f)
+    }
+}
+
+impl<N: NumTrait, T> BBox<N, T> {
+    ///Unsafe since the user create to boxes whose rectangles do not intersect,
+    ///but whose contents point to a shared resource thus violating the contract of HasAabb.
+    #[inline]
+    pub fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
+        BBox { rect, inner }
+    }
+}
+
+unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
+    type Num = N;
+    #[inline]
+    fn get(&self) -> &axgeom::Rect<Self::Num> {
+        &self.rect
+    }
 }
