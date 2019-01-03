@@ -620,7 +620,7 @@ fn bench_cont(b: &mut test::Bencher) {
     let bots: Vec<_> = s
         .as_isize()
         .take(100_000)
-        .map(|pos| unsafe { BBox::new(aabb_create_isize(pos, 5), ()) })
+        .map(|pos| BBox::new(aabb_create_isize(pos, 5), ()))
         .collect();
 
     b.iter(|| {
@@ -659,7 +659,7 @@ fn bench_cont2(b: &mut test::Bencher) {
     let bots: Vec<_> = s
         .as_isize()
         .take(100_000)
-        .map(|pos| unsafe { BBox::new(aabb_create_isize(pos, 5), ()) })
+        .map(|pos|  BBox::new(aabb_create_isize(pos, 5), ()) )
         .collect();
 
     b.iter(|| {
