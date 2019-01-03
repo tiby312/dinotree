@@ -131,6 +131,9 @@ impl reorder::HasIndex for Index {
     }
 }
 
+
+
+
 ///A version where the bots are not copied. This means that the slice borrowed from the user
 ///must remain borrowed for the entire lifetime of the tree.
 pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {

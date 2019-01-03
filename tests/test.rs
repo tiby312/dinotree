@@ -16,35 +16,37 @@ fn assert_length<I: std::iter::TrustedLen>(it: I) {
 fn test_zero_sized() {
     let bots = vec![(); 1];
 
-    let tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
+    }).build_seq();
 
-    let n = tree.as_ref().into_vistr().next();
-    assert_eq!(n.1.is_none(), true);
-    assert_eq!(n.0.range.len(), 1);
+    let (n,_) = tree.as_ref().into_vistr().next();
+    assert_eq!(n.div.is_none(), true);
+    assert_eq!(n.bots.len(), 1);
+    assert!(n.cont.is_some());
 }
 
 #[test]
 fn test_one() {
     let bots = vec![0usize; 1];
 
-    let tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
+    }).build_seq();
 
-    let n = tree.as_ref().into_vistr().next();
-    assert_eq!(n.1.is_none(), true);
-    assert_eq!(n.0.range.len(), 1);
+    let (n,_) = tree.as_ref().into_vistr().next();
+    assert_eq!(n.div.is_none(), true);
+    assert_eq!(n.bots.len(), 1);
+    assert!(n.cont.is_some())
 }
 
 #[test]
 fn test_many() {
     let bots = vec![0usize; 1000];
 
-    let tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
+    }).build_seq();
 
     assert_eq!(
         tree.as_ref().vistr().dfs_inorder_iter().count(),
@@ -52,11 +54,11 @@ fn test_many() {
     );
 
     let mut num_div = 0;
-    for (_, b) in tree.as_ref().vistr().dfs_inorder_iter() {
-        if let Some(nonleaf) = b {
-            if let Some(non_empty) = nonleaf {
+    for b in tree.as_ref().vistr().dfs_inorder_iter() {
+        if let Some(_) = b.div {
+            if let Some(_) = b.cont {
                 num_div += 1;
-                assert_eq!(non_empty.div, 0);
+                //assert_eq!(non_empty.div, 0);
             }
         }
     }
@@ -67,21 +69,21 @@ fn test_many() {
 fn test_empty() {
     let bots: Vec<()> = Vec::new();
 
-    let tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
+    }).build_seq();
 
-    let n = tree.as_ref().into_vistr().next();
-    assert_eq!(n.0.range.len(), 0);
+    let (n,_) = tree.as_ref().into_vistr().next();
+    assert_eq!(n.bots.len(), 0);
 }
 
 #[test]
 fn test_iter() {
     let bots = vec![0usize; 1234];
 
-    let tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
+    }).build_seq();
 
     let mut last = None;
     for b in tree.as_ref().iter() {
@@ -100,9 +102,9 @@ fn test_iter() {
 fn test_iter2() {
     let bots = vec![0usize; 1234];
 
-    let tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
+    }).build_seq();
 
     let num_bots = bots.len();
     assert_eq!(tree.as_ref().iter().count(), num_bots);
@@ -111,10 +113,11 @@ fn test_iter2() {
 fn test() {
     let bots = vec![0usize; 1234];
 
-    let mut tree = DinoTree::new(axgeom::YAXISS, (), &bots, |_b| {
+    let mut tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    });
-    dinotree::advanced::are_invariants_met(tree.as_ref()).unwrap();
+    }).build_seq();
+    
+    assert!(tree.as_ref().are_invariants_met());
 
     assert_length(tree.as_ref_mut().vistr_mut().dfs_preorder_iter());
     assert_length(tree.as_ref().vistr().dfs_preorder_iter());
@@ -134,10 +137,10 @@ fn test() {
 
     recc(tree.as_ref_mut().vistr_mut());
     //recursively check that the length is correct at each node.
-    fn recc(a: VistrMut<(), BBox<isize, usize>>) {
+    fn recc(a: VistrMut<BBox<isize, usize>>) {
         let (_nn, rest) = a.next();
         match rest {
-            Some((_extra, mut left, mut right)) => {
+            Some([mut left, mut right]) => {
                 {
                     let left = left.create_wrap_mut();
                     let right = right.create_wrap_mut();
