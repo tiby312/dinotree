@@ -6,9 +6,6 @@ use dinotree::*;
 extern crate compt;
 use compt::*;
 
-
-
-
 fn assert_length<I: std::iter::TrustedLen>(it: I) {
     let len = it.size_hint().0;
 
@@ -21,9 +18,10 @@ fn test_zero_sized() {
 
     let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
+    })
+    .build_seq();
 
-    let (n,_) = tree.as_ref().into_vistr().next();
+    let (n, _) = tree.as_ref().into_vistr().next();
     assert_eq!(n.div.is_none(), true);
     assert_eq!(n.bots.len(), 1);
     assert!(n.cont.is_some());
@@ -35,9 +33,10 @@ fn test_one() {
 
     let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
+    })
+    .build_seq();
 
-    let (n,_) = tree.as_ref().into_vistr().next();
+    let (n, _) = tree.as_ref().into_vistr().next();
     assert_eq!(n.div.is_none(), true);
     assert_eq!(n.bots.len(), 1);
     assert!(n.cont.is_some())
@@ -49,7 +48,8 @@ fn test_many() {
 
     let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
+    })
+    .build_seq();
 
     assert_eq!(
         tree.as_ref().vistr().dfs_inorder_iter().count(),
@@ -73,9 +73,10 @@ fn test_empty() {
 
     let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
+    })
+    .build_seq();
 
-    let (n,_) = tree.as_ref().into_vistr().next();
+    let (n, _) = tree.as_ref().into_vistr().next();
     assert_eq!(n.bots.len(), 0);
 }
 
@@ -85,7 +86,8 @@ fn test_iter() {
 
     let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
+    })
+    .build_seq();
 
     let mut last = None;
     for b in tree.as_ref().iter() {
@@ -106,7 +108,8 @@ fn test_iter2() {
 
     let tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
+    })
+    .build_seq();
 
     let num_bots = bots.len();
     assert_eq!(tree.as_ref().iter().count(), num_bots);
@@ -117,8 +120,9 @@ fn test() {
 
     let mut tree = DinoTreeBuilder::new(axgeom::YAXISS, &bots, |_b| {
         axgeom::Rect::new(0isize, 0, 0, 0)
-    }).build_seq();
-    
+    })
+    .build_seq();
+
     assert!(tree.as_ref().are_invariants_met());
 
     assert_length(tree.as_ref_mut().vistr_mut().dfs_preorder_iter());

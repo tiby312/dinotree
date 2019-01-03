@@ -22,7 +22,6 @@ pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> R
 impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeBuilder<'a, A, T, Num, F>
 {
-
     ///Create a dinotree builder.
     ///The user picks the axis along which the first divider will partition.
     ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
@@ -235,7 +234,6 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 }
 
 impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
-    
     ///Return a mutable reference to the tree.
     #[inline]
     pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {

@@ -45,9 +45,9 @@
 #![feature(trusted_len)]
 
 #[cfg(test)]
-extern crate test;
-#[cfg(test)]
 extern crate dists;
+#[cfg(test)]
+extern crate test;
 
 extern crate axgeom;
 extern crate compt;
@@ -56,8 +56,6 @@ extern crate itertools;
 extern crate pdqselect;
 extern crate rayon;
 extern crate reorder;
-
-
 
 mod inner_prelude {
     pub use axgeom::*;
@@ -119,7 +117,7 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + std::fmt::Debug {}
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
-///to each simultaneously. 
+///to each simultaneously.
 ///
 ///The aabb must not change while the object is contained in the tree.
 ///So multiple calls to get() must return the same bounding box region while the object is in the tree.
@@ -133,8 +131,6 @@ pub unsafe trait HasAabb {
     type Num: NumTrait;
     fn get(&self) -> &axgeom::Rect<Self::Num>;
 }
-
-
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
 ///This is what is inserted into the tree. This way the user

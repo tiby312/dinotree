@@ -1,6 +1,5 @@
 use super::*;
 
-
 ///Builder for a DinoTree
 pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, T: HasAabb + Copy> {
     axis: A,
@@ -131,9 +130,6 @@ impl reorder::HasIndex for Index {
     }
 }
 
-
-
-
 ///A version where the bots are not copied. This means that the slice borrowed from the user
 ///must remain borrowed for the entire lifetime of the tree.
 pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {
@@ -144,7 +140,6 @@ pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {
 }
 
 impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
-    
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
