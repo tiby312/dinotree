@@ -25,15 +25,19 @@
 //!
 //! Axis alternates every level.
 //! Divider placement is placed at the median at each level.
-//! Nodes that itersect a divider belong to that node.
+//! objects that intersect a divider belong to that node.
 //! Every divider keeps track of how thick a line would have to be
 //! to cover all the bots it owns.
+//! All the objects in a node are sorted along that node's axis.
 //!
 //! ~~~~
 //!
 //! # Unsafety
 //!
 //! The HasAabb trait is marked as unsafe. See its description.
+//! Unsafety used to have slices of bots in the tree, but also a slice of all the bots
+//! so that we can efficiently return a slice of all the bots.
+//! Unsafety is used to reused code between sequential and parallel build algorithms.
 //!
 
 #![feature(test)]
@@ -86,6 +90,7 @@ pub use crate::tree::dinotree::DinoTree;
 pub use crate::tree::dinotree::DinoTreeBuilder;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
+pub use crate::tree::notsorted::NotSorted;
 pub use crate::tree::DinoTreeRef;
 pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::NodeRef;
@@ -101,8 +106,7 @@ mod tools;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
-///Contains a more complicated api that allows the users to create trees with more control.
-///Also provides some debugging functions.
+///Provies some debugging and misc functions.
 pub mod advanced;
 
 ///The underlying number type used for the dinotree.
@@ -153,8 +157,6 @@ impl<N: NumTrait + Debug, T: Debug> Debug for BBox<N, T> {
 }
 
 impl<N: NumTrait, T> BBox<N, T> {
-    ///Unsafe since the user create to boxes whose rectangles do not intersect,
-    ///but whose contents point to a shared resource thus violating the contract of HasAabb.
     #[inline]
     pub fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
         BBox { rect, inner }

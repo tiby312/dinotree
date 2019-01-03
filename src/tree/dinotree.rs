@@ -22,6 +22,11 @@ pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> R
 impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeBuilder<'a, A, T, Num, F>
 {
+
+    ///Create a dinotree builder.
+    ///The user picks the axis along which the first divider will partition.
+    ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
+    ///The user also passes a function to create the bounding box of each bot in the slice passed.
     pub fn new(axis: A, bots: &[T], aabb_create: F) -> DinoTreeBuilder<A, T, Num, F> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
@@ -37,7 +42,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         }
     }
 
-    ///Choose a custom rebalance stratagy.
+    ///Choose a custom bin stratagy.
     pub fn with_bin_strat(&mut self, strat: BinStrat) -> &mut Self {
         self.rebal_strat = strat;
         self
@@ -57,6 +62,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         self
     }
 
+    ///Build with a Splitter.
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
@@ -88,6 +94,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         self.build_inner(par::Sequential, DefaultSorter, splitter)
     }
 
+    ///Build a not sorted dinotree with a splitter.
     pub fn build_not_sorted_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
@@ -119,6 +126,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         NotSorted(self.build_inner(par::Sequential, NoSorter, splitter))
     }
 
+    ///Build sequentially.
     pub fn build_seq(&mut self) -> DinoTree<A, BBox<Num, T>> {
         self.build_inner(
             par::Sequential,
@@ -127,11 +135,13 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         )
     }
 
+    ///Build in parallel
     pub fn build_par(&mut self) -> DinoTree<A, BBox<Num, T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
     }
 
+    ///Build not sorted sequentially
     pub fn build_not_sorted_seq(&mut self) -> NotSorted<A, BBox<Num, T>> {
         NotSorted(self.build_inner(
             par::Sequential,
@@ -140,6 +150,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         ))
     }
 
+    ///Build not sorted in parallel
     pub fn build_not_sorted_par(&mut self) -> NotSorted<A, BBox<Num, T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         NotSorted(self.build_inner(dlevel, NoSorter, &mut crate::advanced::SplitterEmpty))
@@ -224,11 +235,8 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 }
 
 impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
-    #[inline]
-    pub fn get_original_indicies(&self) -> &[u32] {
-        &self.mover
-    }
-
+    
+    ///Return a mutable reference to the tree.
     #[inline]
     pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
         DinoTreeRefMut {
@@ -237,6 +245,8 @@ impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
             tree: &mut self.tree,
         }
     }
+
+    ///Return a reference to the tree.
     #[inline]
     pub fn as_ref(&self) -> DinoTreeRef<A, T> {
         DinoTreeRef {
@@ -256,7 +266,7 @@ impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
         }
     }
 
-    ///Apply changes to the internals of the bots (not the aabb) back into the tree without recreating the tree.
+    ///Apply changes to the bots in the tree (not the aabb) without recreating the tree.
     pub fn apply_into<X>(&mut self, bots: &[X], conv: impl Fn(&X, &mut T)) {
         assert_eq!(bots.len(), self.bots.len());
 

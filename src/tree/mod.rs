@@ -12,6 +12,8 @@ pub struct DinoTreeRefMut<'a, A: AxisTrait, T: HasAabb> {
 }
 
 impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRefMut<'a, A, T> {
+
+    //Create a borrowed version of self.
     #[inline]
     pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
         DinoTreeRefMut {
@@ -21,6 +23,7 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRefMut<'a, A, T> {
         }
     }
 
+    //Create a mutable tree node visitor.
     #[inline]
     pub fn vistr_mut(&mut self) -> VistrMut<T> {
         VistrMut {
@@ -28,6 +31,7 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRefMut<'a, A, T> {
         }
     }
 
+    //Create a mutable tree node visitor by consuming self.
     #[inline]
     pub fn into_vistr_mut(self) -> VistrMut<'a, T> {
         VistrMut {
@@ -35,12 +39,14 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRefMut<'a, A, T> {
         }
     }
 
-    ///Iterate over al the bots in the tree. The order in which they are iterated is dfs in order.
+    ///Iterate over all the bots in the tree. The order in which they are iterated over is dfs pre order as they have been binned and sorted
+    ///into the dinotree.
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
         self.bots.iter_mut()
     }
 
+    ///Iterate over all bots.
     #[inline]
     pub fn into_iter_mut(self) -> std::slice::IterMut<'a, T> {
         self.bots.iter_mut()
@@ -54,7 +60,6 @@ impl<'a, A: AxisTrait, T: HasAabb> std::ops::Deref for DinoTreeRefMut<'a, A, T> 
         unsafe {
             &*(self as *const tree::DinoTreeRefMut<'a, A, T> as *const tree::DinoTreeRef<'a, A, T>)
         }
-        //unsafe{std::mem::transmute(self)}
     }
 }
 
@@ -73,7 +78,11 @@ impl<'a, A: AxisTrait, T: HasAabb> IntoIterator for DinoTreeRef<'a, A, T> {
         self.bots.iter()
     }
 }
+
 impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
+
+
+    //Create a borrowed version of self.
     #[inline]
     pub fn as_ref(&self) -> DinoTreeRef<A, T> {
         DinoTreeRef {
@@ -82,16 +91,22 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
             tree: self.tree,
         }
     }
+
+    //Return the axis of the dinotree.
     #[inline]
     pub fn axis(&self) -> A {
         self.axis
     }
+
+    //Return a node visitor by consuming self.
     #[inline]
     pub fn into_vistr(self) -> Vistr<'a, T> {
         Vistr {
             inner: self.tree.vistr(),
         }
     }
+
+    //Return a node visitor.
     #[inline]
     pub fn vistr(&self) -> Vistr<T> {
         Vistr {
@@ -99,21 +114,26 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
         }
     }
 
-    ///See iter_mut
+    ///Iterate over all the bots in the tree. The order in which they are iterated over is dfs pre order as they have been binned and sorted
+    ///into the dinotree.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<T> {
         self.bots.iter()
     }
 
+    ///Return the height of the dinotree.
     #[inline]
     pub fn height(&self) -> usize {
         self.tree.get_height()
     }
+
+    ///Return the number of nodes of the dinotree.
     #[inline]
     pub fn num_nodes(&self) -> usize {
         self.tree.get_nodes().len()
     }
 
+    ///Return the number of bots in the tree.
     #[inline]
     pub fn num_bots(&self) -> usize {
         self.bots.len()
@@ -663,7 +683,8 @@ fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range
 
 
 
-#[allow(dead_code)]
+///Passed to the binning algorithm to determine
+///if the binning algorithm should check for index out of bounds.
 #[derive(Copy, Clone, Debug)]
 pub enum BinStrat {
     Checked,

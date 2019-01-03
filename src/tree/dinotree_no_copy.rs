@@ -144,11 +144,7 @@ pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {
 }
 
 impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
-    #[inline]
-    pub fn get_original_indicies(&self) -> &[u32] {
-        unsafe { &*(self.mover.as_ref() as *const [Index] as *const [u32]) }
-    }
-
+    
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
@@ -156,6 +152,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
         reorder::reorder(self.bots, &mut self.mover)
     }
 
+    ///Return a mutable reference to the tree.
     #[inline]
     pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
         DinoTreeRefMut {
@@ -164,6 +161,8 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
             tree: &mut self.nodes,
         }
     }
+
+    ///Return a reference to the tree.
     #[inline]
     pub fn as_ref(&self) -> DinoTreeRef<A, T> {
         DinoTreeRef {

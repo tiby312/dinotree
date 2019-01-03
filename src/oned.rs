@@ -134,7 +134,7 @@ pub fn compare_bots<T: HasAabb>(axis: impl AxisTrait, a: &T, b: &T) -> std::cmp:
     std::cmp::Ordering::Less
 }
 
-///Sorts the bots.
+///Sorts the bots based on an axis.
 #[inline]
 pub fn sweeper_update<I: HasAabb, A: AxisTrait>(axis: A, collision_botids: &mut [I]) {
     let sclosure = |a: &I, b: &I| -> std::cmp::Ordering { compare_bots(axis, a, b) };
