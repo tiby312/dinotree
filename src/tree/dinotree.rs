@@ -203,7 +203,9 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             let new_nodes = {
                 let mut rest: Option<&mut [BBox<Num, T>]> = Some(&mut new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
-                for node in cont_tree.get_tree_mut().dfs_iter() {
+
+                
+                for node in cont_tree.get_tree_mut().get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
                     let b = unsafe { std::ptr::Unique::new_unchecked(b as *mut [_]) };
@@ -218,7 +220,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
             (
                 new_bots,
-                compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap(),
+                compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes,compt::dfs_order::PreOrder).unwrap(),
             )
         };
 

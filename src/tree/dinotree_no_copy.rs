@@ -91,7 +91,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
             let new_nodes = {
                 let mut rest: Option<&mut [T]> = Some(new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
-                for node in cont_tree.get_tree_mut().dfs_iter() {
+                for node in cont_tree.get_tree_mut().get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
                     let b = unsafe { std::ptr::Unique::new_unchecked(b as *mut [_]) };
@@ -104,7 +104,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
                 new_nodes
             };
 
-            compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes).unwrap()
+            compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes,compt::dfs_order::PreOrder).unwrap()
         };
         let mover = conts
             .drain(..)
