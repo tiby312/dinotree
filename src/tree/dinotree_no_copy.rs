@@ -104,7 +104,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
                 new_nodes
             };
 
-            compt::dfs_order::CompleteTreeContainer::<_,compt::dfs_order::PreOrder>::from_vec(new_nodes).unwrap()
+            compt::dfs_order::CompleteTreeContainer::from_preorder(new_nodes).unwrap()
         };
         let mover = conts
             .drain(..)
