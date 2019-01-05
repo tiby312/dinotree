@@ -451,8 +451,8 @@ mod cont_tree {
             r.recurse_preorder(div_axis, dlevel, rest, &mut nodes, splitter, 0);
 
             let tree =
-                compt::dfs_order::CompleteTreeContainer::from_vec(
-                    nodes,compt::dfs_order::PreOrder
+                compt::dfs_order::CompleteTreeContainer::<_,compt::dfs_order::PreOrder>::from_vec(
+                    nodes
                 )
                 .unwrap();
 

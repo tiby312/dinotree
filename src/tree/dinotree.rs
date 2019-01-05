@@ -220,7 +220,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
             (
                 new_bots,
-                compt::dfs_order::CompleteTreeContainer::from_vec(new_nodes,compt::dfs_order::PreOrder).unwrap(),
+                compt::dfs_order::CompleteTreeContainer::<_,compt::dfs_order::PreOrder>::from_vec(new_nodes).unwrap(),
             )
         };
 
