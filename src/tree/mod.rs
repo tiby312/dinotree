@@ -369,6 +369,8 @@ pub struct NodeRef<'a, T: HasAabb> {
 }
 
 impl<T: HasAabb> Node<T> {
+
+    #[inline]
     pub fn get_mut(&mut self) -> NodeRefMut<T> {
         let bots = unsafe { &mut *self.range.as_ptr() };
         let cont = if bots.is_empty() {
@@ -384,6 +386,7 @@ impl<T: HasAabb> Node<T> {
         }
     }
 
+    #[inline]
     pub fn get(&self) -> NodeRef<T> {
         let bots = unsafe { &*self.range.as_ptr() };
         let cont = if bots.is_empty() {
