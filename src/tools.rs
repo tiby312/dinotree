@@ -6,10 +6,9 @@ pub fn duplicate_empty_slice<T>(arr: &mut [T]) -> &mut [T] {
 
 
 
-///https://doc.rust-lang.org/1.26.2/core/ptr/struct.Unique.html
-///
-///A Unique that doesnt require rust nightly.
 use std::marker::PhantomData;
+///A Unique that doesnt require rust nightly.
+///See https://doc.rust-lang.org/1.26.2/core/ptr/struct.Unique.html
 #[derive(Copy,Clone,Debug)]
 pub struct Unique<T: ?Sized>(
     pub std::ptr::NonNull<T>,
