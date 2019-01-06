@@ -40,13 +40,16 @@
 //! Unsafety is used to reused code between sequential and parallel build algorithms.
 //!
 
-#![feature(test)]
-#![feature(ptr_internals)]
-#![feature(trusted_len)]
+//#![feature(test)]
+//#![feature(ptr_internals)]
+//#![feature(trusted_len)]
+
 
 #[cfg(test)]
 extern crate dists;
-#[cfg(test)]
+
+//#[cfg(test)]
+#[cfg(all(feature = "unstable", test))]
 extern crate test;
 
 extern crate axgeom;

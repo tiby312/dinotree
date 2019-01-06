@@ -94,7 +94,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
                 for node in cont_tree.get_tree_mut().get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
-                    let b = unsafe { std::ptr::Unique::new_unchecked(b as *mut [_]) };
+                    let b = tools::Unique::new(b as *mut [_]).unwrap();
                     new_nodes.push(Node {
                         range: b,
                         cont: node.cont,

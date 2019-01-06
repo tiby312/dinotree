@@ -295,7 +295,7 @@ impl<'a, T: HasAabb> Visitor for VistrMut<'a, T> {
 }
 
 pub struct Node<T: HasAabb> {
-    range: std::ptr::Unique<[T]>,
+    range: tools::Unique<[T]>,
 
     //range is empty iff cont is none.
     cont: axgeom::Range<T::Num>,
@@ -505,7 +505,7 @@ mod cont_tree {
                             right,
                         } => (
                             Node {
-                                range: std::ptr::Unique::new(mid as *mut [_]).unwrap(),
+                                range: tools::Unique::new(mid as *mut [_]).unwrap(),
                                 cont,
                                 div: Some(div),
                             },
@@ -517,7 +517,7 @@ mod cont_tree {
                                 let a = tools::duplicate_empty_slice(empty);
                                 let cont = unsafe { std::mem::uninitialized() };
                                 let node = Node {
-                                    range: std::ptr::Unique::new(a as *mut [_]).unwrap(),
+                                    range: tools::Unique::new(a as *mut [_]).unwrap(),
                                     cont,
                                     div: None,
                                 };
@@ -593,7 +593,7 @@ mod cont_tree {
                 };
 
                 let node = Node {
-                    range: std::ptr::Unique::new(rest as *mut [_]).unwrap(),
+                    range: tools::Unique::new(rest as *mut [_]).unwrap(),
                     cont,
                     div: None,
                 };
@@ -605,6 +605,7 @@ mod cont_tree {
 }
 
 #[bench]
+#[cfg(all(feature = "unstable", test))]
 fn bench_cont(b: &mut test::Bencher) {
     let grow = 2.0;
     let s = dists::spiral::Spiral::new([400.0, 400.0], 17.0, grow);
@@ -630,6 +631,7 @@ fn bench_cont(b: &mut test::Bencher) {
 }
 
 #[bench]
+#[cfg(all(feature = "unstable", test))]
 fn bench_cont2(b: &mut test::Bencher) {
     fn create_cont2<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
         let left = middle

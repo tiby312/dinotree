@@ -2,6 +2,29 @@ pub fn duplicate_empty_slice<T>(arr: &mut [T]) -> &mut [T] {
     assert!(arr.is_empty());
     unsafe { std::slice::from_raw_parts_mut(arr.as_mut_ptr(), 0) }
 }
+
+
+
+
+use std::marker::PhantomData;
+pub struct Unique<T: ?Sized>(
+    pub std::ptr::NonNull<T>,
+    PhantomData<T>
+);
+
+unsafe impl<T:?Sized> Send for Unique<T>{}
+unsafe impl<T:?Sized> Sync for Unique<T>{}
+impl<T:?Sized> Unique<T>{
+
+    pub fn new(ptr:*mut T)->Option<Unique<T>>{
+        std::ptr::NonNull::new(ptr).map(|a|Unique(a,PhantomData))
+    }
+    pub fn as_ptr(&self)->*mut T{
+        self.0.as_ptr()
+    }
+}
+
+
 /*
 
 #[repr(C)]

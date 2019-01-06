@@ -1,4 +1,3 @@
-#![feature(trusted_len)]
 
 extern crate axgeom;
 extern crate dinotree;
@@ -6,7 +5,7 @@ use dinotree::*;
 extern crate compt;
 use compt::*;
 
-fn assert_length<I: std::iter::TrustedLen>(it: I) {
+fn assert_length<I: std::iter::ExactSizeIterator>(it: I) {
     let len = it.size_hint().0;
 
     assert_eq!(it.count(), len);
