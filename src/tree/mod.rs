@@ -249,6 +249,13 @@ impl<'a, T: HasAabb + 'a> Visitor for Vistr<'a, T> {
     fn level_remaining_hint(&self) -> (usize, Option<usize>) {
         self.inner.level_remaining_hint()
     }
+
+    #[inline]
+    fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
+        self.inner.dfs_preorder(|a|{
+            func(a.get())
+        });
+    }
 }
 
 /// Tree Iterator that returns a reference to each node.
@@ -272,6 +279,8 @@ impl<'a, T: HasAabb> VistrMut<'a, T> {
         //Safe since we know Vistr implements FixedDepthVisitor.
         self.inner.level_remaining_hint().0
     }
+
+
 }
 
 unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for VistrMut<'a, T> {}
@@ -291,6 +300,14 @@ impl<'a, T: HasAabb> Visitor for VistrMut<'a, T> {
     #[inline]
     fn level_remaining_hint(&self) -> (usize, Option<usize>) {
         self.inner.level_remaining_hint()
+    }
+
+
+    #[inline]
+    fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
+        self.inner.dfs_preorder(|a|{
+            func(a.get_mut())
+        });
     }
 }
 
