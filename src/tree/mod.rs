@@ -285,8 +285,8 @@ impl<'a, T: HasAabb> VistrMut<'a, T> {
     }
 
 
-    pub fn get_nodes(&self)->&[Node<T>]{
-        self.inner.as_slice()
+    pub fn get_nodes_mut(&mut self)->&mut [Node<T>]{
+        self.inner.as_slice_mut()
     }
 
 }
