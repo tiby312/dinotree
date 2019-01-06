@@ -15,10 +15,11 @@ pub struct Unique<T: ?Sized>(
 unsafe impl<T:?Sized> Send for Unique<T>{}
 unsafe impl<T:?Sized> Sync for Unique<T>{}
 impl<T:?Sized> Unique<T>{
-
+    #[inline]
     pub fn new(ptr:*mut T)->Option<Unique<T>>{
         std::ptr::NonNull::new(ptr).map(|a|Unique(a,PhantomData))
     }
+    #[inline]
     pub fn as_ptr(&self)->*mut T{
         self.0.as_ptr()
     }

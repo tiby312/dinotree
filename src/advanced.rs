@@ -114,3 +114,4 @@ impl Splitter for SplitterEmpty {
 pub use crate::oned::sweeper_update;
 pub use crate::tree::default_level_switch_sequential;
 pub use crate::tree::BinStrat;
+pub use crate::tools::Unique;
