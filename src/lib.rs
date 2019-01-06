@@ -97,6 +97,7 @@ pub use crate::tree::NodeRef;
 pub use crate::tree::NodeRefMut;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;
+pub use crate::tree::Node;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one

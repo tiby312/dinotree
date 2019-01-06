@@ -228,6 +228,10 @@ impl<'a, T: HasAabb> Vistr<'a, T> {
         //Safe since we know Vistr implements FixedDepthVisitor.
         self.inner.level_remaining_hint().0
     }
+
+    pub fn get_nodes(&self)->&[Node<T>]{
+        self.inner.as_slice()
+    }
 }
 
 unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for Vistr<'a, T> {}
@@ -281,7 +285,21 @@ impl<'a, T: HasAabb> VistrMut<'a, T> {
     }
 
 
+    pub fn get_nodes(&self)->&[Node<T>]{
+        self.inner.as_slice()
+    }
+
 }
+
+impl<'a, T:HasAabb> std::ops::Deref for VistrMut<'a, T> {
+    type Target = Vistr<'a, T>;
+    #[inline]
+    fn deref(&self) -> &Vistr<'a, T> {
+        unsafe { &*(self as *const VistrMut<T> as *const Vistr<T>) }
+    }
+}
+
+
 
 unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for VistrMut<'a, T> {}
 impl<'a, T: HasAabb> Visitor for VistrMut<'a, T> {
@@ -311,6 +329,8 @@ impl<'a, T: HasAabb> Visitor for VistrMut<'a, T> {
     }
 }
 
+
+///A node in a dinotree.
 pub struct Node<T: HasAabb> {
     range: tools::Unique<[T]>,
 
@@ -349,7 +369,7 @@ pub struct NodeRef<'a, T: HasAabb> {
 }
 
 impl<T: HasAabb> Node<T> {
-    fn get_mut(&mut self) -> NodeRefMut<T> {
+    pub fn get_mut(&mut self) -> NodeRefMut<T> {
         let bots = unsafe { &mut *self.range.as_ptr() };
         let cont = if bots.is_empty() {
             None
@@ -364,7 +384,7 @@ impl<T: HasAabb> Node<T> {
         }
     }
 
-    fn get(&self) -> NodeRef<T> {
+    pub fn get(&self) -> NodeRef<T> {
         let bots = unsafe { &*self.range.as_ptr() };
         let cont = if bots.is_empty() {
             None

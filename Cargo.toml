@@ -1,6 +1,6 @@
 [package]
 name = "dinotree"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Ken Reed <kenakioreed@gmail.com>"]
 description = "An aabb space partitioning 2d tree data structure"
 license = "MIT/Apache-2.0"
