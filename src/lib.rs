@@ -48,7 +48,6 @@
 #[cfg(test)]
 extern crate dists;
 
-//#[cfg(test)]
 #[cfg(all(feature = "unstable", test))]
 extern crate test;
 

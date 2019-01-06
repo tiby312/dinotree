@@ -7,6 +7,7 @@ pub fn duplicate_empty_slice<T>(arr: &mut [T]) -> &mut [T] {
 
 
 use std::marker::PhantomData;
+#[derive(Copy,Clone)]
 pub struct Unique<T: ?Sized>(
     pub std::ptr::NonNull<T>,
     PhantomData<T>
