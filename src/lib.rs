@@ -2,6 +2,9 @@
 //! Provides the dinotree data structure and ways to traverse it.
 //! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr nd VistrMut visitors.
 //! No actual query algorithms are provided in this crate. Only the data structure and a way to construct it are provided in this crate.
+//! 
+//! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. There is an alternative NoCopy DinoTree
+//! That does not allocate more space, but instead rearranged the bots in a user provided slice for better cache coherency.
 //!
 //! # Overview
 //!
@@ -29,7 +32,7 @@
 //! Every divider keeps track of how thick a line would have to be
 //! to cover all the bots it owns.
 //! All the objects in a node are sorted along that node's axis.
-//!
+//! 
 //! ~~~~
 //!
 //! # Unsafety
@@ -37,12 +40,8 @@
 //! The HasAabb trait is marked as unsafe. See its description.
 //! Unsafety used to have slices of bots in the tree, but also a slice of all the bots
 //! so that we can efficiently return a slice of all the bots.
-//! Unsafety is used to reused code between sequential and parallel build algorithms.
+//! Unsafety is used to reuse code between sequential and parallel build algorithms.
 //!
-
-//#![feature(test)]
-//#![feature(ptr_internals)]
-//#![feature(trusted_len)]
 
 
 #[cfg(test)]
