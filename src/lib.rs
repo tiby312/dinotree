@@ -1,12 +1,12 @@
 //!
+//! # Overview
+//!
 //! Provides the dinotree data structure and ways to traverse it.
 //! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr nd VistrMut visitors.
 //! No actual query algorithms are provided in this crate. Only the data structure and a way to construct it are provided in this crate.
 //! 
 //! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. There is an alternative NoCopy DinoTree
-//! That does not allocate more space, but instead rearranged the bots in a user provided slice for better cache coherency.
-//!
-//! # Overview
+//! That does not allocate more space, but instead rearranged the bots in a user provided slice for better cache coherency. 
 //!
 //! ~~~~text
 //! 2d Tree Divider Representation:

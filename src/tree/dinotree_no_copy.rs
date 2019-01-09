@@ -33,6 +33,8 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
         )
     }
 
+    
+
     #[inline]
     pub fn build_par(self) -> DinoTreeNoCopy<'a, A, T> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
