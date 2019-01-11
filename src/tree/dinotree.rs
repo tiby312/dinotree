@@ -200,6 +200,9 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
                 })
                 .collect();
 
+
+
+
             let new_nodes = {
                 let mut rest: Option<&mut [BBox<Num, T>]> = Some(&mut new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.get_tree().get_nodes().len());

@@ -136,6 +136,7 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
         self.bots.len()
     }
 
+
     ///Returns Ok, then this tree's invariants are being met.
     ///Should always return true, unless the user corrupts the trees memory
     ///or if the contract of the HasAabb trait are not upheld.
