@@ -10,6 +10,17 @@ pub struct DinoTree<A: AxisTrait, T: HasAabb> {
 }
 
 ///Builder for a DinoTree
+/// # Examples
+///
+/// ```
+/// use axgeom;
+/// use dinotree_sample::SampleBuilder;
+/// use dinotree::DinoTreeBuilder;
+///
+/// let builder = SampleBuilder::new();
+/// let mut bots:Vec<_>= builder.build().take(1000).collect();
+/// let mut tree=DinoTreeBuilder::new(axgeom::XAXISS,&mut bots,|a|builder.create_aabb(a)).build_seq();
+/// ```
 pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {
     axis: A,
     bots: &'a [T],

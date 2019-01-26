@@ -2,11 +2,12 @@
 //! # Overview
 //!
 //! Provides the dinotree data structure and ways to traverse it.
-//! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr nd VistrMut visitors.
+//! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr and VistrMut visitors.
 //! No actual query algorithms are provided in this crate. Only the data structure and a way to construct it are provided in this crate.
 //! 
-//! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. There is an alternative NoCopy DinoTree
-//! That does not allocate more space, but instead rearranged the bots in a user provided slice for better cache coherency. 
+//! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. There is an alternative NoCopyDinoTree
+//! That does not allocate more space, but instead rearranges the bots in a user provided slice for better cache coherency. However from empirical
+//! benchmarking, the version that builds up a new Vec instead of rearranging is faster. 
 //!
 //! ~~~~text
 //! 2d Tree Divider Representation:
@@ -43,9 +44,6 @@
 //! Unsafety is used to reuse code between sequential and parallel build algorithms.
 //!
 
-
-#[cfg(test)]
-extern crate dists;
 
 #[cfg(all(feature = "unstable", test))]
 extern crate test;
@@ -121,7 +119,8 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + std::fmt::Debug {}
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
 ///to each simultaneously.
 ///
-///The aabb must not change while the object is contained in the tree.
+///The aabb must not change while the object is contained in the tree, even though
+///many query algorithms will give mutable references to the elements in the tree.
 ///So multiple calls to get() must return the same bounding box region while the object is in the tree.
 ///Not doing so would violate invariants of the tree, and would thus make all the
 ///query algorithms performed on the tree would not be correct.
@@ -138,6 +137,7 @@ pub unsafe trait HasAabb {
 ///This is what is inserted into the tree. This way the user
 ///cannot modify the bounding box since it is hidden, with only read access.
 #[derive(Copy, Clone)]
+#[repr(C)]
 pub struct BBox<N: NumTrait, T> {
     rect: axgeom::Rect<N>,
     pub inner: T,
@@ -155,16 +155,40 @@ impl<N: NumTrait + Debug, T: Debug> Debug for BBox<N, T> {
 }
 
 impl<N: NumTrait, T> BBox<N, T> {
+    ///Unsafe since user could create a new BBox with a different aabb
+    ///inside of a callback function and assign it to the mutable reference.
     #[inline]
-    pub fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
+    pub unsafe fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
         BBox { rect, inner }
+    }
+
+    ///Unsafe since user could call this function
+    ///using a mutable reference from inside of a callback function
+    ///of a dinotree query function.
+    #[inline]
+    pub unsafe fn set_aabb(&mut self,aabb:axgeom::Rect<N>){
+        self.rect=aabb;
     }
 }
 
 unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
     type Num = N;
-    #[inline]
+    #[inline(always)]
     fn get(&self) -> &axgeom::Rect<Self::Num> {
         &self.rect
+    }
+}
+
+///A wrapper type where you are allowed to modify the aabb.
+#[derive(Copy,Clone)]
+#[repr(C)]
+pub struct BBoxMut<N:NumTrait,T>{
+    pub aabb:axgeom::Rect<N>,
+    pub inner:T
+}
+
+impl<N:NumTrait,T> BBoxMut<N,T>{
+    pub fn new(aabb:axgeom::Rect<N>,inner:T)->BBoxMut<N,T>{
+        BBoxMut{aabb,inner}
     }
 }

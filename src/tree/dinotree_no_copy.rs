@@ -1,20 +1,30 @@
 use super::*;
 
+
+
+enum ReOrderStrat{
+    Aux,
+    NoAux
+}
+
+
 ///Builder for a DinoTree
-pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, T: HasAabb + Copy> {
+pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, N:NumTrait,T:Copy> {
     axis: A,
-    bots: &'a mut [T],
+    bots: &'a mut [BBox<N,T>],
     rebal_strat: BinStrat,
     height: usize,
     height_switch_seq: usize,
 }
-impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
+
+impl<'a, A: AxisTrait, N:NumTrait,T:Copy> DinoTreeNoCopyBuilder<'a, A, N,T> {
     #[inline]
-    pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeNoCopyBuilder<'a, A, T> {
+    pub fn new(axis: A, bots: &'a mut [BBoxMut<N,T>]) -> DinoTreeNoCopyBuilder<'a, A,N, T> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();
 
+        let bots=unsafe{&mut *(bots as *mut [BBoxMut<N,T>] as *mut [BBox<N,T>])};
         DinoTreeNoCopyBuilder {
             axis,
             bots,
@@ -24,21 +34,39 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
         }
     }
 
+
     #[inline]
-    pub fn build_seq(self) -> DinoTreeNoCopy<'a, A, T> {
+    pub fn build_seq_aux(self)->DinoTreeNoCopy<'a,A,BBox<N,T>>{
         self.build_inner(
             par::Sequential,
             DefaultSorter,
             &mut crate::advanced::SplitterEmpty,
+            ReOrderStrat::Aux
+        )
+    }
+
+    #[inline]
+    pub fn build_par_aux(self)->DinoTreeNoCopy<'a,A,BBox<N,T>>{
+        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty,ReOrderStrat::Aux)
+    }
+
+    #[inline]
+    pub fn build_seq(self) -> DinoTreeNoCopy<'a, A, BBox<N,T>> {
+        self.build_inner(
+            par::Sequential,
+            DefaultSorter,
+            &mut crate::advanced::SplitterEmpty,
+            ReOrderStrat::NoAux
         )
     }
 
     
 
     #[inline]
-    pub fn build_par(self) -> DinoTreeNoCopy<'a, A, T> {
+    pub fn build_par(self) -> DinoTreeNoCopy<'a, A, BBox<N,T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
+        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty,ReOrderStrat::NoAux)
     }
 
     fn build_inner<JJ: par::Joiner, K: Splitter + Send>(
@@ -46,7 +74,8 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
         par: JJ,
         sorter: impl Sorter,
         ka: &mut K,
-    ) -> DinoTreeNoCopy<'a, A, T> {
+        reorder_type:ReOrderStrat
+    ) -> DinoTreeNoCopy<'a, A, BBox<N,T>> {
         let axis = self.axis;
 
         let height = self.height;
@@ -77,13 +106,21 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopyBuilder<'a, A, T> {
         let new_tree = {
             let mut cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
 
-               
-            let mut indicies=reorder::swap_index(cont_tree.get_conts().iter().map(|a|a.index));
-            reorder::reorder_index(&mut self.bots, &mut indicies);
-                 
+            {
+                let mut indicies=reorder::swap_index(cont_tree.get_conts().iter().map(|a|a.index));
+                match reorder_type{
+                    ReOrderStrat::Aux=>{
+                        reorder::reorder_index_aux(&mut self.bots, &mut indicies);
+                    },
+                    ReOrderStrat::NoAux=>{
+                        reorder::reorder_index(&mut self.bots, &mut indicies);        
+                    }
+                }
+                
+            }    
 
             let new_nodes = {
-                let mut rest: Option<&mut [T]> = Some(&mut self.bots);
+                let mut rest: Option<&mut [_]> = Some(&mut self.bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
                 for node in cont_tree.get_tree_mut().get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());

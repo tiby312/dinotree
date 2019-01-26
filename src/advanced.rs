@@ -1,5 +1,12 @@
 use crate::inner_prelude::*;
 
+
+pub fn into_bbox_vec<I:Iterator,Num:NumTrait>(a:I,mut b:impl FnMut(&I::Item)->Rect<Num>)->Vec<BBox<Num,I::Item>>{
+    a.map(|a|unsafe{BBox::new(b(&a),a)}).collect()
+}
+
+
+
 fn into_secs(elapsed: std::time::Duration) -> f64 {
     (elapsed.as_secs() as f64) + (f64::from(elapsed.subsec_nanos()) / 1_000_000_000.0)
 }
