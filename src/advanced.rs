@@ -1,6 +1,7 @@
 use crate::inner_prelude::*;
 
 
+///Converts an iterator and a aabb creating function into a Vec of BBox
 pub fn into_bbox_vec<I:Iterator,Num:NumTrait>(a:I,mut b:impl FnMut(&I::Item)->Rect<Num>)->Vec<BBox<Num,I::Item>>{
     a.map(|a|unsafe{BBox::new(b(&a),a)}).collect()
 }

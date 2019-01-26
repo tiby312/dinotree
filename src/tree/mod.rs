@@ -462,9 +462,6 @@ mod cont_tree {
             &self.tree
         }
 
-        pub fn get_conts_mut(&mut self) -> &mut [T] {
-            self.conts
-        }
 
         pub fn get_conts(&self) -> &[T] {
             self.conts
