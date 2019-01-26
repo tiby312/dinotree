@@ -10,7 +10,7 @@ readme = "readme.md"
 edition = "2018"
 
 [dependencies]
-is_sorted = "0.1.0"
+is_sorted = "0.1.1"
 rayon = "1.0.3"
 pdqselect = "0.1.0"
 compt = "1.5.6"

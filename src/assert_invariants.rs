@@ -30,11 +30,12 @@ pub(crate) fn inner<A: AxisTrait, T: HasAabb>(
 
     let axis_next = axis.next();
 
-    let f = |a: &&T, b: &&T| -> std::cmp::Ordering {
-        a.get()
+    let f = |a: &&T, b: &&T| -> Option<std::cmp::Ordering> {
+        let j=a.get()
             .get_range(axis_next)
             .left
-            .cmp(&b.get().get_range(axis_next).left)
+            .cmp(&b.get().get_range(axis_next).left);
+        Some(j)
     };
 
     {
