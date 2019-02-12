@@ -198,8 +198,8 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     //and you will end up with just sweep and prune.
     //This number was chosen emprically from running the dinotree_alg_data project,
     //on two different machines.
-    //const NUM_PER_NODE: usize = 32;
-    const NUM_PER_NODE: usize = 20;
+    const NUM_PER_NODE: usize = 64;
+    //const NUM_PER_NODE: usize = 20;
 
     if num_bots <= NUM_PER_NODE {
         1
