@@ -204,7 +204,10 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     if num_bots <= NUM_PER_NODE {
         1
     } else {
-        (num_bots as f32 / NUM_PER_NODE as f32).log2().ceil() as usize
+        let a=num_bots as f32 / NUM_PER_NODE as f32;
+        let b=a.log2()/2.0;
+        let c=(b.ceil() as usize)*2+1;
+        c
     }
 }
 
