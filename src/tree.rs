@@ -1,14 +1,11 @@
-pub mod dinotree;
-pub mod dinotree_no_copy;
-pub mod notsorted;
 
 use crate::inner_prelude::*;
 
 ///Mutable referance to a dinotree container.
 pub struct DinoTreeRefMut<'a, A: AxisTrait, T: HasAabb> {
-    axis: A,
-    bots: &'a mut [T],
-    tree: &'a mut compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder>,
+    pub(crate) axis: A,
+    pub(crate) bots: &'a mut [T],
+    pub(crate) tree: &'a mut compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder>,
 }
 
 impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRefMut<'a, A, T> {
@@ -64,9 +61,9 @@ impl<'a, A: AxisTrait, T: HasAabb> std::ops::Deref for DinoTreeRefMut<'a, A, T> 
 
 ///Referance to a dinotree container.
 pub struct DinoTreeRef<'a, A: AxisTrait, T: HasAabb> {
-    axis: A,
-    bots: &'a [T],
-    tree: &'a compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder>,
+    pub(crate) axis: A,
+    pub(crate) bots: &'a [T],
+    pub(crate) tree: &'a compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder>,
 }
 
 impl<'a, A: AxisTrait, T: HasAabb> IntoIterator for DinoTreeRef<'a, A, T> {
@@ -148,6 +145,7 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
     }
 }
 
+
 ///Outputs the height given an desirned number of bots per node.
 #[inline]
 pub fn compute_tree_height_heuristic_debug(num_bots: usize, num_per_node: usize) -> usize {
@@ -158,7 +156,10 @@ pub fn compute_tree_height_heuristic_debug(num_bots: usize, num_per_node: usize)
     if num_bots <= num_per_node {
         1
     } else {
-        (num_bots as f32 / num_per_node as f32).log2().ceil() as usize
+        let a=num_bots as f32 / num_per_node as f32;
+        let b=a.log2()/2.0;
+        let c=(b.ceil() as usize)*2+1;
+        c
     }
 }
 
@@ -198,17 +199,8 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     //and you will end up with just sweep and prune.
     //This number was chosen emprically from running the dinotree_alg_data project,
     //on two different machines.
-    const NUM_PER_NODE: usize = 128;
-    //const NUM_PER_NODE: usize = 20;
+    compute_tree_height_heuristic_debug(num_bots,128)
 
-    if num_bots <= NUM_PER_NODE {
-        1
-    } else {
-        let a=num_bots as f32 / NUM_PER_NODE as f32;
-        let b=a.log2()/2.0;
-        let c=(b.ceil() as usize)*2+1;
-        c
-    }
 }
 
 /// Tree Iterator that returns a reference to each node.
@@ -336,16 +328,16 @@ impl<'a, T: HasAabb> Visitor for VistrMut<'a, T> {
 
 ///A node in a dinotree.
 pub struct Node<T: HasAabb> {
-    range: tools::Unique<[T]>,
+    pub(crate) range: tools::Unique<[T]>,
 
     //range is empty iff cont is none.
-    cont: axgeom::Range<T::Num>,
+    pub(crate) cont: axgeom::Range<T::Num>,
     //for non leafs:
     //  div is some iff mid is nonempty.
     //  div is none iff mid is empty.
     //for leafs:
     //  div is none
-    div: Option<T::Num>,
+    pub(crate) div: Option<T::Num>,
 }
 
 ///Mutable reference to a node in the dinotree.
@@ -432,6 +424,11 @@ fn nodes_left(depth: usize, height: usize) -> usize {
     2usize.rotate_left(levels as u32) - 1
 }
 
+
+
+
+pub use self::cont_tree::ContTree;
+pub use self::cont_tree::Cont2;
 mod cont_tree {
 
     use super::*;

@@ -1,5 +1,22 @@
+use crate::tree::*;
+use crate::inner_prelude::*;
+
 use super::*;
 
+
+///A wrapper type where you are allowed to modify the aabb.
+#[derive(Copy,Clone)]
+#[repr(C)]
+pub struct BBoxMut<N:NumTrait,T>{
+    pub aabb:axgeom::Rect<N>,
+    pub inner:T
+}
+
+impl<N:NumTrait,T> BBoxMut<N,T>{
+    pub fn new(aabb:axgeom::Rect<N>,inner:T)->BBoxMut<N,T>{
+        BBoxMut{aabb,inner}
+    }
+}
 
 
 enum ReOrderStrat{
@@ -82,8 +99,7 @@ impl<'a, A: AxisTrait, N:NumTrait,T:Copy> DinoTreeNoCopyBuilder<'a, A, N,T> {
         let binstrat = self.rebal_strat;
 
         let bots2 = unsafe { &mut *(self.bots as *mut [_]) };
-        use crate::tree::cont_tree::*;
-
+        
         let num_bots = self.bots.len();
         let max = std::u32::MAX;
 
@@ -152,8 +168,6 @@ impl<'a, A: AxisTrait, N:NumTrait,T:Copy> DinoTreeNoCopyBuilder<'a, A, N,T> {
 }
 
 
-///A version where the bots are not copied. This means that the slice borrowed from the user
-///must remain borrowed for the entire lifetime of the tree.
 pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {
     axis: A,
     bots: &'a mut [T],
@@ -170,6 +184,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
         self.bots
     }
 
+    ///Returns the elements of the tree is the order they are in the tree.
     pub fn get_bots_mut(&mut self)->&mut [T]{
         self.bots
     }

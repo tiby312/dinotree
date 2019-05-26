@@ -69,25 +69,22 @@ mod inner_prelude {
     pub(crate) use crate::advanced::Splitter;
     pub(crate) use crate::compt::Depth;
     pub(crate) use crate::compt::Visitor;
-    pub(crate) use crate::par;
+    pub(crate) use crate::advanced::par;
     pub(crate) use crate::tree;
     pub(crate) use crate::tree::*;
 }
 
-///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
-///Used by algorithms that operate on the tree.
-pub mod par;
 
 ///Provides low level functionality to construct a dyntree.
 mod assert_invariants;
 
 mod tree;
 
-pub use crate::tree::dinotree::DinoTree;
-pub use crate::tree::dinotree::DinoTreeBuilder;
-pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
-pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
-pub use crate::tree::notsorted::NotSorted;
+//pub use crate::tree::dinotree::DinoTree;
+//pub use crate::tree::dinotree::DinoTreeBuilder;
+//pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
+//pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
+//pub use crate::tree::notsorted::NotSorted;
 pub use crate::tree::DinoTreeRef;
 pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::NodeRef;
@@ -103,6 +100,17 @@ mod tools;
 
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
+
+
+
+///A version of dinotree where the elements are copied directly into the tree.
+pub mod copy;
+///A version where the bots are not copied. This means that the slice borrowed from the user
+///must remain borrowed for the entire lifetime of the tree.
+pub mod nocopy;
+///A version of a dinotree where the bots that belong to a node are not
+///sorted along an axis. So this is really a regular kd-tree.
+pub mod notsorted;
 
 ///Provies some debugging and misc functions.
 pub mod advanced;
@@ -176,19 +184,5 @@ unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
     #[inline(always)]
     fn get(&self) -> &axgeom::Rect<Self::Num> {
         &self.rect
-    }
-}
-
-///A wrapper type where you are allowed to modify the aabb.
-#[derive(Copy,Clone)]
-#[repr(C)]
-pub struct BBoxMut<N:NumTrait,T>{
-    pub aabb:axgeom::Rect<N>,
-    pub inner:T
-}
-
-impl<N:NumTrait,T> BBoxMut<N,T>{
-    pub fn new(aabb:axgeom::Rect<N>,inner:T)->BBoxMut<N,T>{
-        BBoxMut{aabb,inner}
     }
 }

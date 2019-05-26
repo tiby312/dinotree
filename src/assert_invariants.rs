@@ -1,7 +1,6 @@
 use crate::inner_prelude::*;
 use axgeom::AxisTrait;
 use compt::Visitor;
-use is_sorted::IsSorted;
 
 use crate::tree::Vistr;
 
@@ -39,7 +38,9 @@ pub(crate) fn inner<A: AxisTrait, T: HasAabb>(
     };
 
     {
-        assert2!(nn.bots.iter().is_sorted_by(f));
+        use is_sorted::IsSorted;
+        assert2!(IsSorted::is_sorted_by(&mut nn.bots.iter(),f));
+        //assert2!(nn.bots.iter().is_sorted_by(f));
     }
 
     if let Some([left, right]) = rest {

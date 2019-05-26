@@ -1,7 +1,10 @@
+
+
+use crate::tree::*;
+
 use super::notsorted::*;
 use crate::inner_prelude::*;
 
-///The datastructure this crate revolves around.
 pub struct DinoTree<A: AxisTrait, T: HasAabb> {
     axis: A,
     bots: Vec<T>,
@@ -14,20 +17,21 @@ pub struct DinoTree<A: AxisTrait, T: HasAabb> {
 ///
 /// ```
 /// use axgeom;
-/// use dinotree_sample::SampleBuilder;
 /// use dinotree::DinoTreeBuilder;
+/// use dinotree_sample::SampleBuilder;
 ///
 /// let builder = SampleBuilder::new();
 /// let mut bots:Vec<_>= builder.build().take(1000).collect();
 /// let mut tree=DinoTreeBuilder::new(axgeom::XAXISS,&mut bots,|a|builder.create_aabb(a)).build_seq();
+/// //Use tree
 /// ```
 pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {
-    axis: A,
-    bots: &'a [T],
-    aabb_create: F,
-    rebal_strat: BinStrat,
-    height: usize,
-    height_switch_seq: usize,
+    pub(crate) axis: A,
+    pub(crate) bots: &'a [T],
+    pub(crate) aabb_create: F,
+    pub(crate) rebal_strat: BinStrat,
+    pub(crate) height: usize,
+    pub(crate) height_switch_seq: usize,
 }
 
 impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
@@ -104,38 +108,6 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         self.build_inner(par::Sequential, DefaultSorter, splitter)
     }
 
-    ///Build a not sorted dinotree with a splitter.
-    pub fn build_not_sorted_with_splitter_seq<S: Splitter>(
-        &mut self,
-        splitter: &mut S,
-    ) -> NotSorted<A, BBox<Num, T>> {
-        #[repr(transparent)]
-        pub struct SplitterWrap<S> {
-            inner: S,
-        }
-        impl<S: Splitter> Splitter for SplitterWrap<S> {
-            fn div(&mut self) -> Self {
-                SplitterWrap {
-                    inner: self.inner.div(),
-                }
-            }
-            fn add(&mut self, a: Self) {
-                self.inner.add(a.inner)
-            }
-            fn node_start(&mut self) {
-                self.inner.node_start();
-            }
-            fn node_end(&mut self) {
-                self.inner.node_end()
-            }
-        }
-
-        unsafe impl<S> Send for SplitterWrap<S> {}
-        let splitter: &mut SplitterWrap<S> =
-            unsafe { &mut *((splitter as *mut S) as *mut SplitterWrap<S>) };
-        NotSorted(self.build_inner(par::Sequential, NoSorter, splitter))
-    }
-
     ///Build sequentially.
     pub fn build_seq(&mut self) -> DinoTree<A, BBox<Num, T>> {
         self.build_inner(
@@ -151,29 +123,13 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
     }
 
-    ///Build not sorted sequentially
-    pub fn build_not_sorted_seq(&mut self) -> NotSorted<A, BBox<Num, T>> {
-        NotSorted(self.build_inner(
-            par::Sequential,
-            NoSorter,
-            &mut crate::advanced::SplitterEmpty,
-        ))
-    }
-
-    ///Build not sorted in parallel
-    pub fn build_not_sorted_par(&mut self) -> NotSorted<A, BBox<Num, T>> {
-        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        NotSorted(self.build_inner(dlevel, NoSorter, &mut crate::advanced::SplitterEmpty))
-    }
-
-    fn build_inner<JJ: par::Joiner, S: Splitter + Send>(
+    pub(crate) fn build_inner<JJ: par::Joiner, S: Splitter + Send>(
         &mut self,
         par: JJ,
         sorter: impl Sorter,
         ka: &mut S,
     ) -> DinoTree<A, BBox<Num, T>> {
-        use crate::tree::cont_tree::*;
-
+        
         let bots = self.bots;
         let axis = self.axis;
         let aabb_create = &mut self.aabb_create;
