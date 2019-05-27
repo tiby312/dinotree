@@ -6,11 +6,117 @@ use super::notsorted::*;
 use crate::inner_prelude::*;
 
 pub struct DinoTree<A: AxisTrait, T: HasAabb> {
-    axis: A,
-    bots: Vec<T>,
-    tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
-    mover: Vec<u32>,
+    pub(crate) axis: A,
+    pub(crate) bots: Vec<T>,
+    pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
+    pub(crate) mover: Vec<u32>,
 }
+
+
+impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
+    type Item=T;
+    type Axis=A;
+    type Num=T::Num;
+    
+    fn axis(&self)->Self::Axis{
+        self.axis
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        Vistr {
+            inner: self.tree.vistr(),
+        }
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        self.tree.get_height()
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        self.tree.get_nodes().len()
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        self.bots.len()
+    }
+
+}
+
+
+impl<A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for DinoTree<A,T>{    
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
+        VistrMut {
+            inner: self.tree.vistr_mut(),
+        }
+    }
+}
+
+
+/*
+impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for &mut DinoTree<A,T>{
+    type Item=T;
+    type Axis=A;
+    type Num=T::Num;
+    
+    fn axis(&self)->Self::Axis{
+        self.axis
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        Vistr {
+            inner: self.tree.vistr(),
+        }
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Returns Ok, then this tree's invariants are being met.
+    ///Should always return true, unless the user corrupts the trees memory
+    ///or if the contract of the HasAabb trait are not upheld.
+    #[must_use]
+    fn are_invariants_met(&self) -> bool
+    {
+        unimplemented!();
+    }
+}
+
+
+impl<A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for &mut DinoTree<A,T>{    
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
+        VistrMut {
+            inner: self.tree.vistr_mut(),
+        }
+    }
+}
+*/
+
+
 
 ///Builder for a DinoTree
 /// # Examples
@@ -206,6 +312,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 }
 
 impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
+    /*
     ///Return a mutable reference to the tree.
     #[inline]
     pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
@@ -225,6 +332,7 @@ impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
             tree: &self.tree,
         }
     }
+    */
 
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.

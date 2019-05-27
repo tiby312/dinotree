@@ -4,6 +4,11 @@ use compt::Visitor;
 
 use crate::tree::Vistr;
 
+
+#[must_use]
+pub fn assert_invariants<K:DinoTreeRefTrait>(tree:K)->bool{
+    inner(tree.axis(), tree.vistr().with_depth(compt::Depth(0))).is_ok()
+}
 fn a_bot_has_value<N: NumTrait>(it: impl Iterator<Item = N>, val: N) -> bool {
     for b in it {
         if b == val {
@@ -13,7 +18,7 @@ fn a_bot_has_value<N: NumTrait>(it: impl Iterator<Item = N>, val: N) -> bool {
     false
 }
 
-pub(crate) fn inner<A: AxisTrait, T: HasAabb>(
+fn inner<A: AxisTrait, T: HasAabb>(
     axis: A,
     iter: compt::LevelIter<Vistr<T>>,
 ) -> Result<(), ()> {

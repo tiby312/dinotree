@@ -76,6 +76,7 @@ mod inner_prelude {
 
 
 ///Provides low level functionality to construct a dyntree.
+pub use assert_invariants::assert_invariants;
 mod assert_invariants;
 
 mod tree;
@@ -85,8 +86,10 @@ mod tree;
 //pub use crate::tree::dinotree_no_copy::DinoTreeNoCopy;
 //pub use crate::tree::dinotree_no_copy::DinoTreeNoCopyBuilder;
 //pub use crate::tree::notsorted::NotSorted;
-pub use crate::tree::DinoTreeRef;
-pub use crate::tree::DinoTreeRefMut;
+pub use crate::tree::DinoTreeRefTrait;
+pub use crate::tree::DinoTreeRefMutTrait;
+//pub use crate::tree::DinoTreeRef;
+//pub use crate::tree::DinoTreeRefMut;
 pub use crate::tree::NodeRef;
 pub use crate::tree::NodeRefMut;
 pub use crate::tree::Vistr;

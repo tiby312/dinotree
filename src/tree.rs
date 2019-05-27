@@ -1,6 +1,80 @@
 
 use crate::inner_prelude::*;
 
+
+
+pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
+    type Item:HasAabb;
+    type Axis:AxisTrait;
+    type Num:NumTrait;
+    fn axis(&self)->Self::Axis;
+    fn vistr(&self)->Vistr<Self::Item>;
+
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize;
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize;
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize;
+
+}
+pub trait DinoTreeRefMutTrait:DinoTreeRefTrait{
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>;
+}
+
+
+
+
+
+impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
+    type Item=K::Item;
+    type Axis=K::Axis;
+    type Num=K::Num;
+    
+    fn axis(&self)->Self::Axis{
+        K::axis(self)
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        K::vistr(self)
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+}
+
+impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{    
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
+        K::vistr_mut(self)
+    }
+}
+
+
+/*
 ///Mutable referance to a dinotree container.
 pub struct DinoTreeRefMut<'a, A: AxisTrait, T: HasAabb> {
     pub(crate) axis: A,
@@ -86,6 +160,16 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
         }
     }
 
+    //Create a borrowed version of self.
+    #[inline]
+    pub fn into_ref(self) -> DinoTreeRef<'a,A, T> {
+        DinoTreeRef {
+            axis: self.axis,
+            bots: self.bots,
+            tree: self.tree,
+        }
+    }
+
     //Return the axis of the dinotree.
     #[inline]
     pub fn axis(&self) -> A {
@@ -144,6 +228,7 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
         crate::assert_invariants::inner(axis, self.vistr().with_depth(compt::Depth(0))).is_ok()
     }
 }
+*/
 
 
 ///Outputs the height given an desirned number of bots per node.
@@ -206,7 +291,7 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
 pub struct Vistr<'a, T: HasAabb> {
-    inner: compt::dfs_order::Vistr<'a, Node<T>, compt::dfs_order::PreOrder>,
+    pub(crate) inner: compt::dfs_order::Vistr<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
 impl<'a, T: HasAabb> Vistr<'a, T> {
@@ -261,7 +346,7 @@ impl<'a, T: HasAabb + 'a> Visitor for Vistr<'a, T> {
 /// Tree Iterator that returns a reference to each node.
 /// It also returns the non-leaf specific data when it applies.
 pub struct VistrMut<'a, T: HasAabb> {
-    inner: compt::dfs_order::VistrMut<'a, Node<T>, compt::dfs_order::PreOrder>,
+    pub(crate) inner: compt::dfs_order::VistrMut<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
 impl<'a, T: HasAabb> VistrMut<'a, T> {

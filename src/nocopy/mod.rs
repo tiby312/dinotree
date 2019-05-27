@@ -189,6 +189,7 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
         self.bots
     }
 
+    /*
     ///Return a mutable reference to the tree.
     #[inline]
     pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
@@ -206,6 +207,54 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
             axis: self.axis,
             bots: self.bots,
             tree: &self.nodes,
+        }
+    }
+    */
+}
+
+
+impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTreeNoCopy<'a,A,T>{
+    type Item=T;
+    type Axis=A;
+    type Num=T::Num;
+    
+    fn axis(&self)->Self::Axis{
+        self.axis
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        Vistr {
+            inner: self.nodes.vistr(),
+        }
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        self.nodes.get_height()
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        self.nodes.get_nodes().len()
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        self.bots.len()
+    }
+
+}
+
+
+impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for DinoTreeNoCopy<'a,A,T>{    
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
+        VistrMut {
+            inner: self.nodes.vistr_mut(),
         }
     }
 }

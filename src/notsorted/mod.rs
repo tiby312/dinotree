@@ -1,7 +1,98 @@
 use crate::copy::*;
 use crate::inner_prelude::*;
 
+
+
+pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
+    type Item:HasAabb;
+    type Axis:AxisTrait;
+    type Num:NumTrait;
+    fn axis(&self)->Self::Axis;
+    fn vistr(&self)->Vistr<Self::Item>;
+
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize;
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize;
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize;
+
+    ///Returns Ok, then this tree's invariants are being met.
+    ///Should always return true, unless the user corrupts the trees memory
+    ///or if the contract of the HasAabb trait are not upheld.
+    #[must_use]
+    fn are_invariants_met(&self) -> bool;
+
+}
+pub trait NotSortedRefMutTrait:NotSortedRefTrait{
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>;
+}
+
 pub struct NotSorted<A: AxisTrait, T: HasAabb>(pub DinoTree<A, T>);
+
+
+
+//TODO should really have own trait
+impl<A:AxisTrait,T:HasAabb> NotSortedRefTrait for NotSorted<A,T>{
+    type Item=T;
+    type Axis=A;
+    type Num=T::Num;
+    
+    fn axis(&self)->Self::Axis{
+        self.0.axis()
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        Vistr {
+            inner: self.0.tree.vistr(),
+        }
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Returns Ok, then this tree's invariants are being met.
+    ///Should always return true, unless the user corrupts the trees memory
+    ///or if the contract of the HasAabb trait are not upheld.
+    #[must_use]
+    fn are_invariants_met(&self) -> bool
+    {
+        unimplemented!();
+    }
+}
+
+
+impl<A:AxisTrait,T:HasAabb> NotSortedRefMutTrait for NotSorted<A,T>{    
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
+        VistrMut {
+            inner: self.0.tree.vistr_mut(),
+        }
+    }
+}
+
 
 
 
