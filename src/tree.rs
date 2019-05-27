@@ -2,7 +2,9 @@
 use crate::inner_prelude::*;
 
 
-
+///The trait through which dinotree algorithms may use the tree.
+///We expose a trait so that both the copy and non copy version of the tree have
+///the same interface.
 pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
     type Item:HasAabb;
     type Axis:AxisTrait;
@@ -24,6 +26,8 @@ pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
     fn num_bots(&self) -> usize;
 
 }
+
+///The mutable part of the tree accessing trait.
 pub trait DinoTreeRefMutTrait:DinoTreeRefTrait{
     fn vistr_mut(&mut self)->VistrMut<Self::Item>;
 }
@@ -48,21 +52,21 @@ impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &K{
     #[inline]
     fn height(&self) -> usize
     {
-        unimplemented!();
+        K::height(self)
     }
 
     ///Return the number of nodes of the dinotree.
     #[inline]
     fn num_nodes(&self) -> usize
     {
-        unimplemented!();
+        K::num_nodes(self)
     }
 
     ///Return the number of bots in the tree.
     #[inline]
     fn num_bots(&self) -> usize
     {
-        unimplemented!();
+        K::num_bots(self)
     }
 
 }
@@ -83,21 +87,21 @@ impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
     #[inline]
     fn height(&self) -> usize
     {
-        unimplemented!();
+        K::height(self)
     }
 
     ///Return the number of nodes of the dinotree.
     #[inline]
     fn num_nodes(&self) -> usize
     {
-        unimplemented!();
+        K::num_nodes(self)
     }
 
     ///Return the number of bots in the tree.
     #[inline]
     fn num_bots(&self) -> usize
     {
-        unimplemented!();
+        K::num_bots(self)
     }
 
 }

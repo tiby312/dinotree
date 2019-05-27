@@ -2,7 +2,7 @@ use crate::copy::*;
 use crate::inner_prelude::*;
 
 
-
+///The trait through which algorithms can use the not sorted version of the dinotree
 pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
     type Item:HasAabb;
     type Axis:AxisTrait;
@@ -24,9 +24,12 @@ pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
     fn num_bots(&self) -> usize;
 
 }
+
+///The mutable part of the not sorted trait.
 pub trait NotSortedRefMutTrait:NotSortedRefTrait{
     fn vistr_mut(&mut self)->VistrMut<Self::Item>;
 }
+
 
 
 
@@ -46,21 +49,21 @@ impl<K:NotSortedRefTrait> NotSortedRefTrait for &K{
     #[inline]
     fn height(&self) -> usize
     {
-        unimplemented!();
+        K::height(self)
     }
 
     ///Return the number of nodes of the dinotree.
     #[inline]
     fn num_nodes(&self) -> usize
     {
-        unimplemented!();
+        K::num_nodes(self)
     }
 
     ///Return the number of bots in the tree.
     #[inline]
     fn num_bots(&self) -> usize
     {
-        unimplemented!();
+        K::num_bots(self)
     }
 
 }
@@ -81,21 +84,21 @@ impl<K:NotSortedRefMutTrait> NotSortedRefTrait for &mut K{
     #[inline]
     fn height(&self) -> usize
     {
-        unimplemented!();
+        K::height(self)
     }
 
     ///Return the number of nodes of the dinotree.
     #[inline]
     fn num_nodes(&self) -> usize
     {
-        unimplemented!();
+        K::num_nodes(self)
     }
 
     ///Return the number of bots in the tree.
     #[inline]
     fn num_bots(&self) -> usize
     {
-        unimplemented!();
+        K::num_bots(self)
     }
 
 }
