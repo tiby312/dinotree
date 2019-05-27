@@ -169,12 +169,12 @@ impl<A:AxisTrait,T:HasAabb> NotSortedRefMutTrait for NotSorted<A,T>{
 ///
 /// ```
 /// use axgeom;
-/// use dinotree::DinoTreeBuilder;
+/// use dinotree::notsorted::NotSortedBuilder;
 /// use dinotree_sample::SampleBuilder;
 ///
 /// let builder = SampleBuilder::new();
 /// let mut bots:Vec<_>= builder.build().take(1000).collect();
-/// let mut tree=DinoTreeBuilder::new(axgeom::XAXISS,&mut bots,|a|builder.create_aabb(a)).build_seq();
+/// let mut tree=NotSortedBuilder::new(axgeom::XAXISS,&mut bots,|a|builder.create_aabb(a)).build_seq();
 /// //Use tree
 /// ```
 pub struct NotSortedBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {

@@ -2,6 +2,7 @@
 extern crate axgeom;
 extern crate dinotree;
 use dinotree::*;
+use dinotree::copy::*;
 extern crate compt;
 use compt::*;
 
@@ -20,7 +21,7 @@ fn test_zero_sized() {
     })
     .build_seq();
 
-    let (n, _) = tree.as_ref().into_vistr().next();
+    let (n, _) = tree.vistr().next();
     assert_eq!(n.div.is_none(), true);
     assert_eq!(n.bots.len(), 1);
     assert!(n.cont.is_some());
@@ -35,7 +36,7 @@ fn test_one() {
     })
     .build_seq();
 
-    let (n, _) = tree.as_ref().into_vistr().next();
+    let (n, _) = tree.vistr().next();
     assert_eq!(n.div.is_none(), true);
     assert_eq!(n.bots.len(), 1);
     assert!(n.cont.is_some())
@@ -51,12 +52,12 @@ fn test_many() {
     .build_seq();
 
     assert_eq!(
-        tree.as_ref().vistr().dfs_inorder_iter().count(),
-        tree.as_ref().num_nodes()
+        tree.vistr().dfs_inorder_iter().count(),
+        tree.num_nodes()
     );
 
     let mut num_div = 0;
-    for b in tree.as_ref().vistr().dfs_inorder_iter() {
+    for b in tree.vistr().dfs_inorder_iter() {
         if let Some(_) = b.div {
             if let Some(_) = b.cont {
                 num_div += 1;
@@ -75,7 +76,7 @@ fn test_empty() {
     })
     .build_seq();
 
-    let (n, _) = tree.as_ref().into_vistr().next();
+    let (n, _) = tree.vistr().next();
     assert_eq!(n.bots.len(), 0);
 }
 
@@ -89,7 +90,7 @@ fn test_iter() {
     .build_seq();
 
     let mut last = None;
-    for b in tree.as_ref().iter() {
+    for b in tree.get_bots().iter() {
         match last {
             None => last = Some(b as *const BBox<isize, usize>),
             Some(ll) => {
@@ -111,7 +112,7 @@ fn test_iter2() {
     .build_seq();
 
     let num_bots = bots.len();
-    assert_eq!(tree.as_ref().iter().count(), num_bots);
+    assert_eq!(tree.get_bots().iter().count(), num_bots);
 }
 #[test]
 fn test() {
@@ -122,15 +123,15 @@ fn test() {
     })
     .build_seq();
 
-    assert!(tree.as_ref().are_invariants_met());
+    assert!(assert_invariants(&tree));
 
-    assert_length(tree.as_ref_mut().vistr_mut().dfs_preorder_iter());
-    assert_length(tree.as_ref().vistr().dfs_preorder_iter());
+    assert_length(tree.vistr_mut().dfs_preorder_iter());
+    assert_length(tree.vistr().dfs_preorder_iter());
 
-    let num_nodes = tree.as_ref().num_nodes();
+    let num_nodes = tree.num_nodes();
 
     assert_eq!(
-        tree.as_ref_mut()
+        tree
             .vistr_mut()
             .dfs_preorder_iter()
             .size_hint()
@@ -138,9 +139,9 @@ fn test() {
         num_nodes
     );
 
-    assert_eq!(tree.as_ref().vistr().bfs_iter().size_hint().0, num_nodes);
+    assert_eq!(tree.vistr().bfs_iter().size_hint().0, num_nodes);
 
-    recc(tree.as_ref_mut().vistr_mut());
+    recc(tree.vistr_mut());
     //recursively check that the length is correct at each node.
     fn recc(a: VistrMut<BBox<isize, usize>>) {
         let (_nn, rest) = a.next();
