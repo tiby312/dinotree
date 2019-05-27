@@ -188,28 +188,6 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
     pub fn get_bots_mut(&mut self)->&mut [T]{
         self.bots
     }
-
-    /*
-    ///Return a mutable reference to the tree.
-    #[inline]
-    pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
-        DinoTreeRefMut {
-            axis: self.axis,
-            bots: self.bots,
-            tree: &mut self.nodes,
-        }
-    }
-
-    ///Return a reference to the tree.
-    #[inline]
-    pub fn as_ref(&self) -> DinoTreeRef<A, T> {
-        DinoTreeRef {
-            axis: self.axis,
-            bots: self.bots,
-            tree: &self.nodes,
-        }
-    }
-    */
 }
 
 

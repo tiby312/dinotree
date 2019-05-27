@@ -32,6 +32,41 @@ pub trait DinoTreeRefMutTrait:DinoTreeRefTrait{
 
 
 
+impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &K{
+    type Item=K::Item;
+    type Axis=K::Axis;
+    type Num=K::Num;
+    
+    fn axis(&self)->Self::Axis{
+        K::axis(self)
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        K::vistr(self)
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+}
+
 impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
     type Item=K::Item;
     type Axis=K::Axis;

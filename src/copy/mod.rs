@@ -12,6 +12,14 @@ pub struct DinoTree<A: AxisTrait, T: HasAabb> {
     pub(crate) mover: Vec<u32>,
 }
 
+impl<A:AxisTrait,T:HasAabb> DinoTree<A,T>{
+    pub fn get_bots_mut(&mut self)->&mut [T]{
+        &mut self.bots
+    }
+    pub fn get_bots(&self)->&[T]{
+        &self.bots
+    }
+}
 
 impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
     type Item=T;

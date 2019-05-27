@@ -23,15 +23,87 @@ pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
     #[inline]
     fn num_bots(&self) -> usize;
 
-    ///Returns Ok, then this tree's invariants are being met.
-    ///Should always return true, unless the user corrupts the trees memory
-    ///or if the contract of the HasAabb trait are not upheld.
-    #[must_use]
-    fn are_invariants_met(&self) -> bool;
-
 }
 pub trait NotSortedRefMutTrait:NotSortedRefTrait{
     fn vistr_mut(&mut self)->VistrMut<Self::Item>;
+}
+
+
+
+impl<K:NotSortedRefTrait> NotSortedRefTrait for &K{
+    type Item=K::Item;
+    type Axis=K::Axis;
+    type Num=K::Num;
+    
+    fn axis(&self)->Self::Axis{
+        K::axis(self)
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        K::vistr(self)
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+}
+
+impl<K:NotSortedRefMutTrait> NotSortedRefTrait for &mut K{
+    type Item=K::Item;
+    type Axis=K::Axis;
+    type Num=K::Num;
+    
+    fn axis(&self)->Self::Axis{
+        K::axis(self)
+    }
+    fn vistr(&self)->Vistr<Self::Item>{
+        K::vistr(self)
+    }
+
+    ///Return the height of the dinotree.
+    #[inline]
+    fn height(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of nodes of the dinotree.
+    #[inline]
+    fn num_nodes(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+    ///Return the number of bots in the tree.
+    #[inline]
+    fn num_bots(&self) -> usize
+    {
+        unimplemented!();
+    }
+
+}
+
+impl<K:NotSortedRefMutTrait> NotSortedRefMutTrait for &mut K{    
+    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
+        K::vistr_mut(self)
+    }
 }
 
 pub struct NotSorted<A: AxisTrait, T: HasAabb>(pub DinoTree<A, T>);
@@ -74,14 +146,6 @@ impl<A:AxisTrait,T:HasAabb> NotSortedRefTrait for NotSorted<A,T>{
         unimplemented!();
     }
 
-    ///Returns Ok, then this tree's invariants are being met.
-    ///Should always return true, unless the user corrupts the trees memory
-    ///or if the contract of the HasAabb trait are not upheld.
-    #[must_use]
-    fn are_invariants_met(&self) -> bool
-    {
-        unimplemented!();
-    }
 }
 
 
