@@ -1,13 +1,12 @@
 //!
 //! # Overview
 //!
-//! Provides the dinotree data structure and ways to traverse it.
-//! All divide and conquer style query algorithms that you can do on this tree would be done using the Vistr and VistrMut visitors.
-//! No actual query algorithms are provided in this crate. Only the data structure and a way to construct it are provided in this crate.
+//! Provides the dinotree data structure and ways to traverse it. No actual query algorithms are provided in this crate.
+//! Only the data structure and a way to construct and traverse it are provided in this crate.
 //! 
-//! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. There is an alternative NoCopyDinoTree
-//! That does not allocate more space, but instead rearranges the bots in a user provided slice for better cache coherency. However from empirical
-//! benchmarking, the version that builds up a new Vec instead of rearranging is faster. 
+//! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. 
+//! There is an alternative NoCopyDinoTree that does not allocate more space,
+//! but instead rearranges the bots in a user provided slice for better cache coherency. 
 //!
 //! ~~~~text
 //! 2d Tree Divider Representation:
@@ -29,7 +28,7 @@
 //!
 //! Axis alternates every level.
 //! Divider placement is placed at the median at each level.
-//! objects that intersect a divider belong to that node.
+//! Objects that intersect a divider belong to that node.
 //! Every divider keeps track of how thick a line would have to be
 //! to cover all the bots it owns.
 //! All the objects in a node are sorted along that node's axis.
@@ -75,7 +74,6 @@ mod inner_prelude {
 }
 
 
-///Provides low level functionality to construct a dyntree.
 pub use assert_invariants::assert_invariants;
 mod assert_invariants;
 

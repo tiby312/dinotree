@@ -113,161 +113,6 @@ impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{
 }
 
 
-/*
-///Mutable referance to a dinotree container.
-pub struct DinoTreeRefMut<'a, A: AxisTrait, T: HasAabb> {
-    pub(crate) axis: A,
-    pub(crate) bots: &'a mut [T],
-    pub(crate) tree: &'a mut compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder>,
-}
-
-impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRefMut<'a, A, T> {
-    //Create a borrowed version of self.
-    #[inline]
-    pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
-        DinoTreeRefMut {
-            axis: self.axis,
-            bots: self.bots,
-            tree: self.tree,
-        }
-    }
-
-    //Create a mutable tree node visitor.
-    #[inline]
-    pub fn vistr_mut(&mut self) -> VistrMut<T> {
-        VistrMut {
-            inner: self.tree.vistr_mut(),
-        }
-    }
-
-    //Create a mutable tree node visitor by consuming self.
-    #[inline]
-    pub fn into_vistr_mut(self) -> VistrMut<'a, T> {
-        VistrMut {
-            inner: self.tree.vistr_mut(),
-        }
-    }
-
-    ///Iterate over all the bots in the tree. The order in which they are iterated over is dfs pre order as they have been binned and sorted
-    ///into the dinotree.
-    #[inline]
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
-        self.bots.iter_mut()
-    }
-
-    ///Iterate over all bots.
-    #[inline]
-    pub fn into_iter_mut(self) -> std::slice::IterMut<'a, T> {
-        self.bots.iter_mut()
-    }
-}
-
-impl<'a, A: AxisTrait, T: HasAabb> std::ops::Deref for DinoTreeRefMut<'a, A, T> {
-    type Target = DinoTreeRef<'a, A, T>;
-    #[inline]
-    fn deref(&self) -> &DinoTreeRef<'a, A, T> {
-        unsafe {
-            &*(self as *const tree::DinoTreeRefMut<'a, A, T> as *const tree::DinoTreeRef<'a, A, T>)
-        }
-    }
-}
-
-///Referance to a dinotree container.
-pub struct DinoTreeRef<'a, A: AxisTrait, T: HasAabb> {
-    pub(crate) axis: A,
-    pub(crate) bots: &'a [T],
-    pub(crate) tree: &'a compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder>,
-}
-
-impl<'a, A: AxisTrait, T: HasAabb> IntoIterator for DinoTreeRef<'a, A, T> {
-    type Item = &'a T;
-    type IntoIter = std::slice::Iter<'a, T>;
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        self.bots.iter()
-    }
-}
-
-impl<'a, A: AxisTrait, T: HasAabb> DinoTreeRef<'a, A, T> {
-    //Create a borrowed version of self.
-    #[inline]
-    pub fn as_ref(&self) -> DinoTreeRef<A, T> {
-        DinoTreeRef {
-            axis: self.axis,
-            bots: self.bots,
-            tree: self.tree,
-        }
-    }
-
-    //Create a borrowed version of self.
-    #[inline]
-    pub fn into_ref(self) -> DinoTreeRef<'a,A, T> {
-        DinoTreeRef {
-            axis: self.axis,
-            bots: self.bots,
-            tree: self.tree,
-        }
-    }
-
-    //Return the axis of the dinotree.
-    #[inline]
-    pub fn axis(&self) -> A {
-        self.axis
-    }
-
-    //Return a node visitor by consuming self.
-    #[inline]
-    pub fn into_vistr(self) -> Vistr<'a, T> {
-        Vistr {
-            inner: self.tree.vistr(),
-        }
-    }
-
-    //Return a node visitor.
-    #[inline]
-    pub fn vistr(&self) -> Vistr<T> {
-        Vistr {
-            inner: self.tree.vistr(),
-        }
-    }
-
-    ///Iterate over all the bots in the tree. The order in which they are iterated over is dfs pre order as they have been binned and sorted
-    ///into the dinotree.
-    #[inline]
-    pub fn iter(&self) -> std::slice::Iter<T> {
-        self.bots.iter()
-    }
-
-    ///Return the height of the dinotree.
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.tree.get_height()
-    }
-
-    ///Return the number of nodes of the dinotree.
-    #[inline]
-    pub fn num_nodes(&self) -> usize {
-        self.tree.get_nodes().len()
-    }
-
-    ///Return the number of bots in the tree.
-    #[inline]
-    pub fn num_bots(&self) -> usize {
-        self.bots.len()
-    }
-
-
-    ///Returns Ok, then this tree's invariants are being met.
-    ///Should always return true, unless the user corrupts the trees memory
-    ///or if the contract of the HasAabb trait are not upheld.
-    #[must_use]
-    pub fn are_invariants_met(&self) -> bool {
-        let axis = self.axis();
-
-        crate::assert_invariants::inner(axis, self.vistr().with_depth(compt::Depth(0))).is_ok()
-    }
-}
-*/
 
 
 ///Outputs the height given an desirned number of bots per node.
@@ -324,11 +169,9 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     //This number was chosen emprically from running the dinotree_alg_data project,
     //on two different machines.
     compute_tree_height_heuristic_debug(num_bots,128)
-
 }
 
 /// Tree Iterator that returns a reference to each node.
-/// It also returns the non-leaf specific data when it applies.
 pub struct Vistr<'a, T: HasAabb> {
     pub(crate) inner: compt::dfs_order::Vistr<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
@@ -382,8 +225,7 @@ impl<'a, T: HasAabb + 'a> Visitor for Vistr<'a, T> {
     }
 }
 
-/// Tree Iterator that returns a reference to each node.
-/// It also returns the non-leaf specific data when it applies.
+/// Tree Iterator that returns a mutable reference to each node.
 pub struct VistrMut<'a, T: HasAabb> {
     pub(crate) inner: compt::dfs_order::VistrMut<'a, Node<T>, compt::dfs_order::PreOrder>,
 }

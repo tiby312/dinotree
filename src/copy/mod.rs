@@ -5,6 +5,7 @@ use crate::tree::*;
 use super::notsorted::*;
 use crate::inner_prelude::*;
 
+///Version of dinotree that makes a copy of all the elements.
 pub struct DinoTree<A: AxisTrait, T: HasAabb> {
     pub(crate) axis: A,
     pub(crate) bots: Vec<T>,
@@ -265,28 +266,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 }
 
 impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
-    /*
-    ///Return a mutable reference to the tree.
-    #[inline]
-    pub fn as_ref_mut(&mut self) -> DinoTreeRefMut<A, T> {
-        DinoTreeRefMut {
-            axis: self.axis,
-            bots: &mut self.bots,
-            tree: &mut self.tree,
-        }
-    }
-
-    ///Return a reference to the tree.
-    #[inline]
-    pub fn as_ref(&self) -> DinoTreeRef<A, T> {
-        DinoTreeRef {
-            axis: self.axis,
-            bots: &self.bots,
-            tree: &self.tree,
-        }
-    }
-    */
-
+ 
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     pub fn apply<X>(&self, bots: &mut [X], conv: impl Fn(&T, &mut X)) {

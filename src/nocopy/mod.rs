@@ -168,6 +168,7 @@ impl<'a, A: AxisTrait, N:NumTrait,T:Copy> DinoTreeNoCopyBuilder<'a, A, N,T> {
 }
 
 
+///Version of dinotree that does not make a copy of all the elements.
 pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {
     axis: A,
     bots: &'a mut [T],

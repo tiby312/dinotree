@@ -6,6 +6,7 @@ use crate::tree::Vistr;
 
 
 #[must_use]
+///Returns false if the tree's invariants are not met.
 pub fn assert_invariants<K:DinoTreeRefTrait>(tree:K)->bool{
     inner(tree.axis(), tree.vistr().with_depth(compt::Depth(0))).is_ok()
 }
