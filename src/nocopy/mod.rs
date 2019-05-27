@@ -188,6 +188,10 @@ impl<'a, A: AxisTrait, T: HasAabb + Copy> DinoTreeNoCopy<'a, A, T> {
     pub fn get_bots_mut(&mut self)->&mut [T]{
         self.bots
     }
+
+    pub fn get_bots(&self)->&[T]{
+        self.bots
+    }
 }
 
 
