@@ -42,6 +42,10 @@
 //! so that we can efficiently return a slice of all the bots.
 //! Unsafety is used to reuse code between sequential and parallel build algorithms.
 //!
+//! ## Analysis
+//! Please see the [dinotree_report](https://github.com/tiby312/dinotree_report) github project, for a writeup of the design and analysis of the algorithms in this project.
+//!
+
 
 
 #[cfg(all(feature = "unstable", test))]
