@@ -1,17 +1,17 @@
 pub fn duplicate_empty_slice<T>(arr: &mut [T]) -> &mut [T] {
     assert!(arr.is_empty());
-    unsafe { std::slice::from_raw_parts_mut(arr.as_mut_ptr(), 0) }
+    unsafe { core::slice::from_raw_parts_mut(arr.as_mut_ptr(), 0) }
 }
 
 
 
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 ///A Unique that doesnt require rust nightly.
 ///See https://doc.rust-lang.org/1.26.2/core/ptr/struct.Unique.html
 #[derive(Copy,Clone,Debug)]
 pub struct Unique<T: ?Sized>(
-    pub std::ptr::NonNull<T>,
+    pub core::ptr::NonNull<T>,
     PhantomData<T>
 );
 
@@ -20,13 +20,17 @@ unsafe impl<T:?Sized+Sync> Sync for Unique<T>{}
 impl<T:?Sized> Unique<T>{
     #[inline]
     pub fn new(ptr:*mut T)->Option<Unique<T>>{
-        std::ptr::NonNull::new(ptr).map(|a|Unique(a,PhantomData))
+        core::ptr::NonNull::new(ptr).map(|a|Unique(a,PhantomData))
     }
     #[inline]
     pub fn as_ptr(&self)->*mut T{
         self.0.as_ptr()
     }
 }
+
+pub struct Syncer<T:?Sized>(PhantomData<T>);
+unsafe impl<T:?Sized> Sync for Syncer<T>{}
+
 
 
 /*
@@ -175,7 +179,7 @@ pub fn are_adjacent<'a, T1, T2>(first: &'a [T1], second: &'a [T2]) -> bool {
 pub fn slice_join_mut<'a, T>(first: &'a mut [T], second: &'a mut [T]) -> &'a mut [T] {
     let fl = first.len();
     if first[fl..].as_mut_ptr() == second.as_mut_ptr() {
-        unsafe { ::std::slice::from_raw_parts_mut(first.as_mut_ptr(), fl + second.len()) }
+        unsafe { ::core::slice::from_raw_parts_mut(first.as_mut_ptr(), fl + second.len()) }
     } else {
         panic!("Slices not adjacent");
     }
@@ -186,9 +190,9 @@ pub fn slice_join_bytes_mut<'a, T>(first: &'a mut [T], second: &'a mut [u8]) -> 
     let fl = first.len();
     if first[fl..].as_mut_ptr() as *mut u8 == second.as_mut_ptr() {
         unsafe {
-            ::std::slice::from_raw_parts_mut(
+            ::core::slice::from_raw_parts_mut(
                 first.as_mut_ptr() as *mut u8,
-                fl * std::mem::size_of::<T>() + second.len(),
+                fl * core::mem::size_of::<T>() + second.len(),
             )
         }
     } else {
@@ -200,9 +204,9 @@ pub fn bytes_join_slice_mut<'a, T>(first: &'a mut [u8], second: &'a mut [T]) -> 
     let fl = first.len();
     if first[fl..].as_mut_ptr() == second.as_mut_ptr() as *mut u8 {
         unsafe {
-            ::std::slice::from_raw_parts_mut(
+            ::core::slice::from_raw_parts_mut(
                 first.as_mut_ptr() as *mut u8,
-                fl + second.len() * std::mem::size_of::<T>(),
+                fl + second.len() * core::mem::size_of::<T>(),
             )
         }
     } else {

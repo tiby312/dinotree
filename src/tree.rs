@@ -253,7 +253,7 @@ impl<'a, T: HasAabb> VistrMut<'a, T> {
 
 }
 
-impl<'a, T:HasAabb> std::ops::Deref for VistrMut<'a, T> {
+impl<'a, T:HasAabb> core::ops::Deref for VistrMut<'a, T> {
     type Target = Vistr<'a, T>;
     #[inline]
     fn deref(&self) -> &Vistr<'a, T> {
@@ -483,7 +483,7 @@ mod cont_tree {
         height: usize,
         binstrat: BinStrat,
         sorter: S,
-        _p: PhantomData<(std::sync::Mutex<K>, &'a (T))>,
+        _p :PhantomData<(tools::Syncer<K>,&'a T)>
     }
 
     impl<'a, T: HasAabb + Send + Sync, K: Splitter + Send, S: Sorter> Recurser<'a, T, K, S> {
@@ -519,7 +519,7 @@ mod cont_tree {
                         ConstructResult::Empty(empty) => {
                             for _ in 0..compt::compute_num_nodes(self.height - depth) {
                                 let a = tools::duplicate_empty_slice(empty);
-                                let cont = unsafe { std::mem::uninitialized() };
+                                let cont = unsafe { core::mem::uninitialized() };
                                 let node = Node {
                                     range: tools::Unique::new(a as *mut [_]).unwrap(),
                                     cont,
@@ -593,7 +593,7 @@ mod cont_tree {
                     self.sorter.sort(axis.next(), rest);
                     create_cont(axis, rest)
                 } else {
-                    unsafe { std::mem::uninitialized() }
+                    unsafe { core::mem::uninitialized() }
                 };
 
                 let node = Node {
@@ -727,7 +727,7 @@ fn construct_non_leaf<T: HasAabb>(
     let med = if bots.is_empty() {
         return ConstructResult::Empty(bots);
     } else {
-        let closure = |a: &T, b: &T| -> std::cmp::Ordering { oned::compare_bots(div_axis, a, b) };
+        let closure = |a: &T, b: &T| -> core::cmp::Ordering { oned::compare_bots(div_axis, a, b) };
 
         let k = {
             let mm = bots.len() / 2;

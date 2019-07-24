@@ -1,7 +1,6 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
 
-use super::*;
 
 
 ///A wrapper type where you are allowed to modify the aabb.
@@ -101,7 +100,7 @@ impl<'a, A: AxisTrait, N:NumTrait,T:Copy> DinoTreeNoCopyBuilder<'a, A, N,T> {
         let bots2 = unsafe { &mut *(self.bots as *mut [_]) };
         
         let num_bots = self.bots.len();
-        let max = std::u32::MAX;
+        let max = core::u32::MAX;
 
         assert!(
             num_bots < max as usize,

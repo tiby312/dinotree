@@ -35,7 +35,7 @@ fn inner<A: AxisTrait, T: HasAabb>(
 
     let axis_next = axis.next();
 
-    let f = |a: &&T, b: &&T| -> Option<std::cmp::Ordering> {
+    let f = |a: &&T, b: &&T| -> Option<core::cmp::Ordering> {
         let j=a.get()
             .get_range(axis_next)
             .left

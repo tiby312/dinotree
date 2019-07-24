@@ -1,8 +1,4 @@
-
-
 use crate::tree::*;
-
-use super::notsorted::*;
 use crate::inner_prelude::*;
 
 ///Version of dinotree that makes a copy of all the elements.
@@ -198,7 +194,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         let binstrat = self.rebal_strat;
 
         let num_bots = bots.len();
-        let max = std::u32::MAX;
+        let max = core::u32::MAX;
 
         assert!(
             num_bots < max as usize,

@@ -47,10 +47,11 @@
 //!
 
 
-
+#![no_std]
 #[cfg(all(feature = "unstable", test))]
 extern crate test;
 
+extern crate alloc;
 extern crate axgeom;
 extern crate compt;
 extern crate is_sorted;
@@ -61,12 +62,13 @@ extern crate reorder;
 
 mod inner_prelude {
     pub use axgeom::*;
-    pub(crate) use compt;
+    
     pub use itertools::Itertools;
-    pub use std::iter::*;
-    pub use std::marker::PhantomData;
-    pub use std::mem::*;
-    pub use std::time::Instant;
+    pub use core::iter::*;
+    pub use core::marker::PhantomData;
+    
+
+    pub use alloc::vec::Vec;
 
     pub(crate) use super::*;
     pub(crate) use crate::advanced::Splitter;
@@ -117,9 +119,9 @@ pub mod advanced;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait: Ord + Copy + Send + Sync + std::fmt::Debug {}
+pub trait NumTrait: Ord + Copy + Send + Sync + core::fmt::Debug {}
 
-impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + std::fmt::Debug {}
+impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + core::fmt::Debug {}
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
@@ -149,12 +151,12 @@ pub struct BBox<N: NumTrait, T> {
     pub inner: T,
 }
 
-use std::fmt::Debug;
-use std::fmt::Formatter;
+use core::fmt::Debug;
+use core::fmt::Formatter;
 
 impl<N: NumTrait + Debug, T: Debug> Debug for BBox<N, T> {
     #[inline]
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         self.rect.fmt(f)?;
         self.inner.fmt(f)
     }

@@ -12,7 +12,7 @@ pub struct Binned<'a, T: 'a> {
 unsafe fn swap_unchecked<T>(arr: &mut [T], a: usize, b: usize) {
     let a = &mut *(arr.get_unchecked_mut(a) as *mut T);
     let b = &mut *(arr.get_unchecked_mut(b) as *mut T);
-    std::mem::swap(a, b)
+    core::mem::swap(a, b)
 }
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
@@ -39,7 +39,7 @@ pub fn bin_middle_left_right<'b, A: AxisTrait, X: HasAabb>(
             .left_or_right_or_contain(med)
         {
             //If the divider is less than the bot
-            std::cmp::Ordering::Equal => {
+            core::cmp::Ordering::Equal => {
                 //left
 
                 bots.swap(index_at, left_end);
@@ -48,12 +48,12 @@ pub fn bin_middle_left_right<'b, A: AxisTrait, X: HasAabb>(
                 left_end += 1;
             }
             //If the divider is greater than the bot
-            std::cmp::Ordering::Greater => {
+            core::cmp::Ordering::Greater => {
                 //middile
                 bots.swap(index_at, left_end);
                 left_end += 1;
             }
-            std::cmp::Ordering::Less => {
+            core::cmp::Ordering::Less => {
                 //right
             }
         }
@@ -95,7 +95,7 @@ pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
             .left_or_right_or_contain(med)
         {
             //If the divider is less than the bot
-            std::cmp::Ordering::Equal => {
+            core::cmp::Ordering::Equal => {
                 //left
 
                 swap_unchecked(bots, index_at, left_end);
@@ -104,12 +104,12 @@ pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
                 left_end += 1;
             }
             //If the divider is greater than the bot
-            std::cmp::Ordering::Greater => {
+            core::cmp::Ordering::Greater => {
                 //middile
                 swap_unchecked(bots, index_at, left_end);
                 left_end += 1;
             }
-            std::cmp::Ordering::Less => {
+            core::cmp::Ordering::Less => {
                 //right
             }
         }
@@ -126,18 +126,18 @@ pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
     }
 }
 
-pub fn compare_bots<T: HasAabb>(axis: impl AxisTrait, a: &T, b: &T) -> std::cmp::Ordering {
+pub fn compare_bots<T: HasAabb>(axis: impl AxisTrait, a: &T, b: &T) -> core::cmp::Ordering {
     let (p1, p2) = (a.get().get_range(axis).left, b.get().get_range(axis).left);
     if p1 > p2 {
-        return std::cmp::Ordering::Greater;
+        return core::cmp::Ordering::Greater;
     }
-    std::cmp::Ordering::Less
+    core::cmp::Ordering::Less
 }
 
 ///Sorts the bots based on an axis.
 #[inline]
 pub fn sweeper_update<I: HasAabb, A: AxisTrait>(axis: A, collision_botids: &mut [I]) {
-    let sclosure = |a: &I, b: &I| -> std::cmp::Ordering { compare_bots(axis, a, b) };
+    let sclosure = |a: &I, b: &I| -> core::cmp::Ordering { compare_bots(axis, a, b) };
 
     collision_botids.sort_unstable_by(sclosure);
 }
