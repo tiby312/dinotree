@@ -126,16 +126,18 @@ pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
     }
 }
 
+#[inline(always)]
 pub fn compare_bots<T: HasAabb>(axis: impl AxisTrait, a: &T, b: &T) -> core::cmp::Ordering {
     let (p1, p2) = (a.get().get_range(axis).left, b.get().get_range(axis).left);
     if p1 > p2 {
-        return core::cmp::Ordering::Greater;
+        core::cmp::Ordering::Greater
+    }else{
+        core::cmp::Ordering::Less
     }
-    core::cmp::Ordering::Less
 }
 
 ///Sorts the bots based on an axis.
-#[inline]
+#[inline(always)]
 pub fn sweeper_update<I: HasAabb, A: AxisTrait>(axis: A, collision_botids: &mut [I]) {
     let sclosure = |a: &I, b: &I| -> core::cmp::Ordering { compare_bots(axis, a, b) };
 
