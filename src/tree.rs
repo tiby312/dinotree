@@ -399,6 +399,7 @@ mod cont_tree {
 
     use super::*;
 
+    
     pub struct Cont2<Num: NumTrait> {
         pub rect: axgeom::Rect<Num>,
         pub index: u32,

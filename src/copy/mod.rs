@@ -10,9 +10,11 @@ pub struct DinoTree<A: AxisTrait, T: HasAabb> {
 }
 
 impl<A:AxisTrait,T:HasAabb> DinoTree<A,T>{
+    #[inline(always)]
     pub fn get_bots_mut(&mut self)->&mut [T]{
         &mut self.bots
     }
+    #[inline(always)]
     pub fn get_bots(&self)->&[T]{
         &self.bots
     }
@@ -23,9 +25,11 @@ impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
     type Axis=A;
     type Num=T::Num;
     
+    #[inline(always)]
     fn axis(&self)->Self::Axis{
         self.axis
     }
+    #[inline(always)]
     fn vistr(&self)->Vistr<Self::Item>{
         Vistr {
             inner: self.tree.vistr(),
@@ -33,21 +37,21 @@ impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
     }
 
     ///Return the height of the dinotree.
-    #[inline]
+    #[inline(always)]
     fn height(&self) -> usize
     {
         self.tree.get_height()
     }
 
     ///Return the number of nodes of the dinotree.
-    #[inline]
+    #[inline(always)]
     fn num_nodes(&self) -> usize
     {
         self.tree.get_nodes().len()
     }
 
     ///Return the number of bots in the tree.
-    #[inline]
+    #[inline(always)]
     fn num_bots(&self) -> usize
     {
         self.bots.len()
@@ -57,6 +61,7 @@ impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
 
 
 impl<A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for DinoTree<A,T>{    
+    #[inline(always)]
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
             inner: self.tree.vistr_mut(),
@@ -97,6 +102,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     ///The user picks the axis along which the first divider will partition.
     ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
     ///The user also passes a function to create the bounding box of each bot in the slice passed.
+    #[inline(always)]
     pub fn new(axis: A, bots: &[T], aabb_create: F) -> DinoTreeBuilder<A, T, Num, F> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
@@ -113,12 +119,14 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Choose a custom bin stratagy.
+    #[inline(always)]
     pub fn with_bin_strat(&mut self, strat: BinStrat) -> &mut Self {
         self.rebal_strat = strat;
         self
     }
 
     ///Choose a custom height for the tree.
+    #[inline(always)]
     pub fn with_height(&mut self, height: usize) -> &mut Self {
         self.height = height;
         self
@@ -127,12 +135,14 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
     ///Choose the height at which to switch from parallel to sequential.
     ///If you end up building sequentially, this argument is ignored.
+    #[inline(always)]
     pub fn with_height_switch_seq(&mut self, height: usize) -> &mut Self {
         self.height_switch_seq = height;
         self
     }
 
     ///Build with a Splitter.
+    #[inline(always)]
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
@@ -142,17 +152,21 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             inner: S,
         }
         impl<S: Splitter> Splitter for SplitterWrap<S> {
+            #[inline(always)]
             fn div(&mut self) -> Self {
                 SplitterWrap {
                     inner: self.inner.div(),
                 }
             }
+            #[inline(always)]
             fn add(&mut self, a: Self) {
                 self.inner.add(a.inner)
             }
+            #[inline(always)]
             fn node_start(&mut self) {
                 self.inner.node_start();
             }
+            #[inline(always)]
             fn node_end(&mut self) {
                 self.inner.node_end()
             }
@@ -165,6 +179,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Build sequentially.
+    #[inline(always)]
     pub fn build_seq(&mut self) -> DinoTree<A, BBox<Num, T>> {
         self.build_inner(
             par::Sequential,
@@ -174,6 +189,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Build in parallel
+    #[inline(always)]
     pub fn build_par(&mut self) -> DinoTree<A, BBox<Num, T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
@@ -265,6 +281,7 @@ impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
  
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
+    #[inline(always)]
     pub fn apply<X>(&self, bots: &mut [X], conv: impl Fn(&T, &mut X)) {
         assert_eq!(bots.len(), self.bots.len());
         for (bot, mov) in self.bots.iter().zip_eq(self.mover.iter()) {
@@ -274,6 +291,7 @@ impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
     }
 
     ///Apply changes to the bots in the tree (not the aabb) without recreating the tree.
+    #[inline(always)]
     pub fn apply_into<X>(&mut self, bots: &[X], conv: impl Fn(&X, &mut T)) {
         assert_eq!(bots.len(), self.bots.len());
 
