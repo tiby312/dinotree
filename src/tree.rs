@@ -400,51 +400,34 @@ mod cont_tree {
     use super::*;
 
     
-    pub struct Cont2<Num: NumTrait> {
+    pub struct Cont2<Num: NumTrait,X> {
         pub rect: axgeom::Rect<Num>,
-        pub index: u32,
+        pub index: X,
     }
-    unsafe impl<Num: NumTrait> HasAabb for Cont2<Num> {
+    unsafe impl<Num: NumTrait,X> HasAabb for Cont2<Num,X> {
         type Num = Num;
         fn get(&self) -> &axgeom::Rect<Num> {
             &self.rect
         }
     }
 
-    pub struct ContTree<'a, T: HasAabb> {
-        tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
-        conts: &'a mut [T],
+    pub struct ContTree<T: HasAabb> {
+        pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
     }
 
-    impl<'a, T: HasAabb + Send + Sync> ContTree<'a, T> {
-        pub fn get_tree_mut(
-            &mut self,
-        ) -> &mut compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder> {
-            &mut self.tree
-        }
-
-        pub fn get_tree(
-            &self,
-        ) -> &compt::dfs_order::CompleteTree<Node<T>, compt::dfs_order::PreOrder> {
-            &self.tree
-        }
-
-
-        pub fn get_conts(&self) -> &[T] {
-            self.conts
-        }
-
+    impl<T: HasAabb + Send + Sync> ContTree<T> {
+        
         pub fn new<A: AxisTrait, JJ: par::Joiner, K: Splitter + Send>(
             div_axis: A,
             dlevel: JJ,
-            rest: &'a mut [T],
+            rest: &mut [T],
             sorter: impl Sorter,
             splitter: &mut K,
             height: usize,
             binstrat: BinStrat,
-        ) -> ContTree<'a, T> {
+        ) -> ContTree<T> {
             let num_bots = rest.len();
-            let rest2 = unsafe { &mut *(rest as *mut [_]) };
+            //let rest2 = unsafe { &mut *(rest as *mut [_]) };
             let mut nodes = Vec::with_capacity(tree::nodes_left(0, height));
 
             let r = Recurser {
@@ -476,7 +459,7 @@ mod cont_tree {
                 .fold(0, |acc, a| acc + a.get().bots.len());
             debug_assert_eq!(k, num_bots);
 
-            ContTree { tree, conts: rest2 }
+            ContTree { tree }
         }
     }
 

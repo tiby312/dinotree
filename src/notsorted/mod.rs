@@ -181,14 +181,14 @@ pub struct NotSortedBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> 
 	inner:DinoTreeBuilder<'a,A,T,Num,F>
 }
 
-impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     NotSortedBuilder<'a, A, T, Num, F>
 {
     ///Create a dinotree builder.
     ///The user picks the axis along which the first divider will partition.
     ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
     ///The user also passes a function to create the bounding box of each bot in the slice passed.
-    pub fn new(axis: A, bots: &[T], aabb_create: F) -> NotSortedBuilder<A, T, Num, F> {
+    pub fn new(axis: A, bots: &mut [T], aabb_create: F) -> NotSortedBuilder<A, T, Num, F> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();
@@ -230,7 +230,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
-    ) -> NotSorted<A, BBox<Num, T>> {
+    ) -> NotSorted<A, BBox<Num, &'a mut T>> {
         #[repr(transparent)]
         pub struct SplitterWrap<S> {
             inner: S,
@@ -260,7 +260,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
 
     ///Build not sorted sequentially
-    pub fn build_seq(&mut self) -> NotSorted<A, BBox<Num, T>> {
+    pub fn build_seq(&mut self) -> NotSorted<A, BBox<Num, &'a mut T>> {
         NotSorted(self.inner.build_inner(
             par::Sequential,
             NoSorter,
@@ -269,7 +269,7 @@ impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Build not sorted in parallel
-    pub fn build_par(&mut self) -> NotSorted<A, BBox<Num, T>> {
+    pub fn build_par(&mut self) -> NotSorted<A, BBox<Num, &'a mut T>> {
         let dlevel = compute_default_level_switch_sequential(self.inner.height_switch_seq, self.inner.height);
         NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut crate::advanced::SplitterEmpty))
     }

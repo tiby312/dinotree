@@ -10,6 +10,7 @@ pub struct DinoTree<A: AxisTrait, T: HasAabb> {
     pub(crate) axis: A,
     pub(crate) bots: Vec<T>,
     pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
+    pub(crate) mover: Vec<u32>,
 }
 
 impl<A:AxisTrait,T:HasAabb> DinoTree<A,T>{
@@ -91,14 +92,14 @@ impl<A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for DinoTree<A,T>{
 /// ```
 pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {
     pub(crate) axis: A,
-    pub(crate) bots: &'a mut [T],
+    pub(crate) bots: &'a [T],
     pub(crate) aabb_create: F,
     pub(crate) rebal_strat: BinStrat,
     pub(crate) height: usize,
     pub(crate) height_switch_seq: usize,
 }
 
-impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+impl<'a, A: AxisTrait, T: Copy, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeBuilder<'a, A, T, Num, F>
 {
     ///Create a dinotree builder.
@@ -106,7 +107,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
     ///The user also passes a function to create the bounding box of each bot in the slice passed.
     #[inline(always)]
-    pub fn new(axis: A, bots: &mut [T], aabb_create: F) -> DinoTreeBuilder<A, T, Num, F> {
+    pub fn new(axis: A, bots: &[T], aabb_create: F) -> DinoTreeBuilder<A, T, Num, F> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();
@@ -149,7 +150,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
-    ) -> DinoTree<A, BBox<Num,&'a mut T>> {
+    ) -> DinoTree<A, BBox<Num, T>> {
         #[repr(transparent)]
         pub struct SplitterWrap<S> {
             inner: S,
@@ -183,7 +184,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
     ///Build sequentially.
     #[inline(always)]
-    pub fn build_seq(&mut self) -> DinoTree<A, BBox<Num, &'a mut T>> {
+    pub fn build_seq(&mut self) -> DinoTree<A, BBox<Num, T>> {
         self.build_inner(
             par::Sequential,
             DefaultSorter,
@@ -193,7 +194,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
     ///Build in parallel
     #[inline(always)]
-    pub fn build_par(&mut self) -> DinoTree<A, BBox<Num, &'a mut T>> {
+    pub fn build_par(&mut self) -> DinoTree<A, BBox<Num, T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
     }
@@ -203,9 +204,9 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         par: JJ,
         sorter: impl Sorter,
         ka: &mut S,
-    ) -> DinoTree<A, BBox<Num, &'a mut T>> {
+    ) -> DinoTree<A, BBox<Num, T>> {
         
-        let bots:&mut [T]=core::mem::replace::<&mut [T]>(&mut self.bots,&mut []);
+        let bots = self.bots;
         let axis = self.axis;
         let aabb_create = &mut self.aabb_create;
 
@@ -222,34 +223,35 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         );
 
         let mut conts: Vec<_> = bots
-            .iter_mut()
-            .map(move |k| Cont2 {
+            .iter()
+            .enumerate()
+            .map(move |(index, k)| Cont2 {
                 rect: aabb_create(k),
-                index: k,
+                index: index as u32,
             })
             .collect();
 
         let (new_bots, new_tree) = {
-            let cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
+            let mut cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
 
-            let mut new_bots: Vec<_> = conts.drain(..)
-                .map(|a| {
-                    let Cont2{rect,index}=a;
-                    BBox {
-                    rect: rect,
-                    inner: index,
-                }})
+            let mut new_bots: Vec<_> = cont_tree
+                .get_conts()
+                .iter()
+                .map(|a| BBox {
+                    rect: a.rect,
+                    inner: *unsafe { bots.get_unchecked(a.index as usize) },
+                })
                 .collect();
 
 
 
 
             let new_nodes = {
-                let mut rest: Option<&mut [BBox<Num, _>]> = Some(&mut new_bots);
-                let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
+                let mut rest: Option<&mut [BBox<Num, T>]> = Some(&mut new_bots);
+                let mut new_nodes = Vec::with_capacity(cont_tree.get_tree().get_nodes().len());
 
                 
-                for node in cont_tree.tree.get_nodes().iter() {
+                for node in cont_tree.get_tree_mut().get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
                     let b = tools::Unique::new(b as *mut [_]).unwrap();
@@ -268,7 +270,10 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             )
         };
 
+        let mover = conts.drain(..).map(|a| a.index).collect();
+
         DinoTree {
+            mover,
             axis,
             bots: new_bots,
             tree: new_tree,
@@ -276,5 +281,29 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 }
 
+impl<A: AxisTrait, T: HasAabb> DinoTree<A, T> {
  
+    ///Returns the bots to their original ordering. This is what you would call after you used this tree
+    ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
+    #[inline(always)]
+    pub fn apply<X>(&self, bots: &mut [X], conv: impl Fn(&T, &mut X)) {
+        assert_eq!(bots.len(), self.bots.len());
+        for (bot, mov) in self.bots.iter().zip_eq(self.mover.iter()) {
+            let target = unsafe { bots.get_unchecked_mut(*mov as usize) };
+            conv(bot, target);
+        }
+    }
 
+    ///Apply changes to the bots in the tree (not the aabb) without recreating the tree.
+    #[inline(always)]
+    pub fn apply_into<X>(&mut self, bots: &[X], conv: impl Fn(&X, &mut T)) {
+        assert_eq!(bots.len(), self.bots.len());
+
+        let treev = self.bots.iter_mut();
+
+        for (bot, mov) in treev.zip_eq(self.mover.iter()) {
+            let source = unsafe { bots.get_unchecked(*mov as usize) };
+            conv(source, bot)
+        }
+    }
+}
