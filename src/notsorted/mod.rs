@@ -109,22 +109,22 @@ impl<K:NotSortedRefMutTrait> NotSortedRefMutTrait for &mut K{
     }
 }
 
-pub struct NotSorted<A: AxisTrait, T: HasAabb>(pub DinoTree<A, T>);
+pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(pub DinoTree<'a,A,N,T>);
 
 
 
 //TODO should really have own trait
-impl<A:AxisTrait,T:HasAabb> NotSortedRefTrait for NotSorted<A,T>{
-    type Item=T;
+impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
+    type Item=BBox<N,&'a mut T>;
     type Axis=A;
-    type Num=T::Num;
+    type Num=N;
     
     fn axis(&self)->Self::Axis{
         self.0.axis()
     }
     fn vistr(&self)->Vistr<Self::Item>{
         Vistr {
-            inner: self.0.tree.vistr(),
+            inner: self.0.inner.tree.vistr(),
         }
     }
 
@@ -152,10 +152,10 @@ impl<A:AxisTrait,T:HasAabb> NotSortedRefTrait for NotSorted<A,T>{
 }
 
 
-impl<A:AxisTrait,T:HasAabb> NotSortedRefMutTrait for NotSorted<A,T>{    
+impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefMutTrait for NotSorted<'a,A,N,T>{    
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
-            inner: self.0.tree.vistr_mut(),
+            inner: self.0.inner.tree.vistr_mut(),
         }
     }
 }
@@ -230,7 +230,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
-    ) -> NotSorted<A, BBox<Num, &'a mut T>> {
+    ) -> NotSorted<'a,A,Num,T> {
         #[repr(transparent)]
         pub struct SplitterWrap<S> {
             inner: S,
@@ -260,7 +260,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
 
     ///Build not sorted sequentially
-    pub fn build_seq(&mut self) -> NotSorted<A, BBox<Num, &'a mut T>> {
+    pub fn build_seq(&mut self) -> NotSorted<'a,A,Num,T> {
         NotSorted(self.inner.build_inner(
             par::Sequential,
             NoSorter,
@@ -269,7 +269,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Build not sorted in parallel
-    pub fn build_par(&mut self) -> NotSorted<A, BBox<Num, &'a mut T>> {
+    pub fn build_par(&mut self) -> NotSorted<'a,A,Num,T> {
         let dlevel = compute_default_level_switch_sequential(self.inner.height_switch_seq, self.inner.height);
         NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut crate::advanced::SplitterEmpty))
     }

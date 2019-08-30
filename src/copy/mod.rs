@@ -2,17 +2,19 @@ use crate::tree::*;
 use crate::inner_prelude::*;
 
 
-
-
-
 ///Version of dinotree that makes a copy of all the elements.
-pub struct DinoTree<A: AxisTrait, T: HasAabb> {
-    pub(crate) axis: A,
-    pub(crate) bots: Vec<T>,
-    pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
+pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabb> {
+    pub axis: A,
+    pub bots: Vec<T>,
+    pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<A:AxisTrait,T:HasAabb> DinoTree<A,T>{
+pub struct DinoTreeOwned<A:AxisTrait,N:NumTrait,T>{
+    tree:DinoTreeInner<A,BBox<N,tools::Unique<T>>>,
+    bots:Vec<T>
+}
+
+impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
     #[inline(always)]
     pub fn get_bots_mut(&mut self)->&mut [T]{
         &mut self.bots
@@ -21,21 +23,52 @@ impl<A:AxisTrait,T:HasAabb> DinoTree<A,T>{
     pub fn get_bots(&self)->&[T]{
         &self.bots
     }
+
+    #[inline(always)]
+    pub fn as_mut(&mut self)->&mut DinoTree<A,N,T>{
+        let a=(&mut self.tree) as *mut _;
+        unsafe{&mut *(a as *mut _)}
+    }
+
+    #[inline(always)]
+    pub fn as_ref(&self)->&DinoTree<A,N,T>{
+        let a=(&self.tree) as *const _;
+        unsafe{&*(a as *const _)}
+    }
 }
 
-impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
-    type Item=T;
+///Version of dinotree that makes a copy of all the elements.
+#[repr(transparent)]
+pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
+    pub(crate) inner:DinoTreeInner<A,BBox<N,&'a mut T>>
+}
+
+
+impl<'a,A:AxisTrait,N:NumTrait,T> DinoTree<'a,A,N,T>{
+    #[inline(always)]
+    pub fn get_bots_mut(&mut self)->&mut [BBox<N,&'a mut T>]{
+        &mut self.inner.bots
+    }
+    #[inline(always)]
+    pub fn get_bots(&self)->&[BBox<N,&'a mut T>]{
+        &self.inner.bots
+    }
+
+}
+
+impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
+    type Item=BBox<N,&'a mut T>;
     type Axis=A;
-    type Num=T::Num;
+    type Num=N;
     
     #[inline(always)]
     fn axis(&self)->Self::Axis{
-        self.axis
+        self.inner.axis
     }
     #[inline(always)]
     fn vistr(&self)->Vistr<Self::Item>{
         Vistr {
-            inner: self.tree.vistr(),
+            inner: self.inner.tree.vistr(),
         }
     }
 
@@ -43,38 +76,163 @@ impl<A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTree<A,T>{
     #[inline(always)]
     fn height(&self) -> usize
     {
-        self.tree.get_height()
+        self.inner.tree.get_height()
     }
 
     ///Return the number of nodes of the dinotree.
     #[inline(always)]
     fn num_nodes(&self) -> usize
     {
-        self.tree.get_nodes().len()
+        self.inner.tree.get_nodes().len()
     }
 
     ///Return the number of bots in the tree.
     #[inline(always)]
     fn num_bots(&self) -> usize
     {
-        self.bots.len()
+        self.inner.bots.len()
     }
 
 }
 
 
-impl<A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for DinoTree<A,T>{    
+impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefMutTrait for DinoTree<'a,A,N,T>{    
     #[inline(always)]
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
-            inner: self.tree.vistr_mut(),
+            inner: self.inner.tree.vistr_mut(),
         }
     }
 }
 
 
 
+pub struct DinoTreeOwnedBuilder<A:AxisTrait,T,Num:NumTrait,F:FnMut(&T) -> Rect<Num>>{
+    pub(crate) axis: A,
+    pub(crate) bots: Vec<T>,
+    pub(crate) aabb_create: F,
+    pub(crate) rebal_strat: BinStrat,
+    pub(crate) height: usize,
+    pub(crate) height_switch_seq: usize, 
+}
 
+impl<A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+    DinoTreeOwnedBuilder<A, T, Num, F>
+{
+    ///Create a dinotree builder.
+    ///The user picks the axis along which the first divider will partition.
+    ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
+    ///The user also passes a function to create the bounding box of each bot in the slice passed.
+    #[inline(always)]
+    pub fn new(axis: A, bots: Vec<T>, aabb_create: F) -> DinoTreeOwnedBuilder<A, T, Num, F> {
+        let rebal_strat = BinStrat::Checked;
+        let height = compute_tree_height_heuristic(bots.len());
+        let height_switch_seq = default_level_switch_sequential();
+
+        DinoTreeOwnedBuilder {
+            axis,
+            bots,
+            aabb_create,
+            rebal_strat,
+            height,
+            height_switch_seq,
+        }
+    }
+
+
+
+    
+    ///Build sequentially.
+    #[inline(always)]
+    pub fn build_seq(self) -> DinoTreeOwned<A,Num,T> {
+        self.build_inner(
+            par::Sequential,
+            DefaultSorter,
+            &mut crate::advanced::SplitterEmpty,
+        )
+    }
+
+    pub(crate) fn build_inner<JJ: par::Joiner, S: Splitter + Send>(
+        self,
+        par: JJ,
+        sorter: impl Sorter,
+        ka: &mut S,
+    ) ->  DinoTreeOwned<A,Num,T>{
+
+        let DinoTreeOwnedBuilder{axis,mut bots,mut aabb_create,rebal_strat,height,height_switch_seq}=self;
+
+
+        let height = self.height;
+        let binstrat = self.rebal_strat;
+
+        let num_bots = bots.len();
+        let max = core::u32::MAX;
+
+        assert!(
+            num_bots < max as usize,
+            "problems of size {} are bigger are not supported",
+            max
+        );
+
+        let mut conts: Vec<_> = bots
+            .iter_mut()
+            .map(move |k| Cont2 {
+                rect: aabb_create(k),
+                index: k,
+            })
+            .collect();
+
+        let (new_bots, new_tree) = {
+            let cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
+
+            let mut new_bots: Vec<_> = conts.drain(..)
+                .map(|a| {
+                    let Cont2{rect,index}=a;
+                    BBox {
+                    rect: rect,
+                    inner: tools::Unique::new(index).unwrap(),
+                }})
+                .collect();
+
+
+
+
+            let new_nodes = {
+                let mut rest: Option<&mut [BBox<Num, _>]> = Some(&mut new_bots);
+                let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
+
+                
+                for node in cont_tree.tree.get_nodes().iter() {
+                    let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
+                    rest = Some(rest2);
+                    let b = tools::Unique::new(b as *mut [_]).unwrap();
+                    new_nodes.push(Node {
+                        range: b,
+                        cont: node.cont,
+                        div: node.div,
+                    })
+                }
+                new_nodes
+            };
+
+            (
+                new_bots,
+                compt::dfs_order::CompleteTreeContainer::from_preorder(new_nodes).unwrap(),
+            )
+        };
+
+        let tree=DinoTreeInner {
+            axis,
+            bots: new_bots,
+            tree: new_tree,
+        };
+        
+        DinoTreeOwned{
+            tree,
+            bots
+        }
+    }
+}
 
 ///Builder for a DinoTree
 /// # Examples
@@ -149,7 +307,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
-    ) -> DinoTree<A, BBox<Num,&'a mut T>> {
+    ) -> DinoTree<'a,A,Num,T> {
         #[repr(transparent)]
         pub struct SplitterWrap<S> {
             inner: S,
@@ -183,7 +341,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
     ///Build sequentially.
     #[inline(always)]
-    pub fn build_seq(&mut self) -> DinoTree<A, BBox<Num, &'a mut T>> {
+    pub fn build_seq(&mut self) -> DinoTree<'a,A,Num,T> {
         self.build_inner(
             par::Sequential,
             DefaultSorter,
@@ -193,7 +351,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
     ///Build in parallel
     #[inline(always)]
-    pub fn build_par(&mut self) -> DinoTree<A, BBox<Num, &'a mut T>> {
+    pub fn build_par(&mut self) -> DinoTree<'a,A,Num,T> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
     }
@@ -203,7 +361,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         par: JJ,
         sorter: impl Sorter,
         ka: &mut S,
-    ) -> DinoTree<A, BBox<Num, &'a mut T>> {
+    ) -> DinoTree<'a,A,Num,T> {
         
         let bots:&mut [T]=core::mem::replace::<&mut [T]>(&mut self.bots,&mut []);
         let axis = self.axis;
@@ -268,10 +426,12 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             )
         };
 
-        DinoTree {
+        DinoTree{
+            inner:DinoTreeInner {
             axis,
             bots: new_bots,
             tree: new_tree,
+            }
         }
     }
 }

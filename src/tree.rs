@@ -332,6 +332,12 @@ pub struct NodeRef<'a, T: HasAabb> {
 
 impl<T: HasAabb> Node<T> {
 
+    pub(crate) fn into_other<K:HasAabb<Num=T::Num>>(self)->Node<K>{
+        let Node{range,cont,div}=self;
+
+        let range=unsafe{core::mem::transmute(range)};
+        Node{range,cont,div}
+    }
     #[inline]
     pub fn get_mut(&mut self) -> NodeRefMut<T> {
         let bots = unsafe { &mut *self.range.as_ptr() };

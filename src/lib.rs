@@ -58,7 +58,6 @@ extern crate is_sorted;
 extern crate itertools;
 extern crate pdqselect;
 extern crate rayon;
-extern crate reorder;
 
 mod inner_prelude {
     pub use axgeom::*;
@@ -107,7 +106,7 @@ mod oned;
 pub mod copy;
 ///A version where the bots are not copied. This means that the slice borrowed from the user
 ///must remain borrowed for the entire lifetime of the tree.
-pub mod nocopy;
+//pub mod nocopy;
 ///A version of a dinotree where the bots that belong to a node are not
 ///sorted along an axis. So this is really a regular kd-tree.
 pub mod notsorted;
