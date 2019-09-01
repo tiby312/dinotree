@@ -428,6 +428,9 @@ mod cont_tree {
         pub rect: axgeom::Rect<Num>,
         pub index: X,
     }
+    unsafe impl<Num:NumTrait,X> Send for Cont2<Num,X>{}
+    unsafe impl<Num:NumTrait,X> Sync for Cont2<Num,X>{}
+    
     unsafe impl<Num: NumTrait,X> HasAabb for Cont2<Num,X> {
         type Num = Num;
         fn get(&self) -> &axgeom::Rect<Num> {

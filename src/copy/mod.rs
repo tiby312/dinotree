@@ -120,9 +120,11 @@ pub struct DinoTreeOwnedBuilder<A:AxisTrait,T,Num:NumTrait,F:FnMut(&T) -> Rect<N
     pub(crate) rebal_strat: BinStrat,
     pub(crate) height: usize,
     pub(crate) height_switch_seq: usize, 
+
 }
 
-impl<A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+
+impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeOwnedBuilder<A, T, Num, F>
 {
     ///Create a dinotree builder.
@@ -201,8 +203,6 @@ impl<A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
                 .collect();
 
 
-
-
             let new_nodes = {
                 let mut rest: Option<&mut [BBoxRef<Num, _>]> = Some(&mut new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
@@ -262,7 +262,20 @@ pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> R
     pub(crate) height_switch_seq: usize,
 }
 
+
 impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+    DinoTreeBuilder<'a, A, T, Num, F>
+{
+    
+    ///Build in parallel
+    #[inline(always)]
+    pub fn build_par(&mut self) -> DinoTree<'a,A,Num,T> {
+        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
+    }
+}
+
+impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeBuilder<'a, A, T, Num, F>
 {
     ///Create a dinotree builder.
@@ -355,12 +368,6 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         )
     }
 
-    ///Build in parallel
-    #[inline(always)]
-    pub fn build_par(&mut self) -> DinoTree<'a,A,Num,T> {
-        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
-    }
 
     pub(crate) fn build_inner<JJ: par::Joiner, S: Splitter + Send>(
         &mut self,
