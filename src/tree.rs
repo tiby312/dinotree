@@ -9,7 +9,10 @@ pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
     type Item:HasAabb;
     type Axis:AxisTrait;
     type Num:NumTrait;
+
     fn axis(&self)->Self::Axis;
+    
+
     fn vistr(&self)->Vistr<Self::Item>;
 
 
@@ -106,7 +109,8 @@ impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
 
 }
 
-impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{    
+impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{  
+
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         K::vistr_mut(self)
     }
@@ -192,9 +196,6 @@ impl<'a, T: HasAabb> Vistr<'a, T> {
         self.inner.level_remaining_hint().0
     }
 
-    pub fn get_nodes(&self)->&[Node<T>]{
-        self.inner.as_slice()
-    }
 }
 
 unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for Vistr<'a, T> {}
@@ -225,12 +226,13 @@ impl<'a, T: HasAabb + 'a> Visitor for Vistr<'a, T> {
     }
 }
 
+
 /// Tree Iterator that returns a mutable reference to each node.
-pub struct VistrMut<'a, T: HasAabb> {
+pub struct VistrMut<'a, T:HasAabb> {
     pub(crate) inner: compt::dfs_order::VistrMut<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<'a, T: HasAabb> VistrMut<'a, T> {
+impl<'a, T:HasAabb> VistrMut<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
     #[inline]
@@ -246,12 +248,13 @@ impl<'a, T: HasAabb> VistrMut<'a, T> {
         self.inner.level_remaining_hint().0
     }
 
-
-    pub fn get_nodes_mut(&mut self)->&mut [Node<T>]{
-        self.inner.as_slice_mut()
+    pub fn get_nodes_mut(&mut self)->&mut SlicePin<Node<T>>{
+        SlicePin::from_slice_mut(self.inner.as_slice_mut())
     }
 
+
 }
+
 
 impl<'a, T:HasAabb> core::ops::Deref for VistrMut<'a, T> {
     type Target = Vistr<'a, T>;
@@ -263,8 +266,9 @@ impl<'a, T:HasAabb> core::ops::Deref for VistrMut<'a, T> {
 
 
 
-unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for VistrMut<'a, T> {}
-impl<'a, T: HasAabb> Visitor for VistrMut<'a, T> {
+unsafe impl<'a, T:HasAabb> compt::FixedDepthVisitor for VistrMut<'a, T> {}
+
+impl<'a, T:HasAabb> Visitor for VistrMut<'a, T> {
     type Item = NodeRefMut<'a, T>;
 
     #[inline]
@@ -306,10 +310,16 @@ pub struct Node<T: HasAabb> {
     pub(crate) div: Option<T::Num>,
 }
 
+
+
+
+
+
 ///Mutable reference to a node in the dinotree.
-pub struct NodeRefMut<'a, T: HasAabb> {
+pub struct NodeRefMut<'a, T:HasAabb> {
     ///The bots that belong to this node.
-    pub bots: &'a mut [T],
+    //pub bots: ElemSliceMut<'a,N,T>,//&'a mut [T],
+    pub bots:&'a mut SlicePin<T>,//ElemSlice<T>,
 
     ///Is None iff bots is empty.
     pub cont: Option<&'a axgeom::Range<T::Num>>,
@@ -317,6 +327,9 @@ pub struct NodeRefMut<'a, T: HasAabb> {
     ///Is None if node is a leaf, or there are no bots in this node or in any decendants.
     pub div: Option<&'a T::Num>,
 }
+
+
+
 
 ///Reference to a node in the dinotree.
 pub struct NodeRef<'a, T: HasAabb> {
@@ -330,6 +343,8 @@ pub struct NodeRef<'a, T: HasAabb> {
     pub div: Option<&'a T::Num>,
 }
 
+
+
 impl<T: HasAabb> Node<T> {
 
     pub(crate) fn into_other<K:HasAabb<Num=T::Num>>(self)->Node<K>{
@@ -338,6 +353,8 @@ impl<T: HasAabb> Node<T> {
         let range=unsafe{core::mem::transmute(range)};
         Node{range,cont,div}
     }
+    
+    
     #[inline]
     pub fn get_mut(&mut self) -> NodeRefMut<T> {
         let bots = unsafe { &mut *self.range.as_ptr() };
@@ -348,12 +365,13 @@ impl<T: HasAabb> Node<T> {
         };
 
         NodeRefMut {
-            bots,
+            //bots:ElemSliceMut{inner:bots},
+            bots:SlicePin::from_slice_mut(bots),
             cont,
             div: self.div.as_ref(),
         }
     }
-
+    
     #[inline]
     pub fn get(&self) -> NodeRef<T> {
         let bots = unsafe { &*self.range.as_ptr() };
@@ -418,7 +436,7 @@ mod cont_tree {
     }
 
     pub struct ContTree<T: HasAabb> {
-        pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
+        pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
     }
 
     impl<T: HasAabb + Send + Sync> ContTree<T> {

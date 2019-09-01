@@ -115,7 +115,7 @@ pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(pub DinoTree<'a,A,N,T>);
 
 //TODO should really have own trait
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
-    type Item=BBox<N,&'a mut T>;
+    type Item=BBoxRef<N,T>;
     type Axis=A;
     type Num=N;
     

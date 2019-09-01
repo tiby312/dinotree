@@ -15,6 +15,10 @@ impl<N:NumTrait,T> BBoxMut<N,T>{
     pub fn new(aabb:axgeom::Rect<N>,inner:T)->BBoxMut<N,T>{
         BBoxMut{aabb,inner}
     }
+
+    pub fn inner_mut(&mut self)->&mut T{
+        &mut self.inner
+    }
 }
 
 
@@ -26,6 +30,7 @@ pub fn into_bbox_slice<N:NumTrait,T>(arr:&mut [BBoxMut<N,T>])->&mut [BBox<N,T>]{
 pub fn into_bbox_mut_slice<N:NumTrait,T>(arr:&mut [BBox<N,T>])->&mut [BBoxMut<N,T>]{
     unsafe{&mut *(arr as *mut [BBox<_,_>] as *mut [BBoxMut<_,_>])}
 }
+
 
 
 
