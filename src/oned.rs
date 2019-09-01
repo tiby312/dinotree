@@ -34,7 +34,7 @@ pub fn bin_middle_left_right<'b, A: AxisTrait, X: HasAabb>(
 
     for index_at in 0..bot_len {
         match bots[index_at]
-            .get()
+            .get().rect
             .get_range(axis)
             .left_or_right_or_contain(med)
         {
@@ -90,7 +90,7 @@ pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
     for index_at in 0..bot_len {
         match bots
             .get_unchecked(index_at)
-            .get()
+            .get().rect
             .get_range(axis)
             .left_or_right_or_contain(med)
         {
@@ -128,7 +128,7 @@ pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
 
 #[inline(always)]
 pub fn compare_bots<T: HasAabb>(axis: impl AxisTrait, a: &T, b: &T) -> core::cmp::Ordering {
-    let (p1, p2) = (a.get().get_range(axis).left, b.get().get_range(axis).left);
+    let (p1, p2) = (a.get().rect.get_range(axis).left, b.get().rect.get_range(axis).left);
     if p1 > p2 {
         core::cmp::Ordering::Greater
     }else{

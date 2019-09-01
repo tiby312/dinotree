@@ -6,9 +6,10 @@ use crate::inner_prelude::*;
 ///We expose a trait so that both the copy and non copy version of the tree have
 ///the same interface.
 pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
-    type Item:HasAabb;
+    type Item:HasAabbMut<Inner=Self::Inner,Num=Self::Num>;
     type Axis:AxisTrait;
     type Num:NumTrait;
+    type Inner;
 
     fn axis(&self)->Self::Axis;
     
@@ -43,6 +44,7 @@ impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &K{
     type Item=K::Item;
     type Axis=K::Axis;
     type Num=K::Num;
+    type Inner=K::Inner;
     
     fn axis(&self)->Self::Axis{
         K::axis(self)
@@ -78,6 +80,7 @@ impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
     type Item=K::Item;
     type Axis=K::Axis;
     type Num=K::Num;
+    type Inner=K::Inner;
     
     fn axis(&self)->Self::Axis{
         K::axis(self)
@@ -180,7 +183,7 @@ pub struct Vistr<'a, T: HasAabb> {
     pub(crate) inner: compt::dfs_order::Vistr<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<'a, T: HasAabb> Vistr<'a, T> {
+impl<'a, T: HasAabbMut> Vistr<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
     #[inline]
@@ -198,9 +201,9 @@ impl<'a, T: HasAabb> Vistr<'a, T> {
 
 }
 
-unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for Vistr<'a, T> {}
+unsafe impl<'a, T: HasAabbMut> compt::FixedDepthVisitor for Vistr<'a, T> {}
 
-impl<'a, T: HasAabb + 'a> Visitor for Vistr<'a, T> {
+impl<'a, T: HasAabbMut + 'a> Visitor for Vistr<'a, T> {
     type Item = NodeRef<'a, T>;
 
     #[inline]
@@ -228,11 +231,11 @@ impl<'a, T: HasAabb + 'a> Visitor for Vistr<'a, T> {
 
 
 /// Tree Iterator that returns a mutable reference to each node.
-pub struct VistrMut<'a, T:HasAabb> {
+pub struct VistrMut<'a, T:HasAabbMut> {
     pub(crate) inner: compt::dfs_order::VistrMut<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<'a, T:HasAabb> VistrMut<'a, T> {
+impl<'a, T:HasAabbMut> VistrMut<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
     #[inline]
@@ -248,15 +251,12 @@ impl<'a, T:HasAabb> VistrMut<'a, T> {
         self.inner.level_remaining_hint().0
     }
 
-    pub fn get_nodes_mut(&mut self)->&mut SlicePin<Node<T>>{
-        SlicePin::from_slice_mut(self.inner.as_slice_mut())
-    }
 
 
 }
 
 
-impl<'a, T:HasAabb> core::ops::Deref for VistrMut<'a, T> {
+impl<'a, T:HasAabbMut> core::ops::Deref for VistrMut<'a, T> {
     type Target = Vistr<'a, T>;
     #[inline]
     fn deref(&self) -> &Vistr<'a, T> {
@@ -266,9 +266,9 @@ impl<'a, T:HasAabb> core::ops::Deref for VistrMut<'a, T> {
 
 
 
-unsafe impl<'a, T:HasAabb> compt::FixedDepthVisitor for VistrMut<'a, T> {}
+unsafe impl<'a, T:HasAabbMut> compt::FixedDepthVisitor for VistrMut<'a, T> {}
 
-impl<'a, T:HasAabb> Visitor for VistrMut<'a, T> {
+impl<'a, T:HasAabbMut> Visitor for VistrMut<'a, T> {
     type Item = NodeRefMut<'a, T>;
 
     #[inline]
@@ -297,8 +297,8 @@ impl<'a, T:HasAabb> Visitor for VistrMut<'a, T> {
 
 
 ///A node in a dinotree.
-pub struct Node<T: HasAabb> {
-    pub(crate) range: tools::Unique<[T]>,
+pub(crate) struct Node<T: HasAabb> {
+    pub(crate) range: tools::Unique<ElemSlice<T>>,
 
     //range is empty iff cont is none.
     pub(crate) cont: axgeom::Range<T::Num>,
@@ -316,10 +316,9 @@ pub struct Node<T: HasAabb> {
 
 
 ///Mutable reference to a node in the dinotree.
-pub struct NodeRefMut<'a, T:HasAabb> {
+pub struct NodeRefMut<'a, T:HasAabbMut> {
     ///The bots that belong to this node.
-    //pub bots: ElemSliceMut<'a,N,T>,//&'a mut [T],
-    pub bots:&'a mut SlicePin<T>,//ElemSlice<T>,
+    pub bots: ElemSliceMut<'a,T>,//&'a mut ElemSlice<T>,
 
     ///Is None iff bots is empty.
     pub cont: Option<&'a axgeom::Range<T::Num>>,
@@ -327,14 +326,12 @@ pub struct NodeRefMut<'a, T:HasAabb> {
     ///Is None if node is a leaf, or there are no bots in this node or in any decendants.
     pub div: Option<&'a T::Num>,
 }
-
-
 
 
 ///Reference to a node in the dinotree.
-pub struct NodeRef<'a, T: HasAabb> {
+pub struct NodeRef<'a, T:HasAabb> {
     ///The bots that belong to this node.
-    pub bots: &'a [T],
+    pub bots: &'a ElemSlice<T>,
 
     ///Is None iff bots is empty.
     pub cont: Option<&'a axgeom::Range<T::Num>>,
@@ -345,14 +342,8 @@ pub struct NodeRef<'a, T: HasAabb> {
 
 
 
-impl<T: HasAabb> Node<T> {
+impl<T: HasAabbMut> Node<T> {
 
-    pub(crate) fn into_other<K:HasAabb<Num=T::Num>>(self)->Node<K>{
-        let Node{range,cont,div}=self;
-
-        let range=unsafe{core::mem::transmute(range)};
-        Node{range,cont,div}
-    }
     
     
     #[inline]
@@ -365,8 +356,7 @@ impl<T: HasAabb> Node<T> {
         };
 
         NodeRefMut {
-            //bots:ElemSliceMut{inner:bots},
-            bots:SlicePin::from_slice_mut(bots),
+            bots:ElemSliceMut::new(bots),
             cont,
             div: self.div.as_ref(),
         }
@@ -424,25 +414,31 @@ mod cont_tree {
     use super::*;
 
     
-    pub struct Cont2<Num: NumTrait,X> {
-        pub rect: axgeom::Rect<Num>,
-        pub index: X,
+    pub struct Cont2<N:NumTrait,K> {
+        pub rect: axgeom::Rect<N>,
+        pub index: K,
     }
-    unsafe impl<Num:NumTrait,X> Send for Cont2<Num,X>{}
-    unsafe impl<Num:NumTrait,X> Sync for Cont2<Num,X>{}
+    unsafe impl<N:NumTrait,K> Send for Cont2<N,K>{}
+    unsafe impl<N:NumTrait,K> Sync for Cont2<N,K>{}
     
-    unsafe impl<Num: NumTrait,X> HasAabb for Cont2<Num,X> {
-        type Num = Num;
-        fn get(&self) -> &axgeom::Rect<Num> {
-            &self.rect
+    unsafe impl<N:NumTrait,K> HasAabb for Cont2<N,K> {
+        type Num = N;
+        type Inner = K;
+        fn get(&self) -> BBoxRef<Self::Num,Self::Inner> {
+            BBoxRef::new(&self.rect,&self.index)
         }
     }
+    unsafe impl<N:NumTrait,K> HasAabbMut for Cont2<N,K>{
+        fn get_mut(&mut self) -> BBoxRefMut<N,K> {
+            BBoxRefMut::new(&self.rect,&mut self.index)
+        }   
+    }
 
-    pub struct ContTree<T: HasAabb> {
+    pub struct ContTree<T: HasAabbMut> {
         pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
     }
 
-    impl<T: HasAabb + Send + Sync> ContTree<T> {
+    impl<T: HasAabbMut + Send + Sync> ContTree<T> {
         
         pub fn new<A: AxisTrait, JJ: par::Joiner, K: Splitter + Send>(
             div_axis: A,
@@ -474,10 +470,12 @@ mod cont_tree {
             for arr in tree.get_nodes().windows(2) {
                 let a = &arr[0];
                 let b = &arr[1];
+                /* TODO
                 debug_assert_eq!(
                     a.get().bots[a.get().bots.len()..].as_ptr(),
                     b.get().bots.as_ptr()
                 );
+                */
             }
 
             let k = tree
@@ -490,14 +488,14 @@ mod cont_tree {
         }
     }
 
-    struct Recurser<'a, T: HasAabb, K: Splitter + Send, S: Sorter> {
+    struct Recurser<'a, T: HasAabbMut, K: Splitter + Send, S: Sorter> {
         height: usize,
         binstrat: BinStrat,
         sorter: S,
         _p :PhantomData<(tools::Syncer<K>,&'a T)>
     }
 
-    impl<'a, T: HasAabb + Send + Sync, K: Splitter + Send, S: Sorter> Recurser<'a, T, K, S> {
+    impl<'a, T: HasAabbMut + Send + Sync, K: Splitter + Send, S: Sorter> Recurser<'a, T, K, S> {
         fn recurse_preorder<A: AxisTrait, JJ: par::Joiner>(
             &self,
             axis: A,
@@ -520,7 +518,7 @@ mod cont_tree {
                             right,
                         } => (
                             Node {
-                                range: tools::Unique::new(mid as *mut [_]).unwrap(),
+                                range: tools::Unique::new(ElemSlice::from_slice_mut(mid) as *mut _).unwrap(),
                                 cont,
                                 div: Some(div),
                             },
@@ -532,7 +530,7 @@ mod cont_tree {
                                 let a = tools::duplicate_empty_slice(empty);
                                 let cont = unsafe { core::mem::uninitialized() };
                                 let node = Node {
-                                    range: tools::Unique::new(a as *mut [_]).unwrap(),
+                                    range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
                                     cont,
                                     div: None,
                                 };
@@ -608,7 +606,7 @@ mod cont_tree {
                 };
 
                 let node = Node {
-                    range: tools::Unique::new(rest as *mut [_]).unwrap(),
+                    range: tools::Unique::new(ElemSlice::from_slice_mut(rest) as *mut _).unwrap(),
                     cont,
                     div: None,
                 };
@@ -688,12 +686,12 @@ fn bench_cont2(b: &mut test::Bencher) {
 fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
     let (first, rest) = middle.split_first().unwrap();
 
-    let mut min = first.get().get_range(axis).left;
-    let mut max = first.get().get_range(axis).right;
+    let mut min = first.get().rect.get_range(axis).left;
+    let mut max = first.get().rect.get_range(axis).right;
 
     for a in rest.iter() {
-        let left = &a.get().get_range(axis).left;
-        let right = &a.get().get_range(axis).right;
+        let left = &a.get().rect.get_range(axis).left;
+        let right = &a.get().rect.get_range(axis).right;
 
         if *left < min {
             min = *left;
@@ -746,7 +744,7 @@ fn construct_non_leaf<T: HasAabb>(
             &bots[mm]
         };
 
-        k.get().get_range(div_axis).left
+        k.get().rect.get_range(div_axis).left
     };
 
     //It is very important that the median bot end up be binned into the middile bin.

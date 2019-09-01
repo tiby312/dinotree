@@ -92,7 +92,6 @@ pub use crate::tree::NodeRef;
 pub use crate::tree::NodeRefMut;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;
-pub use crate::tree::Node;
 
 
 ///Contains code to construct the dyntree.
@@ -125,6 +124,59 @@ pub trait NumTrait: Ord + Copy + Send + Sync + core::fmt::Debug {}
 
 impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::fmt::Debug {}
 
+
+
+///A wrapper type around a type T and bounding box where the bounding box is hidden.
+///This is what is inserted into the tree. This way the user
+///cannot modify the bounding box since it is hidden, with only read access.
+#[repr(C)]
+pub struct BBoxRef<'a,N:NumTrait,T> {
+    pub rect: &'a axgeom::Rect<N>,
+    pub inner: &'a T,
+}
+
+impl<'a,N:NumTrait,T> BBoxRef<'a, N,T> {
+    
+    ///Unsafe since user could create a new BBox with a different aabb
+    ///inside of a callback function and assign it to the mutable reference.
+    #[inline]
+    pub fn new(rect: &'a axgeom::Rect<N>, inner: &'a T) -> BBoxRef<'a,N,T> {
+        BBoxRef{ rect, inner }
+    }
+
+}
+
+
+///A wrapper type around a type T and bounding box where the bounding box is hidden.
+///This is what is inserted into the tree. This way the user
+///cannot modify the bounding box since it is hidden, with only read access.
+#[repr(C)]
+pub struct BBoxRefMut<'a,N:NumTrait,T> {
+    pub rect: &'a axgeom::Rect<N>,
+    pub inner: &'a mut T,
+}
+
+impl<'a,N:NumTrait,T> BBoxRefMut<'a,N,T> {
+    
+    ///Unsafe since user could create a new BBox with a different aabb
+    ///inside of a callback function and assign it to the mutable reference.
+    #[inline]
+    pub fn new(rect: &'a axgeom::Rect<N>, inner: &'a mut T) -> BBoxRefMut<'a,N,T> {
+        BBoxRefMut { rect, inner }
+    }
+
+    pub fn as_mut(&mut self)->BBoxRefMut<N,T>{
+        BBoxRefMut{rect:self.rect,inner:self.inner}
+    }
+}
+
+pub struct BBoxRefPtr<N:NumTrait,T>{
+    pub rect:*const axgeom::Rect<N>,
+    pub inner:tools::Unique<T>
+}
+
+
+
 ///Marker trait to signify that this object has an axis aligned bounding box.
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
 ///to each simultaneously.
@@ -138,25 +190,36 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::fmt::De
 ///Not only will the algorithms not be correct, but undefined behavior may be introduced.
 ///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
 ///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
+///
+///Additionally it should not implement Unpin. Otherwise users could swap elements in the tree.
 pub unsafe trait HasAabb{
     type Num: NumTrait;
-    fn get(&self) -> &axgeom::Rect<Self::Num>;
+    type Inner;
+    fn get(&self) -> BBoxRef<Self::Num,Self::Inner>;
+}
+pub unsafe trait HasAabbMut:HasAabb{
+    fn get_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>;
 }
 
 
 
 
+
+
+
+
+use core::marker::PhantomPinned;
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
 ///This is what is inserted into the tree. This way the user
 ///cannot modify the bounding box since it is hidden, with only read access.
 #[repr(C)]
-pub struct BBoxRef<N: NumTrait, T> {
+pub struct BBoxPtr<N: NumTrait, T> {
     rect: axgeom::Rect<N>,
     inner: tools::Unique<T>,
 }
 
-impl<N: NumTrait, T> BBoxRef<N, T> {
+impl<N: NumTrait, T> BBoxPtr<N, T> {
     pub fn inner(&self)->&T{
         unsafe{&*self.inner.as_ptr()}
 
@@ -165,14 +228,14 @@ impl<N: NumTrait, T> BBoxRef<N, T> {
         unsafe{&mut *self.inner.as_ptr()}
     }
 
-    pub(crate) unsafe fn from_bbox(a:BBox<N,&mut T>)->BBoxRef<N,T>{
-        BBoxRef{rect:a.rect,inner:tools::Unique::new(a.inner).unwrap()}
+    pub(crate) unsafe fn from_bbox(a:BBox<N,&mut T>)->BBoxPtr<N,T>{
+        BBoxPtr{rect:a.rect,inner:tools::Unique::new(a.inner).unwrap()}
     }
     ///Unsafe since user could create a new BBox with a different aabb
     ///inside of a callback function and assign it to the mutable reference.
     #[inline]
-    pub unsafe fn new(rect: axgeom::Rect<N>, inner: tools::Unique<T>) -> BBoxRef<N, T> {
-        BBoxRef { rect, inner }
+    pub unsafe fn new(rect: axgeom::Rect<N>, inner: tools::Unique<T>) -> BBoxPtr<N, T> {
+        BBoxPtr { rect, inner}
     }
 
     ///Unsafe since user could call this function
@@ -184,54 +247,17 @@ impl<N: NumTrait, T> BBoxRef<N, T> {
     }
 }
 
-unsafe impl<N: NumTrait, T> HasAabb for BBoxRef<N, T> {
+unsafe impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
     type Num = N;
+    type Inner= T;
     #[inline(always)]
-    fn get(&self) -> &axgeom::Rect<Self::Num> {
-        &self.rect
+    fn get(&self) -> BBoxRef<N,T>{
+        BBoxRef::new(&self.rect,unsafe{&*self.inner.as_ptr()})
     }
 }
-
-
-
-///A wrapper type around a type T and bounding box where the bounding box is hidden.
-///This is what is inserted into the tree. This way the user
-///cannot modify the bounding box since it is hidden, with only read access.
-#[repr(C)]
-pub struct BBoxRefMut<'a,N: NumTrait, T> {
-    rect: axgeom::Rect<N>,
-    inner: Pin<&'a mut T>,
-}
-
-impl<'a,N: NumTrait, T> BBoxRefMut<'a,N, T> {
-    pub fn inner(&self)->&T{
-        &self.inner
-    }
-    pub fn inner_mut(&mut self)->Pin<&mut T>{
-        self.inner.as_mut()
-    }
-
-    ///Unsafe since user could create a new BBox with a different aabb
-    ///inside of a callback function and assign it to the mutable reference.
-    #[inline]
-    pub fn new(rect: axgeom::Rect<N>, inner: Pin<&'a mut T>) -> BBoxRefMut<N, T> {
-        BBoxRefMut { rect, inner }
-    }
-
-    ///Unsafe since user could call this function
-    ///using a mutable reference from inside of a callback function
-    ///of a dinotree query function.
-    #[inline]
-    pub(crate) unsafe fn set_aabb(&mut self,aabb:axgeom::Rect<N>){
-        self.rect=aabb;
-    }
-}
-
-unsafe impl<'a,N: NumTrait, T> HasAabb for BBoxRefMut<'a,N, T> {
-    type Num = N;
-    #[inline(always)]
-    fn get(&self) -> &axgeom::Rect<Self::Num> {
-        &self.rect
+unsafe impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
+    fn get_mut(&mut self)->BBoxRefMut<N,T>{
+        BBoxRefMut::new(&self.rect,unsafe{&mut *self.inner.as_ptr()})
     }
 }
 
@@ -239,20 +265,8 @@ unsafe impl<'a,N: NumTrait, T> HasAabb for BBoxRefMut<'a,N, T> {
 
 
 
-/*
-pub struct BBoxRefMut<'a,N:NumTrait,T>{
-    pub rect:&'a axgeom::Rect<N>,
-    pub inner:&'a mut T
-}
 
-impl<'a,N:NumTrait,T> ReturnedAabb<'a> for BBoxRefMut<'a,N,T>{
-    type AABB=BBoxRef<N,T>;
-    fn from_aabb(a:&'a mut BBoxRef<N,T>)->BBoxRefMut<'a,N,T>{
-        BBoxRefMut{rect:&a.rect,inner:unsafe{&mut *a.inner.as_ptr()}}
-    }
-}
 
-*/
 
 
 ///A wrapper type around a type T and bounding box where the bounding box is hidden.
@@ -295,52 +309,227 @@ impl<N: NumTrait, T> BBox<N, T> {
 
 unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
     type Num = N;
+    type Inner= T;
     #[inline(always)]
-    fn get(&self) -> &axgeom::Rect<Self::Num> {
-        &self.rect
+    fn get(&self) -> BBoxRef<N,T>{
+        BBoxRef::new(&self.rect,unsafe{&*(&self.inner as *const _)})
+    }
+}
+unsafe impl<N:NumTrait,T> HasAabbMut for BBox<N,T>{
+    fn get_mut(&mut self)->BBoxRefMut<N,T>{
+        BBoxRefMut::new(&self.rect,unsafe{&mut *(&mut self.inner as *mut _)})
     }
 }
 
-/*
-pub trait ReturnedAabb<'a>{
-    type AABB:HasAabb+'a;
-    fn from_aabb(aabb:&'a mut Self::AABB)->Self;
+
+
+
+
+pub struct ElemSliceMut<'a,T:HasAabb>{
+    inner:&'a mut ElemSlice<T>
 }
+
+impl<'a,T:HasAabbMut> ElemSliceMut<'a,T>{
+
+    pub fn as_mut(&mut self)->ElemSliceMut<T>{
+        ElemSliceMut{inner:self.inner}
+    }
+    pub fn new(inner:&'a mut ElemSlice<T>)->ElemSliceMut<'a,T>{
+        ElemSliceMut{inner}
+    }
+    pub fn split_first_mut(self)->Option<(BBoxRefMut<'a,T::Num,T::Inner>,ElemSliceMut<'a,T>)>{
+        self.inner.split_first_mut().map(|(first,inner)|(first,ElemSliceMut{inner}))
+    }
+    pub fn iter_mut(&mut self)->ElemIterMut<T>{
+        self.inner.iter_mut()
+    }
+
+    pub fn from_slice_mut(arr:&mut [T])->Self{
+        ElemSliceMut{inner:unsafe{&mut *(arr as *mut _ as *mut _)}}
+    }
+
+    pub fn truncate_mut(self,start:usize,end:usize)->ElemSliceMut<'a,T>{
+        ElemSliceMut{inner:self.inner.truncate_mut(start,end)}
+    }
+    pub fn truncate_start_mut(self,start:usize)->ElemSliceMut<'a,T>{
+        ElemSliceMut{inner:self.inner.truncate_start_mut(start)}
+    }
+}
+
+impl<'a, T:HasAabbMut> IntoIterator for ElemSliceMut<'a,T> {
+    type Item = BBoxRefMut<'a,T::Num,T::Inner>;
+    type IntoIter = ElemIterMut<'a, T>;
+
+    fn into_iter(self) -> ElemIterMut<'a, T> {
+        let ElemSliceMut{inner}=self;
+        inner.iter_mut()
+    }
+}
+impl<'a,T:HasAabb> core::ops::Deref for ElemSliceMut<'a,T> {
+    type Target = ElemSlice<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner
+    }
+}
+
+
+
+
+
+
+
+
+
 
 #[repr(transparent)]
 pub struct ElemSlice<T:HasAabb>{
     inner:[T]
 }
 
-impl<T:HasAabb> ElemSlice<T>{
+impl<T:HasAabbMut> ElemSlice<T>{
+
+    pub fn split_first_mut(&mut self)->Option<(BBoxRefMut<T::Num,T::Inner>,&mut ElemSlice<T>)>{
+        self.inner.split_first_mut().map(|(first,inner)|(first.get_mut(),Self::from_slice_mut(inner)))
+    }
+    pub fn iter_mut(&mut self)->ElemIterMut<T>{
+        ElemIterMut{ii:self.inner.iter_mut()}
+    }
+
     pub fn from_slice_mut(arr:&mut [T])->&mut Self{
         unsafe{&mut *(arr as *mut _ as *mut _)}
     }
 
-    pub fn split_first_mut<'a,K:ReturnedAabb<'a,AABB=T>>(&'a mut self)->Option<(K,&'a mut ElemSlice<T>)>{
-        self.inner.split_first_mut().map(|(first,inner)|(K::from_aabb(first),Self::from_slice_mut(inner)))
+    pub fn truncate_mut(&mut self,start:usize,end:usize)->&mut ElemSlice<T>{
+        Self::from_slice_mut(&mut self.inner[start..end])
     }
-    pub fn iter_mut<'a,K:ReturnedAabb<'a,AABB=T>>(&'a mut self)->ElemIterMut<K>{
-        ElemIterMut{ii:self.inner.iter_mut()}
+    pub fn truncate_start_mut(&mut self,start:usize)->&mut ElemSlice<T>{
+        Self::from_slice_mut(&mut self.inner[start..])
     }
-
 }
 
+impl<T:HasAabb> ElemSlice<T>{
+    pub fn from_slice(arr:&[T])->&Self{
+        unsafe{& *(arr as *const _ as *const _)}
+    }
 
-pub struct ElemIterMut<'a,K:ReturnedAabb<'a>>{
-    ii:core::slice::IterMut<'a,K::AABB>
+
+    pub fn truncate(&self,start:usize,end:usize)->&ElemSlice<T>{
+        Self::from_slice(&self.inner[start..end])
+    }
+    pub fn truncate_start(&self,start:usize)->&ElemSlice<T>{
+        Self::from_slice(&self.inner[start..])
+    }
+
+    pub fn is_empty(&self)->bool{
+        self.inner.is_empty()
+    }
+
+    pub fn iter(&self)->ElemIter<T>{
+        ElemIter{ii:self.inner.iter()}
+    }  
+
+    pub fn len(&self)->usize{
+        self.inner.len()
+    }  
+    
 }
 
-impl<'a,K:ReturnedAabb<'a>> Iterator for ElemIterMut<'a,K>{
-    type Item=K;
+pub struct ElemIterMut<'a,T:HasAabbMut>{
+    ii:core::slice::IterMut<'a,T>
+}
+
+impl<'a,T:HasAabbMut> Iterator for ElemIterMut<'a,T>{
+    type Item=BBoxRefMut<'a,T::Num,T::Inner>;
     fn next(&mut self)->Option<Self::Item>{
-        self.ii.next().map(|a|K::from_aabb(a))
+        self.ii.next().map(|a|a.get_mut())
+    }
+
+    fn size_hint(&self)->(usize,Option<usize>){
+        self.ii.size_hint()
     }
 }
-*/
+
+
+pub struct ElemIter<'a,T:HasAabb>{
+    ii:core::slice::Iter<'a,T>
+}
+
+impl<'a,T:HasAabb> Iterator for ElemIter<'a,T>{
+    type Item=BBoxRef<'a,T::Num,T::Inner>;
+    fn next(&mut self)->Option<Self::Item>{
+        self.ii.next().map(|a|a.get())
+    }
+
+    fn size_hint(&self)->(usize,Option<usize>){
+        self.ii.size_hint()
+    }
+}
+
+
+impl<'a,T:HasAabb> core::iter::FusedIterator for ElemIter<'a,T>{}
+impl<'a,T:HasAabb> core::iter::ExactSizeIterator for ElemIter<'a,T>{}
+
+
+impl<'a, T:HasAabb> DoubleEndedIterator for ElemIter<'a, T> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.ii.next_back().map(|a|a.get())
+    }
+
+
+    #[inline]
+    fn rfold<Acc, Fold>(mut self, init: Acc, mut f: Fold) -> Acc
+        where Fold: FnMut(Acc, Self::Item) -> Acc,
+    {
+        self.ii.rfold(init,|acc,a|{
+            f(acc,a.get())
+        })
+    }
+}
 
 
 
+impl<'a,T:HasAabbMut> core::iter::FusedIterator for ElemIterMut<'a,T>{}
+impl<'a,T:HasAabbMut> core::iter::ExactSizeIterator for ElemIterMut<'a,T>{}
+
+impl<'a, T:HasAabbMut> DoubleEndedIterator for ElemIterMut<'a, T> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.ii.next_back().map(|a|a.get_mut())
+    }
+
+
+    #[inline]
+    fn rfold<Acc, Fold>(mut self, init: Acc, mut f: Fold) -> Acc
+        where Fold: FnMut(Acc, Self::Item) -> Acc,
+    {
+        self.ii.rfold(init,|acc,a|{
+            f(acc,a.get_mut())
+        })
+    }
+}
+
+
+impl<'a, T:HasAabbMut> IntoIterator for &'a mut ElemSlice<T> {
+    type Item = BBoxRefMut<'a,T::Num,T::Inner>;
+    type IntoIter = ElemIterMut<'a, T>;
+
+    fn into_iter(self) -> ElemIterMut<'a, T> {
+        self.iter_mut()
+    }
+}
+
+impl<'a, T:HasAabb> IntoIterator for &'a ElemSlice<T> {
+    type Item = BBoxRef<'a,T::Num,T::Inner>;
+    type IntoIter = ElemIter<'a, T>;
+
+    fn into_iter(self) -> ElemIter<'a, T> {
+        self.iter()
+    }
+}
+
+/*
 pub use crate::pinslice::SlicePin;
 mod pinslice{
     use core::pin::Pin;
@@ -426,4 +615,6 @@ mod pinslice{
             })
         }
     }
-}
+
+
+*/

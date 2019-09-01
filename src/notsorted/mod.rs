@@ -4,9 +4,11 @@ use crate::inner_prelude::*;
 
 ///The trait through which algorithms can use the not sorted version of the dinotree
 pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
-    type Item:HasAabb;
+    type Item:HasAabbMut<Num=Self::Num,Inner=Self::Inner>;
     type Axis:AxisTrait;
     type Num:NumTrait;
+    type Inner;
+    
     fn axis(&self)->Self::Axis;
     fn vistr(&self)->Vistr<Self::Item>;
 
@@ -37,6 +39,7 @@ impl<K:NotSortedRefTrait> NotSortedRefTrait for &K{
     type Item=K::Item;
     type Axis=K::Axis;
     type Num=K::Num;
+    type Inner=K::Inner;
     
     fn axis(&self)->Self::Axis{
         K::axis(self)
@@ -72,6 +75,7 @@ impl<K:NotSortedRefMutTrait> NotSortedRefTrait for &mut K{
     type Item=K::Item;
     type Axis=K::Axis;
     type Num=K::Num;
+    type Inner=K::Inner;
     
     fn axis(&self)->Self::Axis{
         K::axis(self)
@@ -115,9 +119,10 @@ pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(pub DinoTree<'a,A,N,T>);
 
 //TODO should really have own trait
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
-    type Item=BBoxRef<N,T>;
+    type Item=BBoxPtr<N,T>;
     type Axis=A;
     type Num=N;
+    type Inner=T;
     
     fn axis(&self)->Self::Axis{
         self.0.axis()

@@ -1,6 +1,6 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
-
+use core::marker::PhantomPinned;
 
 
 ///A wrapper type where you are allowed to modify the aabb.
@@ -49,7 +49,7 @@ pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, T:HasAabb> {
     height_switch_seq: usize,
 }
 
-impl<'a, A: AxisTrait, T:HasAabb> DinoTreeNoCopyBuilder<'a, A, T> {
+impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
     #[inline]
     pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeNoCopyBuilder<'a, A,T> {
         let rebal_strat = BinStrat::Checked;
@@ -129,7 +129,7 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeNoCopyBuilder<'a, A, T> {
             .iter()
             .enumerate()
             .map(move |(index, k)| Cont2 {
-                rect: *k.get(),
+                rect: *k.get().rect,
                 index: index as u32,
             })
             .collect();
@@ -156,7 +156,7 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeNoCopyBuilder<'a, A, T> {
                 for node in cont_tree.tree.get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
-                    let b = tools::Unique::new(b as *mut [_]).unwrap();
+                    let b = tools::Unique::new(ElemSlice::from_slice_mut(b) as *mut _).unwrap();
                     new_nodes.push(Node {
                         range: b,
                         cont: node.cont,
@@ -184,14 +184,14 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeNoCopyBuilder<'a, A, T> {
 
 
 ///Version of dinotree that does not make a copy of all the elements.
-pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabb> {
+pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabbMut> {
     axis: A,
     bots: &'a mut [T],
     nodes: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
     mover: Vec<u32>,
 }
 
-impl<'a, A: AxisTrait, T: HasAabb> DinoTreeNoCopy<'a, A, T> {
+impl<'a, A: AxisTrait, T: HasAabbMut> DinoTreeNoCopy<'a, A, T> {
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
@@ -211,10 +211,11 @@ impl<'a, A: AxisTrait, T: HasAabb> DinoTreeNoCopy<'a, A, T> {
 }
 
 
-impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTreeNoCopy<'a,A,T>{
+impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefTrait for DinoTreeNoCopy<'a,A,T>{
     type Item=T;
     type Axis=A;
     type Num=T::Num;
+    type Inner=T::Inner;
     
     fn axis(&self)->Self::Axis{
         self.axis
@@ -249,7 +250,7 @@ impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRefTrait for DinoTreeNoCopy<'a,A,T>{
 }
 
 
-impl<'a,A:AxisTrait,T:HasAabb> DinoTreeRefMutTrait for DinoTreeNoCopy<'a,A,T>{    
+impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefMutTrait for DinoTreeNoCopy<'a,A,T>{    
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
             inner: self.nodes.vistr_mut(),

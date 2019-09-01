@@ -3,14 +3,14 @@ use crate::inner_prelude::*;
 
 
 ///Version of dinotree that makes a copy of all the elements.
-pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabb> {
+pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
     pub axis: A,
     pub bots: Vec<T>,
     pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
 }
 
 pub struct DinoTreeOwned<A:AxisTrait,N:NumTrait,T>{
-    tree:DinoTreeInner<A,BBoxRef<N,T>>,
+    tree:DinoTreeInner<A,BBoxPtr<N,T>>,
     bots:Vec<T>
 }
 
@@ -45,27 +45,20 @@ impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
 ///Version of dinotree that makes a copy of all the elements.
 #[repr(transparent)]
 pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
-    pub(crate) inner:DinoTreeInner<A,BBoxRef<N,T>>,
+    pub(crate) inner:DinoTreeInner<A,BBoxPtr<N,T>>,
     _p:PhantomData<&'a mut T>
 }
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTree<'a,A,N,T>{
-    #[inline(always)]
-    pub fn get_bots_mut(&mut self)->&mut SlicePin<BBoxRef<N,T>>{
-        SlicePin::from_slice_mut(&mut self.inner.bots)
-    }
-    #[inline(always)]
-    pub fn get_bots(&self)->&[BBoxRef<N,T>]{
-        &self.inner.bots
-    }
-
+    
 }
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
-    type Item=BBoxRef<N,T>;
+    type Item=BBoxPtr<N,T>;
     type Axis=A;
     type Num=N;
+    type Inner=T;
     
     #[inline(always)]
     fn axis(&self)->Self::Axis{
@@ -197,21 +190,21 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
                 .map(|a| {
                     let Cont2{rect,index}=a;
                     unsafe{
-                        BBoxRef::new(rect,tools::Unique::new(index).unwrap())
+                        BBoxPtr::new(rect,tools::Unique::new(index).unwrap())
                     }
-                    })
+                })
                 .collect();
 
 
             let new_nodes = {
-                let mut rest: Option<&mut [BBoxRef<Num, _>]> = Some(&mut new_bots);
+                let mut rest: Option<&mut [BBoxPtr<Num, _>]> = Some(&mut new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
 
                 
                 for node in cont_tree.tree.get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
-                    let b = tools::Unique::new(b as *mut [_]).unwrap();
+                    let b = tools::Unique::new(ElemSlice::from_slice_mut(b) as *mut _).unwrap();
                     new_nodes.push(Node {
                         range: b,
                         cont: node.cont,
@@ -407,7 +400,7 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
                 .map(|a| {
                     let Cont2{rect,index}=a;
                     unsafe{
-                        BBoxRef::new(rect,tools::Unique::new(index).unwrap())
+                        BBoxPtr::new(rect,tools::Unique::new(index).unwrap())
                     }    
                 })
                 .collect();
@@ -416,14 +409,14 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
 
             let new_nodes = {
-                let mut rest: Option<&mut [BBoxRef<Num, _>]> = Some(&mut new_bots);
+                let mut rest: Option<&mut [BBoxPtr<Num, _>]> = Some(&mut new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
 
                 
                 for node in cont_tree.tree.get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
-                    let b = tools::Unique::new(b as *mut [_]).unwrap();
+                    let b = tools::Unique::new(ElemSlice::from_slice_mut(b) as *mut _).unwrap();
                     new_nodes.push(Node {
                         range: b,
                         cont: node.cont,
