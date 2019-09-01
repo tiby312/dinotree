@@ -345,6 +345,7 @@ pub use crate::pinslice::SlicePin;
 mod pinslice{
     use core::pin::Pin;
     use core::slice;
+
     pub struct SlicePin<T>([T]);
     
     impl<T> SlicePin<T>{
@@ -399,6 +400,30 @@ mod pinslice{
         fn next(&mut self)->Option<Self::Item>{
             self.0.next().map(|a:&'a mut T|unsafe{Pin::new_unchecked(a)})
         }
-    }
 
+        fn size_hint(&self)->(usize,Option<usize>){
+            self.0.size_hint()
+        }
+    }
+    
+    impl<'a,T> core::iter::FusedIterator for IterMut<'a,T>{}
+    impl<'a,T> core::iter::ExactSizeIterator for IterMut<'a,T>{}
+
+
+    impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
+        #[inline]
+        fn next_back(&mut self) -> Option<Self::Item> {
+            self.0.next_back().map(|a:&'a mut T|unsafe{Pin::new_unchecked(a)})
+        }
+
+
+        #[inline]
+        fn rfold<Acc, Fold>(mut self, init: Acc, mut f: Fold) -> Acc
+            where Fold: FnMut(Acc, Self::Item) -> Acc,
+        {
+            self.0.rfold(init,|acc,a:&'a mut T|{
+                f(acc,unsafe{Pin::new_unchecked(a)})
+            })
+        }
+    }
 }
