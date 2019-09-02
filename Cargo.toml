@@ -1,6 +1,6 @@
 [package]
 name = "dinotree"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Ken Reed <kenakioreed@gmail.com>"]
 description = "An aabb space partitioning 2d tree data structure"
 license = "MIT/Apache-2.0"
@@ -13,17 +13,12 @@ edition = "2018"
 is_sorted = "0.1.1"
 rayon = "1.1.0"
 pdqselect = "0.1.0"
-#compt = "1.5.6"
-compt={path="../compt"}
-#axgeom = "1.0.5"
+compt = "1.6.1"
 itertools = "0.7.8"
-axgeom = {path = "../axgeom"}
-#reorder ="1.0.2"
-reorder = {path = "../reorder"}
+axgeom = "1.1.1"
+reorder ="1.0.3"
 
 [dev-dependencies]
 rustc-test = "0.3.0"
 dinotree_sample="0.1.0"
 
-[features]
-#unstable =[]
