@@ -450,7 +450,7 @@ mod cont_tree {
             binstrat: BinStrat,
         ) -> ContTree<T> {
             let num_bots = rest.len();
-            //let rest2 = unsafe { &mut *(rest as *mut [_]) };
+            
             let mut nodes = Vec::with_capacity(tree::nodes_left(0, height));
 
             let r = Recurser {
@@ -467,16 +467,16 @@ mod cont_tree {
                 )
                 .unwrap();
 
+            /*
             for arr in tree.get_nodes().windows(2) {
                 let a = &arr[0];
                 let b = &arr[1];
-                /* TODO
                 debug_assert_eq!(
                     a.get().bots[a.get().bots.len()..].as_ptr(),
                     b.get().bots.as_ptr()
-                );
-                */
+                );  
             }
+            */
 
             let k = tree
                 .get_nodes()

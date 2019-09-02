@@ -154,7 +154,7 @@ impl<'a, T:HasAabb> DoubleEndedIterator for ElemIter<'a, T> {
 
 
     #[inline]
-    fn rfold<Acc, Fold>(mut self, init: Acc, mut f: Fold) -> Acc
+    fn rfold<Acc, Fold>(self, init: Acc, mut f: Fold) -> Acc
         where Fold: FnMut(Acc, Self::Item) -> Acc,
     {
         self.ii.rfold(init,|acc,a|{
@@ -176,7 +176,7 @@ impl<'a, T:HasAabbMut> DoubleEndedIterator for ElemIterMut<'a, T> {
 
 
     #[inline]
-    fn rfold<Acc, Fold>(mut self, init: Acc, mut f: Fold) -> Acc
+    fn rfold<Acc, Fold>(self, init: Acc, mut f: Fold) -> Acc
         where Fold: FnMut(Acc, Self::Item) -> Acc,
     {
         self.ii.rfold(init,|acc,a|{

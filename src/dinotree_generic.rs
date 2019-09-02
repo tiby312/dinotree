@@ -1,6 +1,5 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
-use core::marker::PhantomPinned;
 
 
 
@@ -12,7 +11,7 @@ enum ReOrderStrat{
 
 
 ///Builder for a DinoTree
-pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, T:HasAabb> {
+pub struct DinoTreeGenericBuilder<'a, A: AxisTrait, T:HasAabb> {
     axis: A,
     bots: &'a mut [T],
     rebal_strat: BinStrat,
@@ -20,15 +19,15 @@ pub struct DinoTreeNoCopyBuilder<'a, A: AxisTrait, T:HasAabb> {
     height_switch_seq: usize,
 }
 
-impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
+impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
     #[inline]
-    pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeNoCopyBuilder<'a, A,T> {
+    pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeGenericBuilder<'a, A,T> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();
 
         let bots=unsafe{&mut *(bots as *mut [T] as *mut [T])};
-        DinoTreeNoCopyBuilder {
+        DinoTreeGenericBuilder {
             axis,
             bots,
             rebal_strat,
@@ -39,7 +38,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
 
 
     #[inline]
-    pub fn build_seq_aux(self)->DinoTreeNoCopy<'a,A,T>{
+    pub fn build_seq_aux(self)->DinoTreeGeneric<'a,A,T>{
         self.build_inner(
             par::Sequential,
             DefaultSorter,
@@ -49,13 +48,13 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
     }
 
     #[inline]
-    pub fn build_par_aux(self)->DinoTreeNoCopy<'a,A,T>{
+    pub fn build_par_aux(self)->DinoTreeGeneric<'a,A,T>{
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty,ReOrderStrat::Aux)
     }
 
     #[inline]
-    pub fn build_seq(self) -> DinoTreeNoCopy<'a, A, T> {
+    pub fn build_seq(self) -> DinoTreeGeneric<'a, A, T> {
         self.build_inner(
             par::Sequential,
             DefaultSorter,
@@ -67,7 +66,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
     
 
     #[inline]
-    pub fn build_par(self) -> DinoTreeNoCopy<'a, A, T> {
+    pub fn build_par(self) -> DinoTreeGeneric<'a, A, T> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty,ReOrderStrat::NoAux)
     }
@@ -78,7 +77,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
         sorter: impl Sorter,
         ka: &mut K,
         reorder_type:ReOrderStrat
-    ) -> DinoTreeNoCopy<'a, A, T> {
+    ) -> DinoTreeGeneric<'a, A, T> {
         let axis = self.axis;
 
         let height = self.height;
@@ -144,7 +143,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
             .map(|a| a.index)
             .collect();
 
-        DinoTreeNoCopy {
+        DinoTreeGeneric {
             mover,
             axis,
             bots: bots2,
@@ -155,14 +154,14 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeNoCopyBuilder<'a, A, T> {
 
 
 ///Version of dinotree that does not make a copy of all the elements.
-pub struct DinoTreeNoCopy<'a, A: AxisTrait, T: HasAabbMut> {
+pub struct DinoTreeGeneric<'a, A: AxisTrait, T: HasAabbMut> {
     axis: A,
     bots: &'a mut [T],
     nodes: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
     mover: Vec<u32>,
 }
 
-impl<'a, A: AxisTrait, T: HasAabbMut> DinoTreeNoCopy<'a, A, T> {
+impl<'a, A: AxisTrait, T: HasAabbMut> DinoTreeGeneric<'a, A, T> {
     ///Returns the bots to their original ordering. This is what you would call after you used this tree
     ///to make the changes you made while querying the tree (through use of vistr_mut) be copied back into the original list.
     #[inline]
@@ -182,7 +181,7 @@ impl<'a, A: AxisTrait, T: HasAabbMut> DinoTreeNoCopy<'a, A, T> {
 }
 
 
-impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefTrait for DinoTreeNoCopy<'a,A,T>{
+impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefTrait for DinoTreeGeneric<'a,A,T>{
     type Item=T;
     type Axis=A;
     type Num=T::Num;
@@ -221,7 +220,7 @@ impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefTrait for DinoTreeNoCopy<'a,A,T>{
 }
 
 
-impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefMutTrait for DinoTreeNoCopy<'a,A,T>{    
+impl<'a,A:AxisTrait,T:HasAabbMut> DinoTreeRefMutTrait for DinoTreeGeneric<'a,A,T>{    
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
             inner: self.nodes.vistr_mut(),

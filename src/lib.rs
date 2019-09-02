@@ -81,29 +81,28 @@ mod inner_prelude {
 }
 
 
-use crate::inner_prelude::*;
-
-
 pub use assert_invariants::assert_invariants;
 mod assert_invariants;
 
-
+///Contains generic code using both all dinotree versions
 pub mod tree;
 
+///Prelude to include by using: pub use dinotree::prelude::*
 pub mod prelude{
     pub use crate::tree::*;
     pub use crate::elem::*;
     pub use crate::bbox::*;
+    pub use crate::dinotree::*;
+    pub use crate::HasAabb;
+    pub use crate::HasAabbMut;
+    pub use crate::NumTrait;
+
+    pub use crate::notsorted::*;
+    pub use crate::advanced::Splitter;
+    pub use crate::advanced::SplitterEmpty;
+    pub use crate::advanced::par;
+    pub use crate::advanced::Unique;
 }
-/*
-pub use crate::tree::DinoTreeRefTrait;
-pub use crate::tree::DinoTreeRefMutTrait;
-pub use crate::tree::NodeRef;
-pub use crate::tree::NodeRefMut;
-pub use crate::tree::Vistr;
-pub use crate::tree::VistrMut;
-pub use crate::tools::Unique;
-*/
 
 
 ///Contains code to construct the dyntree.
@@ -114,15 +113,22 @@ mod tools;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
+///Provies a slice that produces destructured bounding boxes as the elements,
+///so as not to give the user mutable references to the elements themselves.
+///If the user were to get these, they could swap elements in the tree and violate
+///the invariants of the tree.
 pub mod elem;
 
+///A collection of different bounding box containers.
 pub mod bbox;
 
-///A version of dinotree where the elements are copied directly into the tree.
-pub mod copy;
-///A version where the bots are not copied. This means that the slice borrowed from the user
-///must remain borrowed for the entire lifetime of the tree.
-pub mod nocopy;
+///The dinotree data structure.
+pub mod dinotree;
+
+///Like a dinotree, but with a more generic interface. This comes at the cost of performance.
+///Use this only to compare against the main one.
+pub mod dinotree_generic;
+
 ///A version of a dinotree where the bots that belong to a node are not
 ///sorted along an axis. So this is really a regular kd-tree.
 pub mod notsorted;
@@ -140,6 +146,11 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::fmt::De
 
 
 
+
+use crate::bbox::BBoxRef;
+use crate::bbox::BBoxRefMut;
+
+
 ///Marker trait to signify that this object has an axis aligned bounding box.
 ///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
 ///to each simultaneously.
@@ -154,12 +165,13 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::fmt::De
 ///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
 ///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
 ///
-///Additionally it should not implement Unpin. Otherwise users could swap elements in the tree.
 pub unsafe trait HasAabb{
     type Num: NumTrait;
     type Inner;
     fn get(&self) -> BBoxRef<Self::Num,Self::Inner>;
 }
+
+///This object can return an aabb and simultaneously return a inner object that can be mutated.
 pub unsafe trait HasAabbMut:HasAabb{
     fn get_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>;
 }

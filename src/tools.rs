@@ -35,21 +35,6 @@ unsafe impl<T:?Sized> Sync for Syncer<T>{}
 
 
 
-#[derive(Debug,Copy,Clone)]
-pub struct DifferentSizeErr;
-
-
-fn swap_slice<T>(a:&mut [T],b:&mut [T])->Result<(),DifferentSizeErr>{
-    if a.len() == b.len(){
-        for (a,b) in a.iter_mut().zip(b.iter_mut()){
-            core::mem::swap(a,b);
-        }
-        Ok(())
-    }else{
-        Err(DifferentSizeErr)
-    }
-}
-
 
 
 /*

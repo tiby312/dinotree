@@ -1,8 +1,7 @@
 use crate::inner_prelude::*;
 
-///A wrapper type around a type T and bounding box where the bounding box is hidden.
-///This is what is inserted into the tree. This way the user
-///cannot modify the bounding box since it is hidden, with only read access.
+
+///Reference to AABB and Reference to Inner.
 #[repr(C)]
 pub struct BBoxRef<'a,N:NumTrait,T> {
     pub rect: &'a axgeom::Rect<N>,
@@ -21,9 +20,8 @@ impl<'a,N:NumTrait,T> BBoxRef<'a, N,T> {
 }
 
 
-///A wrapper type around a type T and bounding box where the bounding box is hidden.
-///This is what is inserted into the tree. This way the user
-///cannot modify the bounding box since it is hidden, with only read access.
+
+///Reference to AABB and Mutable Reference to Inner.
 #[repr(C)]
 pub struct BBoxRefMut<'a,N:NumTrait,T> {
     pub rect: &'a axgeom::Rect<N>,
@@ -49,6 +47,8 @@ impl<'a,N:NumTrait,T> BBoxRefMut<'a,N,T> {
        
 }
 
+
+///Pointer to AABB and Mutable Pointer to Inner.
 pub struct BBoxRefPtr<N:NumTrait,T>{
     pub rect:*const axgeom::Rect<N>,
     pub inner:tools::Unique<T>
@@ -58,41 +58,22 @@ pub struct BBoxRefPtr<N:NumTrait,T>{
 
 
 
-///A wrapper type around a type T and bounding box where the bounding box is hidden.
-///This is what is inserted into the tree. This way the user
-///cannot modify the bounding box since it is hidden, with only read access.
+///AABB and mutable pointer to Inner.
 #[repr(C)]
 pub struct BBoxPtr<N: NumTrait, T> {
-    rect: axgeom::Rect<N>,
-    inner: tools::Unique<T>,
+    pub rect: axgeom::Rect<N>,
+    pub inner: tools::Unique<T>,
 }
 
 impl<N: NumTrait, T> BBoxPtr<N, T> {
-    pub fn inner(&self)->&T{
-        unsafe{&*self.inner.as_ptr()}
-    }
     
-    pub fn inner_mut(&mut self)->&mut T{
-        unsafe{&mut *self.inner.as_ptr()}
-    }
-
-    pub(crate) unsafe fn from_bbox(a:BBox<N,&mut T>)->BBoxPtr<N,T>{
-        BBoxPtr{rect:a.rect,inner:tools::Unique::new(a.inner).unwrap()}
-    }
     ///Unsafe since user could create a new BBox with a different aabb
     ///inside of a callback function and assign it to the mutable reference.
     #[inline]
-    pub unsafe fn new(rect: axgeom::Rect<N>, inner: tools::Unique<T>) -> BBoxPtr<N, T> {
+    pub fn new(rect: axgeom::Rect<N>, inner: tools::Unique<T>) -> BBoxPtr<N, T> {
         BBoxPtr { rect, inner}
     }
 
-    ///Unsafe since user could call this function
-    ///using a mutable reference from inside of a callback function
-    ///of a dinotree query function.
-    #[inline]
-    pub(crate) unsafe fn set_aabb(&mut self,aabb:axgeom::Rect<N>){
-        self.rect=aabb;
-    }
 }
 
 unsafe impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
@@ -111,7 +92,7 @@ unsafe impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
 
 
 
-
+/*
 ///A wrapper type where you are allowed to modify the aabb.
 #[derive(Copy,Clone)]
 #[repr(C)]
@@ -139,20 +120,18 @@ pub fn into_bbox_slice<N:NumTrait,T>(arr:&mut [BBoxMut<N,T>])->&mut [BBox<N,T>]{
 pub fn into_bbox_mut_slice<N:NumTrait,T>(arr:&mut [BBox<N,T>])->&mut [BBoxMut<N,T>]{
     unsafe{&mut *(arr as *mut [BBox<_,_>] as *mut [BBoxMut<_,_>])}
 }
+*/
 
 
 
 
 
 
-
-///A wrapper type around a type T and bounding box where the bounding box is hidden.
-///This is what is inserted into the tree. This way the user
-///cannot modify the bounding box since it is hidden, with only read access.
+///AABB and Inner.
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct BBox<N: NumTrait, T> {
-    rect: axgeom::Rect<N>,
+    pub rect: axgeom::Rect<N>,
     pub inner: T,
 }
 
@@ -171,16 +150,8 @@ impl<N: NumTrait, T> BBox<N, T> {
     ///Unsafe since user could create a new BBox with a different aabb
     ///inside of a callback function and assign it to the mutable reference.
     #[inline]
-    pub unsafe fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
+    pub fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
         BBox { rect, inner }
-    }
-
-    ///Unsafe since user could call this function
-    ///using a mutable reference from inside of a callback function
-    ///of a dinotree query function.
-    #[inline]
-    pub unsafe fn set_aabb(&mut self,aabb:axgeom::Rect<N>){
-        self.rect=aabb;
     }
 }
 

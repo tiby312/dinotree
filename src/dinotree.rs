@@ -2,6 +2,9 @@ use crate::tree::*;
 use crate::inner_prelude::*;
 
 
+
+
+
 ///Version of dinotree that makes a copy of all the elements.
 pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
     pub axis: A,
@@ -16,19 +19,20 @@ pub struct DinoTreeOwned<A:AxisTrait,N:NumTrait,T>{
 
 impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
 
+
+    #[inline(always)]
+    pub fn into_inner(self)->Vec<T>{
+        let DinoTreeOwned{tree:_,bots}=self;
+        bots
+    }
+
+    /*
+    #[inline(always)]
     pub fn rebuild(&mut self,func:impl FnMut(Rect<N>,&T)->Rect<N>){
         unimplemented!()       
     }
-/*
-    #[inline(always)]
-    pub fn get_bots_mut(&mut self)->&mut [T]{
-        &mut self.bots
-    }
-    #[inline(always)]
-    pub fn get_bots(&self)->&[T]{
-        &self.bots
-    }
-*/
+    */
+
     #[inline(always)]
     pub fn as_mut(&mut self)->&mut DinoTree<A,N,T>{
         let a=(&mut self.tree) as *mut _;
@@ -122,6 +126,20 @@ pub struct DinoTreeOwnedBuilder<A:AxisTrait,T,Num:NumTrait,F:FnMut(&T) -> Rect<N
 }
 
 
+
+
+impl<A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+    DinoTreeOwnedBuilder<A, T, Num, F>
+{
+    
+    ///Build in parallel
+    #[inline(always)]
+    pub fn build_par(self) -> DinoTreeOwned<A,Num,T> {
+        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
+    }
+}
+
 impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeOwnedBuilder<A, T, Num, F>
 {
@@ -147,6 +165,30 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
 
 
+
+    ///Choose a custom bin stratagy.
+    #[inline(always)]
+    pub fn with_bin_strat(&mut self, strat: BinStrat) -> &mut Self {
+        self.rebal_strat = strat;
+        self
+    }
+
+    ///Choose a custom height for the tree.
+    #[inline(always)]
+    pub fn with_height(&mut self, height: usize) -> &mut Self {
+        self.height = height;
+        self
+        //TODO test corner cases of this
+    }
+
+    ///Choose the height at which to switch from parallel to sequential.
+    ///If you end up building sequentially, this argument is ignored.
+    #[inline(always)]
+    pub fn with_height_switch_seq(&mut self, height: usize) -> &mut Self {
+        self.height_switch_seq = height;
+        self
+    }
+
     
     ///Build sequentially.
     #[inline(always)]
@@ -165,11 +207,10 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         ka: &mut S,
     ) ->  DinoTreeOwned<A,Num,T>{
 
-        let DinoTreeOwnedBuilder{axis,mut bots,mut aabb_create,rebal_strat,height,height_switch_seq}=self;
+        let DinoTreeOwnedBuilder{axis,mut bots,mut aabb_create,rebal_strat,height,height_switch_seq:_}=self;
 
 
-        let height = self.height;
-        let binstrat = self.rebal_strat;
+        let binstrat = rebal_strat;
 
         let num_bots = bots.len();
         let max = core::u32::MAX;
@@ -194,9 +235,7 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             let mut new_bots: Vec<_> = conts.drain(..)
                 .map(|a| {
                     let Cont2{rect,index}=a;
-                    unsafe{
-                        BBoxPtr::new(rect,tools::Unique::new(index).unwrap())
-                    }
+                    BBoxPtr::new(rect,tools::Unique::new(index).unwrap())
                 })
                 .collect();
 
@@ -404,9 +443,7 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             let mut new_bots: Vec<_> = conts.drain(..)
                 .map(|a| {
                     let Cont2{rect,index}=a;
-                    unsafe{
-                        BBoxPtr::new(rect,tools::Unique::new(index).unwrap())
-                    }    
+                    BBoxPtr::new(rect,tools::Unique::new(index).unwrap())    
                 })
                 .collect();
 
