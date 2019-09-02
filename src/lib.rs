@@ -97,6 +97,7 @@ pub mod prelude{
     pub use crate::HasAabbMut;
     pub use crate::NumTrait;
 
+    pub use crate::dinotree_generic::*;
     pub use crate::notsorted::*;
     pub use crate::advanced::Splitter;
     pub use crate::advanced::SplitterEmpty;
