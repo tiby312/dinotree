@@ -119,7 +119,7 @@ pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(pub DinoTree<'a,A,N,T>);
 
 //TODO should really have own trait
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
-    type Item=BBoxPtr<N,T>;
+    type Item=BBoxMut<'a,N,T>;
     type Axis=A;
     type Num=N;
     type Inner=T;
@@ -137,21 +137,21 @@ impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
     #[inline]
     fn height(&self) -> usize
     {
-        unimplemented!();
+        self.0.height()
     }
 
     ///Return the number of nodes of the dinotree.
     #[inline]
     fn num_nodes(&self) -> usize
     {
-        unimplemented!();
+        self.0.num_nodes()
     }
 
     ///Return the number of bots in the tree.
     #[inline]
     fn num_bots(&self) -> usize
     {
-        unimplemented!();
+        self.0.num_bots()
     }
 
 }
@@ -269,14 +269,14 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         NotSorted(self.inner.build_inner(
             par::Sequential,
             NoSorter,
-            &mut crate::advanced::SplitterEmpty,
+            &mut SplitterEmpty,
         ))
     }
 
     ///Build not sorted in parallel
     pub fn build_par(&mut self) -> NotSorted<'a,A,Num,T> {
         let dlevel = compute_default_level_switch_sequential(self.inner.height_switch_seq, self.inner.height);
-        NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut crate::advanced::SplitterEmpty))
+        NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut SplitterEmpty))
     }
 
 }

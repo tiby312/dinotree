@@ -1,5 +1,37 @@
 
 use crate::inner_prelude::*;
+pub use assert_invariants::assert_invariants;
+
+///A trait that gives the user callbacks at events in a recursive algorithm on the tree.
+///The main motivation behind this trait was to track the time spent taken at each level of the tree
+///during construction.
+pub trait Splitter: Sized {
+    ///Called to split this into two to be passed to the children.
+    fn div(&mut self) -> Self;
+
+    ///Called to add the results of the recursive calls on the children.
+    fn add(&mut self, b: Self);
+
+    ///Called at the start of the recursive call.
+    fn node_start(&mut self);
+
+    ///It is important to note that this gets called in other places besides in the final recursive call of a leaf.
+    ///They may get called in a non leaf if its found that there is no more need to recurse further.
+    fn node_end(&mut self);
+}
+
+///For cases where you don't care about any of the callbacks that Splitter provides, this implements them all to do nothing.
+pub struct SplitterEmpty;
+
+impl Splitter for SplitterEmpty {
+    fn div(&mut self) -> Self {
+        SplitterEmpty
+    }
+    fn add(&mut self, _: Self) {}
+    fn node_start(&mut self) {}
+    fn node_end(&mut self) {}
+}
+
 
 
 ///The trait through which dinotree algorithms may use the tree.
@@ -379,12 +411,12 @@ impl<T: HasAabbMut> Node<T> {
     }
 }
 
-pub trait Sorter: Copy + Clone + Send + Sync {
+pub(crate) trait Sorter: Copy + Clone + Send + Sync {
     fn sort(&self, axis: impl AxisTrait, bots: &mut [impl HasAabb]);
 }
 
 #[derive(Copy, Clone)]
-pub struct DefaultSorter;
+pub(crate) struct DefaultSorter;
 
 impl Sorter for DefaultSorter {
     fn sort(&self, axis: impl AxisTrait, bots: &mut [impl HasAabb]) {
@@ -393,7 +425,7 @@ impl Sorter for DefaultSorter {
 }
 
 #[derive(Copy, Clone)]
-pub struct NoSorter;
+pub(crate) struct NoSorter;
 
 impl Sorter for NoSorter {
     fn sort(&self, _axis: impl AxisTrait, _bots: &mut [impl HasAabb]) {}
@@ -407,34 +439,14 @@ fn nodes_left(depth: usize, height: usize) -> usize {
 
 
 
-pub use self::cont_tree::ContTree;
-pub use self::cont_tree::Cont2;
+pub(crate) use self::cont_tree::ContTree;
+//pub use self::cont_tree::Cont;
 mod cont_tree {
 
     use super::*;
 
-    
-    pub struct Cont2<N:NumTrait,K> {
-        pub rect: axgeom::Rect<N>,
-        pub index: K,
-    }
-    unsafe impl<N:NumTrait,K> Send for Cont2<N,K>{}
-    unsafe impl<N:NumTrait,K> Sync for Cont2<N,K>{}
-    
-    unsafe impl<N:NumTrait,K> HasAabb for Cont2<N,K> {
-        type Num = N;
-        type Inner = K;
-        fn get(&self) -> BBoxRef<Self::Num,Self::Inner> {
-            BBoxRef::new(&self.rect,&self.index)
-        }
-    }
-    unsafe impl<N:NumTrait,K> HasAabbMut for Cont2<N,K>{
-        fn get_mut(&mut self) -> BBoxRefMut<N,K> {
-            BBoxRefMut::new(&self.rect,&mut self.index)
-        }   
-    }
 
-    pub struct ContTree<T: HasAabbMut> {
+    pub(crate) struct ContTree<T: HasAabbMut> {
         pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
     }
 

@@ -49,22 +49,21 @@ impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
 ///Version of dinotree that makes a copy of all the elements.
 #[repr(transparent)]
 pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
-    pub(crate) inner:DinoTreeInner<A,BBoxPtr<N,T>>,
-    _p:PhantomData<&'a mut T>
+    pub(crate) inner:DinoTreeInner<A,BBoxMut<'a,N,T>>,
 }
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTree<'a,A,N,T>{
-    pub fn get_bots_mut(&mut self)->ElemSliceMut<BBoxPtr<N,T>>{
+    pub fn get_bots_mut(&mut self)->ElemSliceMut<BBoxMut<'a,N,T>>{
         ElemSliceMut::new(ElemSlice::from_slice_mut(&mut self.inner.bots))
     }
-    pub fn get_bots(&self)->&ElemSlice<BBoxPtr<N,T>>{
+    pub fn get_bots(&self)->&ElemSlice<BBoxMut<'a,N,T>>{
         ElemSlice::from_slice(&self.inner.bots)
     }
 }
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
-    type Item=BBoxPtr<N,T>;
+    type Item=BBoxMut<'a,N,T>;
     type Axis=A;
     type Num=N;
     type Inner=T;
@@ -136,7 +135,7 @@ impl<A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     #[inline(always)]
     pub fn build_par(self) -> DinoTreeOwned<A,Num,T> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
+        self.build_inner(dlevel, DefaultSorter, &mut SplitterEmpty)
     }
 }
 
@@ -196,7 +195,7 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         self.build_inner(
             par::Sequential,
             DefaultSorter,
-            &mut crate::advanced::SplitterEmpty,
+            &mut SplitterEmpty,
         )
     }
 
@@ -223,9 +222,9 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
         let mut conts: Vec<_> = bots
             .iter_mut()
-            .map(move |k| Cont2 {
+            .map(move |k| BBoxSendSync {
                 rect: aabb_create(k),
-                index: k,
+                inner: k,
             })
             .collect();
 
@@ -234,8 +233,8 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
             let mut new_bots: Vec<_> = conts.drain(..)
                 .map(|a| {
-                    let Cont2{rect,index}=a;
-                    BBoxPtr::new(rect,tools::Unique::new(index).unwrap())
+                    let BBoxSendSync{rect,inner}=a;
+                    BBoxPtr::new(rect,tools::Unique::new(inner).unwrap())
                 })
                 .collect();
 
@@ -308,7 +307,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     #[inline(always)]
     pub fn build_par(&mut self) -> DinoTree<'a,A,Num,T> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty)
+        self.build_inner(dlevel, DefaultSorter, &mut SplitterEmpty)
     }
 }
 
@@ -401,7 +400,7 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         self.build_inner(
             par::Sequential,
             DefaultSorter,
-            &mut crate::advanced::SplitterEmpty,
+            &mut SplitterEmpty,
         )
     }
 
@@ -431,9 +430,9 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
         let mut conts: Vec<_> = bots
             .iter_mut()
-            .map(move |k| Cont2 {
+            .map(move |k| BBoxSendSync {
                 rect: aabb_create(k),
-                index: k,
+                inner: k,
             })
             .collect();
 
@@ -442,8 +441,8 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
             let mut new_bots: Vec<_> = conts.drain(..)
                 .map(|a| {
-                    let Cont2{rect,index}=a;
-                    BBoxPtr::new(rect,tools::Unique::new(index).unwrap())    
+                    let BBoxSendSync{rect,inner}=a;
+                    BBoxMut::new(rect,inner)    
                 })
                 .collect();
 
@@ -451,7 +450,7 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
 
             let new_nodes = {
-                let mut rest: Option<&mut [BBoxPtr<Num, _>]> = Some(&mut new_bots);
+                let mut rest: Option<&mut [BBoxMut<Num, _>]> = Some(&mut new_bots);
                 let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
 
                 
@@ -480,7 +479,6 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
             bots: new_bots,
             tree: new_tree,
             }
-            ,_p:PhantomData
         }
     }
 }

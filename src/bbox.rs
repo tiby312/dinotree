@@ -49,18 +49,15 @@ impl<'a,N:NumTrait,T> BBoxRefMut<'a,N,T> {
 
 
 ///Pointer to AABB and Mutable Pointer to Inner.
-pub struct BBoxRefPtr<N:NumTrait,T>{
+pub(crate) struct BBoxRefPtr<N:NumTrait,T>{
     pub rect:*const axgeom::Rect<N>,
     pub inner:tools::Unique<T>
 }
 
 
-
-
-
 ///AABB and mutable pointer to Inner.
 #[repr(C)]
-pub struct BBoxPtr<N: NumTrait, T> {
+pub(crate) struct BBoxPtr<N: NumTrait, T> {
     pub rect: axgeom::Rect<N>,
     pub inner: tools::Unique<T>,
 }
@@ -87,6 +84,39 @@ unsafe impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
 unsafe impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut::new(&self.rect,unsafe{&mut *self.inner.as_ptr()})
+    }
+}
+
+
+///AABB and mutable pointer to Inner.
+#[repr(C)]
+pub struct BBoxMut<'a,N: NumTrait, T> {
+    pub rect: axgeom::Rect<N>,
+    pub inner: &'a mut T,
+}
+
+impl<'a,N: NumTrait, T> BBoxMut<'a,N, T> {
+    
+    ///Unsafe since user could create a new BBox with a different aabb
+    ///inside of a callback function and assign it to the mutable reference.
+    #[inline]
+    pub fn new(rect: axgeom::Rect<N>, inner: &'a mut T) -> BBoxMut<'a,N, T> {
+        BBoxMut { rect, inner}
+    }
+
+}
+
+unsafe impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
+    type Num = N;
+    type Inner= T;
+    #[inline(always)]
+    fn get(&self) -> BBoxRef<N,T>{
+        BBoxRef::new(&self.rect,self.inner)
+    }
+}
+unsafe impl<'a,N:NumTrait,T> HasAabbMut for BBoxMut<'a,N,T>{
+    fn get_mut(&mut self)->BBoxRefMut<N,T>{
+        BBoxRefMut::new(&self.rect,self.inner)
     }
 }
 
@@ -122,6 +152,27 @@ pub fn into_bbox_mut_slice<N:NumTrait,T>(arr:&mut [BBox<N,T>])->&mut [BBoxMut<N,
 }
 */
 
+
+    
+pub(crate) struct BBoxSendSync<N:NumTrait,K> {
+    pub rect: axgeom::Rect<N>,
+    pub inner: K,
+}
+unsafe impl<N:NumTrait,K> Send for BBoxSendSync<N,K>{}
+unsafe impl<N:NumTrait,K> Sync for BBoxSendSync<N,K>{}
+
+unsafe impl<N:NumTrait,K> HasAabb for BBoxSendSync<N,K> {
+    type Num = N;
+    type Inner = K;
+    fn get(&self) -> BBoxRef<Self::Num,Self::Inner> {
+        BBoxRef::new(&self.rect,&self.inner)
+    }
+}
+unsafe impl<N:NumTrait,K> HasAabbMut for BBoxSendSync<N,K>{
+    fn get_mut(&mut self) -> BBoxRefMut<N,K> {
+        BBoxRefMut::new(&self.rect,&mut self.inner)
+    }   
+}
 
 
 

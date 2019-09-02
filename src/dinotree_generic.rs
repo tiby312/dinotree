@@ -42,7 +42,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
         self.build_inner(
             par::Sequential,
             DefaultSorter,
-            &mut crate::advanced::SplitterEmpty,
+            &mut SplitterEmpty,
             ReOrderStrat::Aux
         )
     }
@@ -50,7 +50,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
     #[inline]
     pub fn build_par_aux(self)->DinoTreeGeneric<'a,A,T>{
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty,ReOrderStrat::Aux)
+        self.build_inner(dlevel, DefaultSorter, &mut SplitterEmpty,ReOrderStrat::Aux)
     }
 
     #[inline]
@@ -58,7 +58,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
         self.build_inner(
             par::Sequential,
             DefaultSorter,
-            &mut crate::advanced::SplitterEmpty,
+            &mut SplitterEmpty,
             ReOrderStrat::NoAux
         )
     }
@@ -68,7 +68,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
     #[inline]
     pub fn build_par(self) -> DinoTreeGeneric<'a, A, T> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        self.build_inner(dlevel, DefaultSorter, &mut crate::advanced::SplitterEmpty,ReOrderStrat::NoAux)
+        self.build_inner(dlevel, DefaultSorter, &mut SplitterEmpty,ReOrderStrat::NoAux)
     }
 
     fn build_inner<JJ: par::Joiner, K: Splitter + Send>(
@@ -98,9 +98,9 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
             .bots
             .iter()
             .enumerate()
-            .map(move |(index, k)| Cont2 {
+            .map(move |(index, k)| BBoxSendSync {
                 rect: *k.get().rect,
-                index: index as u32,
+                inner: index as u32,
             })
             .collect();
 
@@ -108,7 +108,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
             let cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
 
             {
-                let mut indicies=reorder::swap_index(conts.iter().map(|a|a.index));
+                let mut indicies=reorder::swap_index(conts.iter().map(|a|a.inner));
                 match reorder_type{
                     ReOrderStrat::Aux=>{
                         reorder::reorder_index_aux(&mut self.bots, &mut indicies);
@@ -140,7 +140,7 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
         };
         let mover = conts
             .drain(..)
-            .map(|a| a.index)
+            .map(|a| a.inner)
             .collect();
 
         DinoTreeGeneric {

@@ -70,22 +70,25 @@ mod inner_prelude {
     pub use alloc::vec::Vec;
 
     pub(crate) use super::*;
-    pub(crate) use crate::advanced::Splitter;
     pub(crate) use crate::compt::Depth;
     pub(crate) use crate::compt::Visitor;
-    pub(crate) use crate::advanced::par;
     pub(crate) use crate::tree;
     pub(crate) use crate::tree::*;
     pub(crate) use crate::elem::*;
     pub(crate) use crate::bbox::*;
+    pub(crate) use crate::par;
 }
 
 
-pub use assert_invariants::assert_invariants;
 mod assert_invariants;
 
 ///Contains generic code using both all dinotree versions
 pub mod tree;
+
+
+///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
+///Used by algorithms that operate on the tree.
+pub mod par;
 
 ///Prelude to include by using: pub use dinotree::prelude::*
 pub mod prelude{
@@ -96,20 +99,12 @@ pub mod prelude{
     pub use crate::HasAabb;
     pub use crate::HasAabbMut;
     pub use crate::NumTrait;
-
-    pub use crate::dinotree_generic::*;
-    pub use crate::notsorted::*;
-    pub use crate::advanced::Splitter;
-    pub use crate::advanced::SplitterEmpty;
-    pub use crate::advanced::par;
-    pub use crate::advanced::Unique;
+    pub use crate::par;
 }
 
 
-///Contains code to construct the dyntree.
-///Main property is that the nodes and the bots are all copied into one
-///segment of memory.
-mod tools;
+///Provies some debugging and misc functions.
+pub mod tools;
 
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
@@ -134,8 +129,6 @@ pub mod dinotree_generic;
 ///sorted along an axis. So this is really a regular kd-tree.
 pub mod notsorted;
 
-///Provies some debugging and misc functions.
-pub mod advanced;
 
 ///The underlying number type used for the dinotree.
 ///It is auto implemented by all types that satisfy the type constraints.
