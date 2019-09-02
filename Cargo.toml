@@ -20,5 +20,4 @@ reorder ="1.0.3"
 
 [dev-dependencies]
 rustc-test = "0.3.0"
-dinotree_sample="0.1.0"
 
