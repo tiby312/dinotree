@@ -92,7 +92,7 @@ pub use crate::tree::NodeRef;
 pub use crate::tree::NodeRefMut;
 pub use crate::tree::Vistr;
 pub use crate::tree::VistrMut;
-
+pub use crate::tools::Unique;
 
 ///Contains code to construct the dyntree.
 ///Main property is that the nodes and the bots are all copied into one
@@ -168,6 +168,11 @@ impl<'a,N:NumTrait,T> BBoxRefMut<'a,N,T> {
     pub fn as_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut{rect:self.rect,inner:self.inner}
     }
+
+    pub fn as_ref(&self)->BBoxRef<N,T>{
+        BBoxRef{rect:self.rect,inner:self.inner}
+    }
+       
 }
 
 pub struct BBoxRefPtr<N:NumTrait,T>{
@@ -222,8 +227,8 @@ pub struct BBoxPtr<N: NumTrait, T> {
 impl<N: NumTrait, T> BBoxPtr<N, T> {
     pub fn inner(&self)->&T{
         unsafe{&*self.inner.as_ptr()}
-
     }
+    
     pub fn inner_mut(&mut self)->&mut T{
         unsafe{&mut *self.inner.as_ptr()}
     }
@@ -340,7 +345,7 @@ impl<'a,T:HasAabbMut> ElemSliceMut<'a,T>{
     pub fn split_first_mut(self)->Option<(BBoxRefMut<'a,T::Num,T::Inner>,ElemSliceMut<'a,T>)>{
         self.inner.split_first_mut().map(|(first,inner)|(first,ElemSliceMut{inner}))
     }
-    pub fn iter_mut(&mut self)->ElemIterMut<T>{
+    pub fn iter_mut(self)->ElemIterMut<'a,T>{
         self.inner.iter_mut()
     }
 

@@ -19,7 +19,7 @@ impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
     pub fn rebuild(&mut self,func:impl FnMut(Rect<N>,&T)->Rect<N>){
         unimplemented!()       
     }
-
+/*
     #[inline(always)]
     pub fn get_bots_mut(&mut self)->&mut [T]{
         &mut self.bots
@@ -28,7 +28,7 @@ impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
     pub fn get_bots(&self)->&[T]{
         &self.bots
     }
-
+*/
     #[inline(always)]
     pub fn as_mut(&mut self)->&mut DinoTree<A,N,T>{
         let a=(&mut self.tree) as *mut _;
@@ -51,7 +51,12 @@ pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTree<'a,A,N,T>{
-    
+    pub fn get_bots_mut(&mut self)->ElemSliceMut<BBoxPtr<N,T>>{
+        ElemSliceMut::new(ElemSlice::from_slice_mut(&mut self.inner.bots))
+    }
+    pub fn get_bots(&self)->&ElemSlice<BBoxPtr<N,T>>{
+        ElemSlice::from_slice(&self.inner.bots)
+    }
 }
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
