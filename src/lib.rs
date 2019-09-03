@@ -52,12 +52,10 @@
 extern crate test;
 
 extern crate alloc;
-extern crate axgeom;
-extern crate compt;
 extern crate is_sorted;
 extern crate itertools;
 extern crate pdqselect;
-extern crate rayon;
+//extern crate rayon;
 
 mod inner_prelude {
     pub use axgeom::*;
@@ -79,6 +77,10 @@ mod inner_prelude {
     pub(crate) use crate::par;
 }
 
+
+pub use axgeom;
+pub use compt;
+pub use rayon;
 
 mod assert_invariants;
 
