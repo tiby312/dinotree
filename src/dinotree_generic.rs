@@ -1,3 +1,6 @@
+
+
+
 use crate::tree::*;
 use crate::inner_prelude::*;
 
@@ -98,14 +101,11 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
             .bots
             .iter()
             .enumerate()
-            .map(move |(index, k)| BBoxSendSync {
-                rect: *k.get().rect,
-                inner: index as u32,
-            })
+            .map(move |(index, k)| unsafe{BBoxSendSync::new(*k.get().rect,index as u32)})
             .collect();
 
         let new_tree = {
-            let cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
+            let cont_tree = create_tree(axis, par, &mut conts, sorter, ka, height, binstrat);
 
             {
                 let mut indicies=reorder::swap_index(conts.iter().map(|a|a.inner));
@@ -122,8 +122,8 @@ impl<'a, A: AxisTrait, T:HasAabbMut> DinoTreeGenericBuilder<'a, A, T> {
 
             let new_nodes = {
                 let mut rest: Option<&mut [_]> = Some(&mut self.bots);
-                let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
-                for node in cont_tree.tree.get_nodes().iter() {
+                let mut new_nodes = Vec::with_capacity(cont_tree.get_nodes().len());
+                for node in cont_tree.get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
                     let b = tools::Unique::new(ElemSlice::from_slice_mut(b) as *mut _).unwrap();

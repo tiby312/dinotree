@@ -1,11 +1,16 @@
 use compt::Depth;
 
-///Indicates if we are low enough into the tree that we should switch to a sequential version of the
-///algorithm.
-pub trait Joiner: Send + Sync + Copy + Clone {
-    fn into_seq(&self) -> Sequential;
-    fn should_switch_to_sequential(&self, a: Depth) -> bool;
+
+
+pub enum ParResult<X,Y>{
+    Parallel([X;2]),
+    Sequential([Y;2])
 }
+
+pub trait Joiner:Sized+Send+Sync{
+    fn next(self,a:Depth)->ParResult<Self,Sequential>;
+}
+
 
 ///Indicates that an algorithm should run in parallel up until
 ///the specified depth.
@@ -18,12 +23,12 @@ impl Parallel {
     }
 }
 impl Joiner for Parallel {
-    fn into_seq(&self) -> Sequential {
-        Sequential
-    }
-
-    fn should_switch_to_sequential(&self, a: Depth) -> bool {
-        a.0 >= (self.0).0
+    fn next(self,a:Depth)->ParResult<Self,Sequential>{
+        if a.0 >= ((self.0).0){
+            ParResult::Sequential([Sequential,Sequential])
+        }else{
+            ParResult::Parallel([Parallel(a),Parallel(a)])
+        }
     }
 }
 
@@ -32,11 +37,7 @@ impl Joiner for Parallel {
 #[derive(Copy, Clone)]
 pub struct Sequential;
 impl Joiner for Sequential {
-    fn into_seq(&self) -> Sequential {
-        Sequential
-    }
-
-    fn should_switch_to_sequential(&self, _a: Depth) -> bool {
-        true
+    fn next(self,_:Depth)->ParResult<Self,Sequential>{
+        ParResult::Sequential([Sequential,Sequential])
     }
 }

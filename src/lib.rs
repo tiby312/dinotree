@@ -53,14 +53,10 @@ extern crate test;
 
 extern crate alloc;
 extern crate is_sorted;
-extern crate itertools;
 extern crate pdqselect;
-//extern crate rayon;
 
 mod inner_prelude {
     pub use axgeom::*;
-    
-    pub use itertools::Itertools;
     pub use core::iter::*;
     pub use core::marker::PhantomData;
     
@@ -111,10 +107,11 @@ pub mod tools;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
-///Provies a slice that produces destructured bounding boxes as the elements,
-///so as not to give the user mutable references to the elements themselves.
-///If the user were to get these, they could swap elements in the tree and violate
-///the invariants of the tree.
+///Provies a slice that produces destructured bounding boxes as the elements.
+///
+/// Return destructured bbox's so as not to give the user mutable references to the elements themselves.
+/// If the user were to get these, they could swap elements in the tree and violate
+/// the invariants of the tree.
 pub mod elem;
 
 ///A collection of different bounding box containers.
@@ -123,12 +120,15 @@ pub mod bbox;
 ///The dinotree data structure.
 pub mod dinotree;
 
-///Like a dinotree, but with a more generic interface. This comes at the cost of performance.
-///Use this only to compare against the main one.
+///Like a dinotree, but with a more generic (and slower) interface.
+///
+///Use this only to compare against the main one. 
 pub mod dinotree_generic;
 
-///A version of a dinotree where the bots that belong to a node are not
-///sorted along an axis. So this is really a regular kd-tree.
+///A version of a dinotree where the bots are not sorted.
+///
+///So this is really a regular kd-tree. The bots that belong to a node are not
+///sorted along an axis. 
 pub mod notsorted;
 
 
@@ -136,9 +136,9 @@ pub mod notsorted;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait: Ord + Copy + Send + Sync + core::fmt::Debug {}
+pub trait NumTrait: Ord + Copy + Send + Sync {}
 
-impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::fmt::Debug {}
+impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin {}
 
 
 
@@ -148,27 +148,14 @@ use crate::bbox::BBoxRefMut;
 
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
-///If two HasAabb objects have aabb's that do not intersect, then it must be safe to have a mutable reference
-///to each simultaneously.
-///
-///The aabb must not change while the object is contained in the tree, even though
-///many query algorithms will give mutable references to the elements in the tree.
-///So multiple calls to get() must return the same bounding box region while the object is in the tree.
-///Not doing so would violate invariants of the tree, and would thus make all the
-///query algorithms performed on the tree would not be correct.
-///
-///Not only will the algorithms not be correct, but undefined behavior may be introduced.
-///Some algorithms rely on the positions of the bounding boxes to determined if two aabbs can
-///be mutably borrowed at the same time. For example the multirect algorithm makes this assumption.
-///
-pub unsafe trait HasAabb{
+pub trait HasAabb{
     type Num: NumTrait;
     type Inner;
     fn get(&self) -> BBoxRef<Self::Num,Self::Inner>;
 }
 
 ///This object can return an aabb and simultaneously return a inner object that can be mutated.
-pub unsafe trait HasAabbMut:HasAabb{
+pub trait HasAabbMut:HasAabb{
     fn get_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>;
 }
 

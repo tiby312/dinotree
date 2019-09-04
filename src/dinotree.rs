@@ -222,18 +222,15 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
         let mut conts: Vec<_> = bots
             .iter_mut()
-            .map(move |k| BBoxSendSync {
-                rect: aabb_create(k),
-                inner: k,
-            })
+            .map(move |k| unsafe{BBoxSendSync::new(aabb_create(k),k)})
             .collect();
 
         let (new_bots, new_tree) = {
-            let cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
+            let cont_tree = create_tree(axis, par, &mut conts, sorter, ka, height, binstrat);
 
             let mut new_bots: Vec<_> = conts.drain(..)
                 .map(|a| {
-                    let BBoxSendSync{rect,inner}=a;
+                    let (rect,inner)=a.into_inner();
                     BBoxPtr::new(rect,tools::Unique::new(inner).unwrap())
                 })
                 .collect();
@@ -241,10 +238,10 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
             let new_nodes = {
                 let mut rest: Option<&mut [BBoxPtr<Num, _>]> = Some(&mut new_bots);
-                let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
+                let mut new_nodes = Vec::with_capacity(cont_tree.get_nodes().len());
 
                 
-                for node in cont_tree.tree.get_nodes().iter() {
+                for node in cont_tree.get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
                     let b = tools::Unique::new(ElemSlice::from_slice_mut(b) as *mut _).unwrap();
@@ -430,18 +427,15 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
         let mut conts: Vec<_> = bots
             .iter_mut()
-            .map(move |k| BBoxSendSync {
-                rect: aabb_create(k),
-                inner: k,
-            })
+            .map(move |k| unsafe{BBoxSendSync::new(aabb_create(k),k)})
             .collect();
 
         let (new_bots, new_tree) = {
-            let cont_tree = ContTree::new(axis, par, &mut conts, sorter, ka, height, binstrat);
+            let cont_tree = create_tree(axis, par, &mut conts, sorter, ka, height, binstrat);
 
             let mut new_bots: Vec<_> = conts.drain(..)
                 .map(|a| {
-                    let BBoxSendSync{rect,inner}=a;
+                    let (rect,inner)=a.into_inner();
                     BBoxMut::new(rect,inner)    
                 })
                 .collect();
@@ -451,10 +445,10 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 
             let new_nodes = {
                 let mut rest: Option<&mut [BBoxMut<Num, _>]> = Some(&mut new_bots);
-                let mut new_nodes = Vec::with_capacity(cont_tree.tree.get_nodes().len());
+                let mut new_nodes = Vec::with_capacity(cont_tree.get_nodes().len());
 
                 
-                for node in cont_tree.tree.get_nodes().iter() {
+                for node in cont_tree.get_nodes().iter() {
                     let (b, rest2) = rest.take().unwrap().split_at_mut(node.get().bots.len());
                     rest = Some(rest2);
                     let b = tools::Unique::new(ElemSlice::from_slice_mut(b) as *mut _).unwrap();

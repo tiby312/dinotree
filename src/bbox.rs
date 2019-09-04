@@ -73,7 +73,7 @@ impl<N: NumTrait, T> BBoxPtr<N, T> {
 
 }
 
-unsafe impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
+impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
     type Num = N;
     type Inner= T;
     #[inline(always)]
@@ -81,7 +81,7 @@ unsafe impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
         BBoxRef::new(&self.rect,unsafe{&*self.inner.as_ptr()})
     }
 }
-unsafe impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
+impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut::new(&self.rect,unsafe{&mut *self.inner.as_ptr()})
     }
@@ -106,7 +106,7 @@ impl<'a,N: NumTrait, T> BBoxMut<'a,N, T> {
 
 }
 
-unsafe impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
+impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
     type Num = N;
     type Inner= T;
     #[inline(always)]
@@ -114,61 +114,42 @@ unsafe impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
         BBoxRef::new(&self.rect,self.inner)
     }
 }
-unsafe impl<'a,N:NumTrait,T> HasAabbMut for BBoxMut<'a,N,T>{
+
+impl<'a,N:NumTrait,T> HasAabbMut for BBoxMut<'a,N,T>{
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut::new(&self.rect,self.inner)
     }
 }
 
 
-
-/*
-///A wrapper type where you are allowed to modify the aabb.
-#[derive(Copy,Clone)]
-#[repr(C)]
-pub struct BBoxMut<N:NumTrait,T>{
-    pub aabb:axgeom::Rect<N>,
-    pub inner:T
-}
-
-impl<N:NumTrait,T> BBoxMut<N,T>{
-    pub fn new(aabb:axgeom::Rect<N>,inner:T)->BBoxMut<N,T>{
-        BBoxMut{aabb,inner}
-    }
-
-    pub fn inner_mut(&mut self)->&mut T{
-        &mut self.inner
-    }
-}
-
-
-pub fn into_bbox_slice<N:NumTrait,T>(arr:&mut [BBoxMut<N,T>])->&mut [BBox<N,T>]{
-    unsafe{&mut *(arr as *mut [BBoxMut<_,_>] as *mut [BBox<_,_>])}
-}
-
-
-pub fn into_bbox_mut_slice<N:NumTrait,T>(arr:&mut [BBox<N,T>])->&mut [BBoxMut<N,T>]{
-    unsafe{&mut *(arr as *mut [BBox<_,_>] as *mut [BBoxMut<_,_>])}
-}
-*/
-
-
     
 pub(crate) struct BBoxSendSync<N:NumTrait,K> {
     pub rect: axgeom::Rect<N>,
     pub inner: K,
+    _prevent_constructor:()
 }
+
+impl<N:NumTrait,K> BBoxSendSync<N,K>{
+    pub unsafe fn new(rect:Rect<N>,inner:K)->Self{
+        BBoxSendSync{rect,inner,_prevent_constructor:()}
+    }
+    pub fn into_inner(self)->(Rect<N>,K){
+        (self.rect,self.inner)
+    }
+}
+
 unsafe impl<N:NumTrait,K> Send for BBoxSendSync<N,K>{}
 unsafe impl<N:NumTrait,K> Sync for BBoxSendSync<N,K>{}
 
-unsafe impl<N:NumTrait,K> HasAabb for BBoxSendSync<N,K> {
+impl<N:NumTrait,K> HasAabb for BBoxSendSync<N,K> {
     type Num = N;
     type Inner = K;
     fn get(&self) -> BBoxRef<Self::Num,Self::Inner> {
         BBoxRef::new(&self.rect,&self.inner)
     }
 }
-unsafe impl<N:NumTrait,K> HasAabbMut for BBoxSendSync<N,K>{
+
+impl<N:NumTrait,K> HasAabbMut for BBoxSendSync<N,K>{
     fn get_mut(&mut self) -> BBoxRefMut<N,K> {
         BBoxRefMut::new(&self.rect,&mut self.inner)
     }   
@@ -206,7 +187,7 @@ impl<N: NumTrait, T> BBox<N, T> {
     }
 }
 
-unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
+impl<N: NumTrait, T> HasAabb for BBox<N, T> {
     type Num = N;
     type Inner= T;
     #[inline(always)]
@@ -214,7 +195,7 @@ unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
         BBoxRef::new(&self.rect,unsafe{&*(&self.inner as *const _)})
     }
 }
-unsafe impl<N:NumTrait,T> HasAabbMut for BBox<N,T>{
+impl<N:NumTrait,T> HasAabbMut for BBox<N,T>{
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut::new(&self.rect,unsafe{&mut *(&mut self.inner as *mut _)})
     }

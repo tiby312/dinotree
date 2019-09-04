@@ -411,6 +411,8 @@ impl<T: HasAabbMut> Node<T> {
     }
 }
 
+
+
 pub(crate) trait Sorter: Copy + Clone + Send + Sync {
     fn sort(&self, axis: impl AxisTrait, bots: &mut [impl HasAabb]);
 }
@@ -438,21 +440,15 @@ fn nodes_left(depth: usize, height: usize) -> usize {
 
 
 
-
-pub(crate) use self::cont_tree::ContTree;
+//pub(crate) use self::cont_tree::ContTree;
 //pub use self::cont_tree::Cont;
+pub(crate) use self::cont_tree::create_tree;
 mod cont_tree {
 
     use super::*;
 
 
-    pub(crate) struct ContTree<T: HasAabbMut> {
-        pub(crate) tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
-    }
-
-    impl<T: HasAabbMut + Send + Sync> ContTree<T> {
-        
-        pub fn new<A: AxisTrait, JJ: par::Joiner, K: Splitter + Send>(
+    pub(crate) fn create_tree<A:AxisTrait,JJ:par::Joiner,T:HasAabbMut+Send+Sync,K:Splitter+Send>(
             div_axis: A,
             dlevel: JJ,
             rest: &mut [T],
@@ -460,44 +456,33 @@ mod cont_tree {
             splitter: &mut K,
             height: usize,
             binstrat: BinStrat,
-        ) -> ContTree<T> {
-            let num_bots = rest.len();
-            
-            let mut nodes = Vec::with_capacity(tree::nodes_left(0, height));
+            ) -> compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>{
+        let num_bots = rest.len();
+        
+        let mut nodes = Vec::with_capacity(tree::nodes_left(0, height));
 
-            let r = Recurser {
-                height,
-                binstrat,
-                sorter,
-                _p: PhantomData,
-            };
-            r.recurse_preorder(div_axis, dlevel, rest, &mut nodes, splitter, 0);
+        let r = Recurser {
+            height,
+            binstrat,
+            sorter,
+            _p: PhantomData,
+        };
+        r.recurse_preorder(div_axis, dlevel, rest, &mut nodes, splitter, 0);
 
-            let tree =
-                compt::dfs_order::CompleteTreeContainer::from_preorder(
-                    nodes
-                )
-                .unwrap();
+        let tree =
+            compt::dfs_order::CompleteTreeContainer::from_preorder(
+                nodes
+            )
+            .unwrap();
 
-            /*
-            for arr in tree.get_nodes().windows(2) {
-                let a = &arr[0];
-                let b = &arr[1];
-                debug_assert_eq!(
-                    a.get().bots[a.get().bots.len()..].as_ptr(),
-                    b.get().bots.as_ptr()
-                );  
-            }
-            */
 
-            let k = tree
-                .get_nodes()
-                .iter()
-                .fold(0, |acc, a| acc + a.get().bots.len());
-            debug_assert_eq!(k, num_bots);
+        let k = tree
+            .get_nodes()
+            .iter()
+            .fold(0, |acc, a| acc + a.get().bots.len());
+        debug_assert_eq!(k, num_bots);
 
-            ContTree { tree }
-        }
+        tree
     }
 
     struct Recurser<'a, T: HasAabbMut, K: Splitter + Send, S: Sorter> {
@@ -507,7 +492,9 @@ mod cont_tree {
         _p :PhantomData<(tools::Syncer<K>,&'a T)>
     }
 
+
     impl<'a, T: HasAabbMut + Send + Sync, K: Splitter + Send, S: Sorter> Recurser<'a, T, K, S> {
+        
         fn recurse_preorder<A: AxisTrait, JJ: par::Joiner>(
             &self,
             axis: A,
@@ -556,56 +543,59 @@ mod cont_tree {
 
                 let mut splitter2 = splitter.div();
 
-                let splitter = if !dlevel.should_switch_to_sequential(Depth(depth)) {
-                    let splitter2 = &mut splitter2;
+                let splitter = match dlevel.next(Depth(depth)){
+                    par::ParResult::Parallel([dleft,dright])=>{
+                        let splitter2 = &mut splitter2;
 
-                    let ((splitter, nodes), mut nodes2) = rayon::join(
-                        move || {
-                            self.recurse_preorder(
-                                axis.next(),
-                                dlevel,
-                                left,
-                                nodes,
-                                splitter,
-                                depth + 1,
-                            );
-                            (splitter, nodes)
-                        },
-                        move || {
-                            let mut nodes2: Vec<Node<T>> =
-                                Vec::with_capacity(nodes_left(depth, self.height));
-                            self.recurse_preorder(
-                                axis.next(),
-                                dlevel,
-                                right,
-                                &mut nodes2,
-                                splitter2,
-                                depth + 1,
-                            );
-                            nodes2
-                        },
-                    );
+                        let ((splitter, nodes), mut nodes2) = rayon::join(
+                            move || {
+                                self.recurse_preorder(
+                                    axis.next(),
+                                    dleft,
+                                    left,
+                                    nodes,
+                                    splitter,
+                                    depth + 1,
+                                );
+                                (splitter, nodes)
+                            },
+                            move || {
+                                let mut nodes2: Vec<Node<T>> =
+                                    Vec::with_capacity(nodes_left(depth, self.height));
+                                self.recurse_preorder(
+                                    axis.next(),
+                                    dright,
+                                    right,
+                                    &mut nodes2,
+                                    splitter2,
+                                    depth + 1,
+                                );
+                                nodes2
+                            },
+                        );
 
-                    nodes.append(&mut nodes2);
-                    splitter
-                } else {
-                    self.recurse_preorder(
-                        axis.next(),
-                        dlevel.into_seq(),
-                        left,
-                        nodes,
-                        splitter,
-                        depth + 1,
-                    );
-                    self.recurse_preorder(
-                        axis.next(),
-                        dlevel.into_seq(),
-                        right,
-                        nodes,
-                        &mut splitter2,
-                        depth + 1,
-                    );
-                    splitter
+                        nodes.append(&mut nodes2);
+                        splitter
+                    },
+                    par::ParResult::Sequential([dleft,dright])=>{
+                        self.recurse_preorder(
+                            axis.next(),
+                            dleft,
+                            left,
+                            nodes,
+                            splitter,
+                            depth + 1,
+                        );
+                        self.recurse_preorder(
+                            axis.next(),
+                            dright,
+                            right,
+                            nodes,
+                            &mut splitter2,
+                            depth + 1,
+                        );
+                        splitter
+                    }
                 };
 
                 splitter.add(splitter2);
