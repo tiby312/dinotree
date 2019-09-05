@@ -81,7 +81,7 @@ impl<'a,A:AxisTrait,N:NumTrait+'a,T:'a> DinoTreeRefMutTrait for DinoTree<'a,A,N,
 
 
 
-
+/*
 pub struct DinoTreeOwned<A:AxisTrait,N:NumTrait,T>{
     tree:Option<DinoTreeInner<A,BBoxPtr<N,T>>>,
     bots:Vec<T>
@@ -243,6 +243,7 @@ impl<A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         
     }
 }
+*/
 
 
 ///Builder for a DinoTree

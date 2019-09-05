@@ -94,6 +94,8 @@ pub mod prelude{
     pub use crate::elem::*;
     pub use crate::bbox::*;
     pub use crate::dinotree::*;
+    pub use crate::dinotree_direct::*;
+    pub use crate::dinotree_indirect::*;
     pub use crate::HasAabb;
     pub use crate::HasAabbMut;
     pub use crate::NumTrait;

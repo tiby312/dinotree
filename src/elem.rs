@@ -2,10 +2,13 @@
 use crate::inner_prelude::*;
 
 pub struct ElemSliceMut<'a,T:HasAabb>{
-    inner:&'a mut ElemSlice<T>
+    pub(crate) inner:&'a mut ElemSlice<T>
 }
 
 impl<'a,T:HasAabbMut> ElemSliceMut<'a,T>{
+    pub fn len(&self)->usize{
+        self.inner.len()
+    }
 
     pub fn as_mut(&mut self)->ElemSliceMut<T>{
         ElemSliceMut{inner:self.inner}
@@ -60,10 +63,11 @@ impl<'a,T:HasAabb> core::ops::Deref for ElemSliceMut<'a,T> {
 
 #[repr(transparent)]
 pub struct ElemSlice<T:HasAabb>{
-    inner:[T]
+    pub(crate) inner:[T]
 }
 
 impl<T:HasAabbMut> ElemSlice<T>{
+
 
     pub fn split_first_mut(&mut self)->Option<(BBoxRefMut<T::Num,T::Inner>,&mut ElemSlice<T>)>{
         self.inner.split_first_mut().map(|(first,inner)|(first.get_mut(),Self::from_slice_mut(inner)))
@@ -85,6 +89,7 @@ impl<T:HasAabbMut> ElemSlice<T>{
 }
 
 impl<T:HasAabb> ElemSlice<T>{
+    
     pub fn from_slice(arr:&[T])->&Self{
         unsafe{& *(arr as *const _ as *const _)}
     }
