@@ -31,9 +31,6 @@ impl<T:?Sized> Unique<T>{
     }
 }
 
-pub(crate) struct Syncer<T:?Sized>(PhantomData<T>);
-unsafe impl<T:?Sized> Sync for Syncer<T>{}
-
 
 use crate::NumTrait;
 use alloc::vec::Vec;

@@ -22,7 +22,29 @@ pub struct DinoTreeIndirectBuilder<'a, A: AxisTrait,N:NumTrait,T> {
     height_switch_seq: usize,
 }
 
+
+
+
+
+impl<'a, A: AxisTrait, N:NumTrait,T:Send+Sync> DinoTreeIndirectBuilder<'a, A, N,T> {
+    
+    ///Build in parallel
+    #[inline(always)]
+    pub fn build_par(self) -> DinoTreeIndirect<'a,A,N,T> {
+
+        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        
+        let mut conts: Vec<_> = self.bots
+            .iter_mut().map(|inner|BBoxIndirect{inner}).collect();
+
+        let cont_tree = create_tree_par(self.axis, dlevel,&mut conts, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+
+        Self::tree_finish(self.axis,conts,cont_tree)
+    }
+}
+
 impl<'a, A: AxisTrait, N:NumTrait,T> DinoTreeIndirectBuilder<'a, A, N,T> {
+
     #[inline]
     pub fn new(axis: A, bots: &'a mut [BBox<N,T>]) -> DinoTreeIndirectBuilder<'a, A,N,T> {
         let rebal_strat = BinStrat::Checked;
@@ -38,21 +60,19 @@ impl<'a, A: AxisTrait, N:NumTrait,T> DinoTreeIndirectBuilder<'a, A, N,T> {
         }
     }
 
-
-
     #[inline]
     pub fn build_seq(self) -> DinoTreeIndirect<'a, A,N, T> {
-        unimplemented!();
-    }
-
-    
-    fn tree_prep(&mut self)->Vec<BBoxIndirect<N,T>>{
-        let axis = self.axis;
         
         let mut conts: Vec<_> = self.bots
             .iter_mut().map(|inner|BBoxIndirect{inner}).collect();
-        conts
+
+        let cont_tree = create_tree_seq(self.axis, &mut conts, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+
+        Self::tree_finish(self.axis,conts,cont_tree)
+        
     }
+
+    
     fn tree_finish(axis:A,
         conts:Vec<BBoxIndirect<'a,N,T>>,
         tree:compt::dfs_order::CompleteTreeContainer<Node<BBoxIndirect<'a,N,T>>,
@@ -75,11 +95,9 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTreeIndirect<'a,A,N,T
         self.inner.axis
     }
     fn vistr(&self)->Vistr<Self::Item>{
-        
         Vistr {
             inner: self.inner.tree.vistr(),
         }
-        
     }
 
     ///Return the height of the dinotree.

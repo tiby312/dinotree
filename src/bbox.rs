@@ -76,6 +76,7 @@ pub(crate) struct BBoxRefPtr<N:NumTrait,T>{
 }
 
 
+/*
 ///AABB and mutable pointer to Inner.
 #[repr(C)]
 pub(crate) struct BBoxPtr<N: NumTrait, T> {
@@ -107,7 +108,7 @@ impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
         BBoxRefMut::new(&self.rect,unsafe{&mut *self.inner.as_ptr()})
     }
 }
-
+*/
 
 ///AABB and mutable pointer to Inner.
 ///If we were to use a BBox<N,&mut T>, then HasAabb::get() would return a &mut &mut T, which is cumbersome.
@@ -145,38 +146,6 @@ impl<'a,N:NumTrait,T> HasAabbMut for BBoxMut<'a,N,T>{
 
 
     
-pub(crate) struct BBoxSendSync<N:NumTrait,K> {
-    pub rect: axgeom::Rect<N>,
-    pub inner: K,
-    _prevent_constructor:()
-}
-
-impl<N:NumTrait,K> BBoxSendSync<N,K>{
-    pub unsafe fn new(rect:Rect<N>,inner:K)->Self{
-        BBoxSendSync{rect,inner,_prevent_constructor:()}
-    }
-    pub fn into_inner(self)->(Rect<N>,K){
-        (self.rect,self.inner)
-    }
-}
-
-unsafe impl<N:NumTrait,K> Send for BBoxSendSync<N,K>{}
-unsafe impl<N:NumTrait,K> Sync for BBoxSendSync<N,K>{}
-
-impl<N:NumTrait,K> HasAabb for BBoxSendSync<N,K> {
-    type Num = N;
-    type Inner = K;
-    fn get(&self) -> BBoxRef<Self::Num,Self::Inner> {
-        BBoxRef::new(&self.rect,&self.inner)
-    }
-}
-
-impl<N:NumTrait,K> HasAabbMut for BBoxSendSync<N,K>{
-    fn get_mut(&mut self) -> BBoxRefMut<N,K> {
-        BBoxRefMut::new(&self.rect,&mut self.inner)
-    }   
-}
-
 
 
 

@@ -16,7 +16,7 @@ pub struct DinoTreeDirect<A: AxisTrait, N:NumTrait,T> {
 
 impl<A:AxisTrait,N:NumTrait,T:Copy> DinoTreeDirect<A,N,T>{
 
-    pub fn into_inner(mut self,inner2:&mut Vec<T>){
+    pub fn into_inner(self,inner2:&mut Vec<T>){
     	let DinoTreeDirect{tree,mut rev}=self;  	
     	for a in rev.drain(..).map(|a|tree.bots[a as usize].inner){
             inner2.push(a);
@@ -42,6 +42,27 @@ pub struct DinoTreeDirectBuilder<A: AxisTrait,N:NumTrait,T,F> {
     height: usize,
     height_switch_seq: usize,
     _p:PhantomData<N>
+}
+
+
+
+impl<A: AxisTrait, T: Copy+Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+    DinoTreeDirectBuilder<A,  Num,T, F>
+{
+    
+    ///Build in parallel
+    #[inline(always)]
+    pub fn build_par(&mut self) -> DinoTreeDirect<A,Num,T> {
+
+        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+
+        
+        let mut conts=self.tree_prep();
+
+        let cont_tree = create_tree_par(self.axis,dlevel, &mut conts, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+
+        Self::tree_finish(self.axis,&mut self.bots,cont_tree)
+    }
 }
 
 impl<A: AxisTrait, N:NumTrait,T:Copy,F: FnMut(&T) -> Rect<N>> DinoTreeDirectBuilder<A, N,T,F> {
@@ -75,7 +96,6 @@ impl<A: AxisTrait, N:NumTrait,T:Copy,F: FnMut(&T) -> Rect<N>> DinoTreeDirectBuil
     }
     
     fn tree_prep(&mut self)->Vec<BBox<N,u32>>{
-        let axis = self.axis;
         
         let aabb_create=&mut self.aabb_create;
         let bots=&mut self.bots;

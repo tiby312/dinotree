@@ -186,7 +186,25 @@ pub struct NotSortedBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> 
 	inner:DinoTreeBuilder<'a,A,T,Num,F>
 }
 
+
 impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
+    NotSortedBuilder<'a, A, T, Num, F>
+{
+
+    ///Build not sorted in parallel
+    pub fn build_par(&mut self) -> NotSorted<'a,A,Num,T> {
+        let dlevel = compute_default_level_switch_sequential(self.inner.height_switch_seq, self.inner.height);
+        
+
+        let mut conts=self.inner.tree_prep();
+
+        let cont_tree = create_tree_par(self.inner.axis,dlevel, &mut conts, NoSorter, &mut SplitterEmpty, self.inner.height, self.inner.rebal_strat);
+
+        NotSorted(self.inner.tree_finish(conts,cont_tree))
+        //NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut SplitterEmpty))
+    }
+}
+impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     NotSortedBuilder<'a, A, T, Num, F>
 {
     ///Create a dinotree builder.
@@ -236,54 +254,24 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         &mut self,
         splitter: &mut S,
     ) -> NotSorted<'a,A,Num,T> {
-        /*
-        #[repr(transparent)]
-        pub struct SplitterWrap<S> {
-            inner: S,
-        }
-        impl<S: Splitter> Splitter for SplitterWrap<S> {
-            fn div(&mut self) -> Self {
-                SplitterWrap {
-                    inner: self.inner.div(),
-                }
-            }
-            fn add(&mut self, a: Self) {
-                self.inner.add(a.inner)
-            }
-            fn node_start(&mut self) {
-                self.inner.node_start();
-            }
-            fn node_end(&mut self) {
-                self.inner.node_end()
-            }
-        }
+        
+        let mut conts=self.inner.tree_prep();
 
-        unsafe impl<S> Send for SplitterWrap<S> {}
-        let splitter: &mut SplitterWrap<S> =
-            unsafe { &mut *((splitter as *mut S) as *mut SplitterWrap<S>) };
-        NotSorted(self.inner.build_inner(par::Sequential, NoSorter, splitter))
-        */
-        unimplemented!()
+        let cont_tree = create_tree_seq(self.inner.axis, &mut conts, NoSorter, splitter, self.inner.height, self.inner.rebal_strat);
+
+        NotSorted(self.inner.tree_finish(conts,cont_tree))
     }
 
 
     ///Build not sorted sequentially
     pub fn build_seq(&mut self) -> NotSorted<'a,A,Num,T> {
-        /*
-        NotSorted(self.inner.build_inner(
-            par::Sequential,
-            NoSorter,
-            &mut SplitterEmpty,
-        ))
-        */
-        unimplemented!()
+
+        let mut conts=self.inner.tree_prep();
+
+        let cont_tree = create_tree_seq(self.inner.axis, &mut conts, NoSorter, &mut SplitterEmpty, self.inner.height, self.inner.rebal_strat);
+
+        NotSorted(self.inner.tree_finish(conts,cont_tree))
     }
 
-    ///Build not sorted in parallel
-    pub fn build_par(&mut self) -> NotSorted<'a,A,Num,T> {
-        let dlevel = compute_default_level_switch_sequential(self.inner.height_switch_seq, self.inner.height);
-        unimplemented!()
-        //NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut SplitterEmpty))
-    }
 
 }
