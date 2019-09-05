@@ -440,15 +440,49 @@ fn nodes_left(depth: usize, height: usize) -> usize {
 
 
 
-//pub(crate) use self::cont_tree::ContTree;
-//pub use self::cont_tree::Cont;
-pub(crate) use self::cont_tree::create_tree;
+pub(crate) use self::cont_tree::create_tree_seq;
+pub(crate) use self::cont_tree::create_tree_par;
 mod cont_tree {
 
     use super::*;
 
 
-    pub(crate) fn create_tree<A:AxisTrait,JJ:par::Joiner,T:HasAabbMut+Send+Sync,K:Splitter+Send>(
+    pub(crate) fn create_tree_seq<A:AxisTrait,T:HasAabbMut,K:Splitter>(
+            div_axis: A,
+            rest: &mut [T],
+            sorter: impl Sorter,
+            splitter: &mut K,
+            height: usize,
+            binstrat: BinStrat,
+            ) -> compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>{
+        let num_bots = rest.len();
+        
+        let mut nodes = Vec::with_capacity(tree::nodes_left(0, height));
+
+        let r = Recurser {
+            height,
+            binstrat,
+            sorter,
+            _p: PhantomData,
+        };
+        r.recurse_preorder_seq(div_axis, rest, &mut nodes, splitter, 0);
+
+        let tree =
+            compt::dfs_order::CompleteTreeContainer::from_preorder(
+                nodes
+            )
+            .unwrap();
+
+
+        let k = tree
+            .get_nodes()
+            .iter()
+            .fold(0, |acc, a| acc + a.get().bots.len());
+        debug_assert_eq!(k, num_bots);
+
+        tree
+    }
+    pub(crate) fn create_tree_par<A:AxisTrait,JJ:par::Joiner,T:HasAabbMut+Send+Sync,K:Splitter+Send+Sync>(
             div_axis: A,
             dlevel: JJ,
             rest: &mut [T],
@@ -485,16 +519,127 @@ mod cont_tree {
         tree
     }
 
-    struct Recurser<'a, T: HasAabbMut, K: Splitter + Send, S: Sorter> {
+    struct Recurser<'a, T: HasAabbMut, K: Splitter, S: Sorter> {
         height: usize,
         binstrat: BinStrat,
         sorter: S,
-        _p :PhantomData<(tools::Syncer<K>,&'a T)>
+        _p :PhantomData<(K,&'a T)>
     }
 
 
-    impl<'a, T: HasAabbMut + Send + Sync, K: Splitter + Send, S: Sorter> Recurser<'a, T, K, S> {
-        
+    impl<'a, T: HasAabbMut, K: Splitter , S: Sorter> Recurser<'a, T, K, S> {
+
+        fn create_leaf<A:AxisTrait>(&self,axis:A,rest:&'a mut [T]) -> Node<T>{
+            let cont = if !rest.is_empty() {
+                self.sorter.sort(axis.next(), rest);
+                create_cont(axis, rest)
+            } else {
+                axgeom::Range {
+                    left: core::default::Default::default(),
+                    right: core::default::Default::default(),
+                }
+            };
+
+            Node {
+                range: tools::Unique::new(ElemSlice::from_slice_mut(rest) as *mut _).unwrap(),
+                cont,
+                div: None,
+            }
+        }
+
+        fn create_non_leaf<'b,A:AxisTrait>(&self,axis:A,rest:&'b mut [T]) -> (Node<T>,&'b mut [T],&'b mut [T]){
+            match construct_non_leaf(self.binstrat, self.sorter, axis, rest) {
+                ConstructResult::NonEmpty {
+                    cont,
+                    div,
+                    mid,
+                    left,
+                    right,
+                } => (
+                    Node {
+                        range: tools::Unique::new(ElemSlice::from_slice_mut(mid) as *mut _).unwrap(),
+                        cont,
+                        div: Some(div),
+                    },
+                    left,
+                    right,
+                ),
+                ConstructResult::Empty(empty) => {
+
+                    let (a,empty) = tools::duplicate_empty_slice(empty);
+                    let (b,c) = tools::duplicate_empty_slice(empty);
+                        
+                    let node = Node {
+                        range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
+                        cont:axgeom::Range{
+                            left:core::default::Default::default(),
+                            right:core::default::Default::default()
+                        },
+                        div: None,
+                    };
+
+                    (node,b,c)
+                    /*
+                    for _ in 0..compt::compute_num_nodes(self.height - depth) {
+                        let a = tools::duplicate_empty_slice(empty);
+                        let cont = unsafe { core::mem::uninitialized() };
+                        let node = Node {
+                            range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
+                            cont,
+                            div: None,
+                        };
+                        nodes.push(node);
+                    }
+                    return;
+                    */
+                }
+            }
+        }
+
+        fn recurse_preorder_seq<A:AxisTrait>(
+            &self,
+            axis: A,
+            rest: &'a mut [T],
+            nodes: &mut Vec<Node<T>>,
+            splitter: &mut K,
+            depth: usize,
+            )
+        {
+            splitter.node_start();
+
+            if depth < self.height - 1 {
+                let (node, left, right) = self.create_non_leaf(axis,rest); 
+                nodes.push(node);
+
+                let mut splitter2 = splitter.div();
+
+                self.recurse_preorder_seq(
+                    axis.next(),
+                    left,
+                    nodes,
+                    splitter,
+                    depth + 1,
+                );
+                self.recurse_preorder_seq(
+                    axis.next(),
+                    right,
+                    nodes,
+                    &mut splitter2,
+                    depth + 1,
+                );
+                
+                splitter.add(splitter2);
+            } else {
+                let node = self.create_leaf(axis,rest);
+                nodes.push(node);
+                splitter.node_end();
+            }
+        }
+    }
+    impl<'a, T: HasAabbMut + Send + Sync, K: Splitter + Send+ Sync , S: Sorter> Recurser<'a, T, K, S> {
+
+
+
         fn recurse_preorder<A: AxisTrait, JJ: par::Joiner>(
             &self,
             axis: A,
@@ -507,38 +652,8 @@ mod cont_tree {
             splitter.node_start();
 
             if depth < self.height - 1 {
-                let (node, left, right) =
-                    match construct_non_leaf(self.binstrat, self.sorter, axis, rest) {
-                        ConstructResult::NonEmpty {
-                            cont,
-                            div,
-                            mid,
-                            left,
-                            right,
-                        } => (
-                            Node {
-                                range: tools::Unique::new(ElemSlice::from_slice_mut(mid) as *mut _).unwrap(),
-                                cont,
-                                div: Some(div),
-                            },
-                            left,
-                            right,
-                        ),
-                        ConstructResult::Empty(empty) => {
-                            for _ in 0..compt::compute_num_nodes(self.height - depth) {
-                                let a = tools::duplicate_empty_slice(empty);
-                                let cont = unsafe { core::mem::uninitialized() };
-                                let node = Node {
-                                    range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
-                                    cont,
-                                    div: None,
-                                };
-                                nodes.push(node);
-                            }
-                            return;
-                        }
-                    };
-
+                let (node, left, right) = self.create_non_leaf(axis,rest);
+                    
                 nodes.push(node);
 
                 let mut splitter2 = splitter.div();
@@ -577,18 +692,16 @@ mod cont_tree {
                         nodes.append(&mut nodes2);
                         splitter
                     },
-                    par::ParResult::Sequential([dleft,dright])=>{
-                        self.recurse_preorder(
+                    par::ParResult::Sequential(_)=>{
+                        self.recurse_preorder_seq(
                             axis.next(),
-                            dleft,
                             left,
                             nodes,
                             splitter,
                             depth + 1,
                         );
-                        self.recurse_preorder(
+                        self.recurse_preorder_seq(
                             axis.next(),
-                            dright,
                             right,
                             nodes,
                             &mut splitter2,
@@ -600,18 +713,7 @@ mod cont_tree {
 
                 splitter.add(splitter2);
             } else {
-                let cont = if !rest.is_empty() {
-                    self.sorter.sort(axis.next(), rest);
-                    create_cont(axis, rest)
-                } else {
-                    unsafe { core::mem::uninitialized() }
-                };
-
-                let node = Node {
-                    range: tools::Unique::new(ElemSlice::from_slice_mut(rest) as *mut _).unwrap(),
-                    cont,
-                    div: None,
-                };
+                let node = self.create_leaf(axis,rest);
                 nodes.push(node);
                 splitter.node_end();
             }

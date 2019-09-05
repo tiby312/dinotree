@@ -1,6 +1,27 @@
 use crate::inner_prelude::*;
 
 
+
+pub struct BBoxIndirect<'a,N:NumTrait,T>{
+    pub inner: &'a mut BBox<N,T>
+}
+
+impl<'a,N: NumTrait, T> HasAabb for BBoxIndirect<'a,N, T> {
+    type Num = N;
+    type Inner= T;
+    #[inline(always)]
+    fn get(&self) -> BBoxRef<N,T>{
+        self.inner.get()
+    }
+}
+impl<'a,N:NumTrait,T> HasAabbMut for BBoxIndirect<'a,N,T>{
+    fn get_mut(&mut self)->BBoxRefMut<N,T>{
+        self.inner.get_mut()
+    }
+}
+
+
+
 ///Reference to AABB and Reference to Inner.
 #[repr(C)]
 pub struct BBoxRef<'a,N:NumTrait,T> {
@@ -89,6 +110,7 @@ impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
 
 
 ///AABB and mutable pointer to Inner.
+///If we were to use a BBox<N,&mut T>, then HasAabb::get() would return a &mut &mut T, which is cumbersome.
 #[repr(C)]
 pub struct BBoxMut<'a,N: NumTrait, T> {
     pub rect: axgeom::Rect<N>,

@@ -236,6 +236,7 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         &mut self,
         splitter: &mut S,
     ) -> NotSorted<'a,A,Num,T> {
+        /*
         #[repr(transparent)]
         pub struct SplitterWrap<S> {
             inner: S,
@@ -261,22 +262,28 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         let splitter: &mut SplitterWrap<S> =
             unsafe { &mut *((splitter as *mut S) as *mut SplitterWrap<S>) };
         NotSorted(self.inner.build_inner(par::Sequential, NoSorter, splitter))
+        */
+        unimplemented!()
     }
 
 
     ///Build not sorted sequentially
     pub fn build_seq(&mut self) -> NotSorted<'a,A,Num,T> {
+        /*
         NotSorted(self.inner.build_inner(
             par::Sequential,
             NoSorter,
             &mut SplitterEmpty,
         ))
+        */
+        unimplemented!()
     }
 
     ///Build not sorted in parallel
     pub fn build_par(&mut self) -> NotSorted<'a,A,Num,T> {
         let dlevel = compute_default_level_switch_sequential(self.inner.height_switch_seq, self.inner.height);
-        NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut SplitterEmpty))
+        unimplemented!()
+        //NotSorted(self.inner.build_inner(dlevel, NoSorter, &mut SplitterEmpty))
     }
 
 }

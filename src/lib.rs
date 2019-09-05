@@ -120,10 +120,16 @@ pub mod bbox;
 ///The dinotree data structure.
 pub mod dinotree;
 
+
+pub mod dinotree_direct;
+
+pub mod dinotree_indirect;
+/*
 ///Like a dinotree, but with a more generic (and slower) interface.
 ///
 ///Use this only to compare against the main one. 
 pub mod dinotree_generic;
+*/
 
 ///A version of a dinotree where the bots are not sorted.
 ///
@@ -136,9 +142,9 @@ pub mod notsorted;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait: Ord + Copy + Send + Sync {}
+pub trait NumTrait: Ord + Copy + Send + Sync + core::default::Default {}
 
-impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin {}
+impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::default::Default {}
 
 
 
