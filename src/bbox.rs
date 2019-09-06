@@ -1,7 +1,7 @@
 use crate::inner_prelude::*;
 
 
-
+///Equivalent to: `&mut (Rect<N>,T)`
 pub struct BBoxIndirect<'a,N:NumTrait,T>{
     pub inner: &'a mut BBox<N,T>
 }
@@ -22,7 +22,7 @@ impl<'a,N:NumTrait,T> HasAabbMut for BBoxIndirect<'a,N,T>{
 
 
 
-///Reference to AABB and Reference to Inner.
+///Equivalent to: `(&Rect<N>,&T)` 
 #[repr(C)]
 pub struct BBoxRef<'a,N:NumTrait,T> {
     pub rect: &'a axgeom::Rect<N>,
@@ -42,7 +42,7 @@ impl<'a,N:NumTrait,T> BBoxRef<'a, N,T> {
 
 
 
-///Reference to AABB and Mutable Reference to Inner.
+///Equivalent to: `(&Rect<N>,&mut T)` 
 #[repr(C)]
 pub struct BBoxRefMut<'a,N:NumTrait,T> {
     pub rect: &'a axgeom::Rect<N>,
@@ -76,42 +76,10 @@ pub(crate) struct BBoxRefPtr<N:NumTrait,T>{
 }
 
 
-/*
-///AABB and mutable pointer to Inner.
-#[repr(C)]
-pub(crate) struct BBoxPtr<N: NumTrait, T> {
-    pub rect: axgeom::Rect<N>,
-    pub inner: tools::Unique<T>,
-}
 
-impl<N: NumTrait, T> BBoxPtr<N, T> {
-    
-    ///Unsafe since user could create a new BBox with a different aabb
-    ///inside of a callback function and assign it to the mutable reference.
-    #[inline]
-    pub fn new(rect: axgeom::Rect<N>, inner: tools::Unique<T>) -> BBoxPtr<N, T> {
-        BBoxPtr { rect, inner}
-    }
-
-}
-
-impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
-    type Num = N;
-    type Inner= T;
-    #[inline(always)]
-    fn get(&self) -> BBoxRef<N,T>{
-        BBoxRef::new(&self.rect,unsafe{&*self.inner.as_ptr()})
-    }
-}
-impl<N:NumTrait,T> HasAabbMut for BBoxPtr<N,T>{
-    fn get_mut(&mut self)->BBoxRefMut<N,T>{
-        BBoxRefMut::new(&self.rect,unsafe{&mut *self.inner.as_ptr()})
-    }
-}
-*/
-
-///AABB and mutable pointer to Inner.
-///If we were to use a BBox<N,&mut T>, then HasAabb::get() would return a &mut &mut T, which is cumbersome.
+///Equivalent to: `(Rect<N>,&mut T)` 
+///
+///If we were to use a `BBox<N,&mut T>`, then `HasAabb::get()` would return a `&mut &mut T`, which is cumbersome.
 #[repr(C)]
 pub struct BBoxMut<'a,N: NumTrait, T> {
     pub rect: axgeom::Rect<N>,
@@ -145,14 +113,10 @@ impl<'a,N:NumTrait,T> HasAabbMut for BBoxMut<'a,N,T>{
 }
 
 
-    
 
-
-
-
-///AABB and Inner.
 #[derive(Copy, Clone)]
 #[repr(C)]
+///Equivalent to: `(Rect<N>,T)` 
 pub struct BBox<N: NumTrait, T> {
     pub rect: axgeom::Rect<N>,
     pub inner: T,
