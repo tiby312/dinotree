@@ -534,10 +534,14 @@ mod cont_tree {
                 self.sorter.sort(axis.next(), rest);
                 create_cont(axis, rest)
             } else {
-                axgeom::Range {
-                    left: core::default::Default::default(),
-                    right: core::default::Default::default(),
-                }
+                //We use unsafe here since we don't want to add more type contraints
+                //on NumTrait. If we add Default, then it becomes hard to implement
+                //some number types that count the number of comparisions made.
+
+                //It is safe to do, since this cont will never be accessed.
+                //Before we return a NodeRef, or NodeRefMut, we check if there are
+                //any bots in the node, and only then return cont.
+                unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
             };
 
             Node {
@@ -571,10 +575,7 @@ mod cont_tree {
                         
                     let node = Node {
                         range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
-                        cont:axgeom::Range{
-                            left:core::default::Default::default(),
-                            right:core::default::Default::default()
-                        },
+                        cont:unsafe{core::mem::MaybeUninit::zeroed().assume_init()},
                         div: None,
                     };
 

@@ -17,8 +17,11 @@ pub struct DinoTreeDirect<A: AxisTrait, N:NumTrait,T> {
 impl<A:AxisTrait,N:NumTrait,T:Copy> DinoTreeDirect<A,N,T>{
 
     pub fn into_inner(self,inner2:&mut Vec<T>){
-    	let DinoTreeDirect{tree,mut rev}=self;  	
-    	for a in rev.drain(..).map(|a|tree.bots[a as usize].inner){
+        inner2.reserve(self.num_bots());
+        
+        let DinoTreeDirect{tree,mut rev}=self;  	
+    	
+        for a in rev.drain(..).map(|a|tree.bots[a as usize].inner){
             inner2.push(a);
         }
     }
@@ -69,7 +72,8 @@ impl<A: AxisTrait, N:NumTrait,T:Copy,F: FnMut(&T) -> Rect<N>> DinoTreeDirectBuil
     #[inline]
     pub fn new(axis: A, bots2: &mut Vec<T>,aabb_create:F) -> DinoTreeDirectBuilder< A,N,T,F> {
         let mut bots=Vec::new();
-        bots.append(bots2);
+        core::mem::swap(&mut bots,bots2);
+
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();

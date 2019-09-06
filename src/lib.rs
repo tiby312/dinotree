@@ -144,9 +144,9 @@ pub mod notsorted;
 ///It is auto implemented by all types that satisfy the type constraints.
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
-pub trait NumTrait: Ord + Copy + Send + Sync + core::default::Default {}
+pub trait NumTrait: Ord + Copy + Send + Sync {}
 
-impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin + core::default::Default {}
+impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin {}
 
 
 
