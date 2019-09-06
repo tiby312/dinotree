@@ -135,7 +135,7 @@ pub mod notsorted;
 ///using only comparisons and copying.
 pub trait NumTrait: Ord + Copy + Send + Sync {}
 
-impl<T> NumTrait for T where T: Ord + Copy + Send + Sync + Unpin {}
+impl<T> NumTrait for T where T: Ord + Copy + Send + Sync {}
 
 
 
