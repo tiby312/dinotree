@@ -108,7 +108,8 @@ impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &K{
 
 }
 
-impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
+
+impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &mut K{
     type Item=K::Item;
     type Axis=K::Axis;
     type Num=K::Num;
@@ -143,6 +144,7 @@ impl<K:DinoTreeRefMutTrait> DinoTreeRefTrait for &mut K{
     }
 
 }
+
 
 impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{  
 
