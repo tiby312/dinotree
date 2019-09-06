@@ -17,13 +17,21 @@ pub struct DinoTreeDirect<A: AxisTrait, N:NumTrait,T> {
 impl<A:AxisTrait,N:NumTrait,T:Copy> DinoTreeDirect<A,N,T>{
 
     pub fn into_inner(self,inner2:&mut Vec<T>){
-        inner2.reserve(self.num_bots());
         
+        inner2.reserve(self.num_bots());
+        unsafe{
+            inner2.set_len(self.num_bots());
+        }
         let DinoTreeDirect{tree,mut rev}=self;  	
     	
+        for (index,bot) in rev.drain(..).zip(tree.bots.iter()){
+            inner2[index as usize]=bot.inner;
+        }
+        /*
         for a in rev.drain(..).map(|a|tree.bots[a as usize].inner){
             inner2.push(a);
         }
+        */
     }
 
     pub fn get_bots_mut(&mut self)->&mut [BBox<N,T>]{
