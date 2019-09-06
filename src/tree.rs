@@ -70,7 +70,7 @@ pub trait DinoTreeRefMutTrait:DinoTreeRefTrait{
 
 
 
-
+/*
 
 impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &K{
     type Item=K::Item;
@@ -152,7 +152,7 @@ impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{
         K::vistr_mut(self)
     }
 }
-
+*/
 
 
 
