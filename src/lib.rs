@@ -4,9 +4,6 @@
 //! Provides the dinotree data structure and ways to traverse it. No actual query algorithms are provided in this crate.
 //! Only the data structure and a way to construct and traverse it are provided in this crate.
 //! 
-//! The tree is comprised of copies of objects (rather than references) sorted to improve cache coherency. 
-//! There is an alternative NoCopyDinoTree that does not allocate more space,
-//! but instead rearranges the bots in a user provided slice for better cache coherency. 
 //!
 //! ~~~~text
 //! 2d Tree Divider Representation:
@@ -34,17 +31,6 @@
 //! All the objects in a node are sorted along that node's axis.
 //! 
 //! ~~~~
-//!
-//!
-//! # Unsafety
-//!
-//! The HasAabb trait is marked as unsafe. See its description.
-//! Unsafety used to have slices of bots in the tree, but also a slice of all the bots
-//! so that we can efficiently return a slice of all the bots.
-//! Unsafety is used to reuse code between sequential and parallel build algorithms.
-//!
-//! ## Analysis
-//! Please see the [dinotree_report](https://github.com/tiby312/dinotree_report) github project, for a writeup of the design and analysis of the algorithms in this project.
 //!
 
 

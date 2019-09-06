@@ -117,7 +117,6 @@ pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(pub DinoTree<'a,A,N,T>);
 
 
 
-//TODO should really have own trait
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
     type Item=BBoxMut<'a,N,T>;
     type Axis=A;
@@ -169,19 +168,6 @@ impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefMutTrait for NotSorted<'a,A,N,T>{
 
 
 
-///Builder for a DinoTree
-/// # Examples
-///
-/// ```
-/// use axgeom;
-/// use dinotree::notsorted::NotSortedBuilder;
-/// use dinotree_sample::SampleBuilder;
-///
-/// let builder = SampleBuilder::new();
-/// let mut bots:Vec<_>= builder.build().take(1000).collect();
-/// let mut tree=NotSortedBuilder::new(axgeom::XAXISS,&mut bots,|a|builder.create_aabb(a)).build_seq();
-/// //Use tree
-/// ```
 pub struct NotSortedBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {
 	inner:DinoTreeBuilder<'a,A,T,Num,F>
 }

@@ -81,18 +81,6 @@ impl<'a,A:AxisTrait,N:NumTrait+'a,T:'a> DinoTreeRefMutTrait for DinoTree<'a,A,N,
 
 
 ///Builder for a DinoTree
-/// # Examples
-///
-/// ```
-/// use axgeom;
-/// use dinotree::copy::DinoTreeBuilder;
-/// use dinotree_sample::SampleBuilder;
-///
-/// let builder = SampleBuilder::new();
-/// let mut bots:Vec<_>= builder.build().take(1000).collect();
-/// let mut tree=DinoTreeBuilder::new(axgeom::XAXISS,&mut bots,|a|builder.create_aabb(a)).build_seq();
-/// //Use tree
-/// ```
 pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {
     pub(crate) axis: A,
     pub(crate) bots: &'a mut [T],
