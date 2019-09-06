@@ -35,6 +35,7 @@
 //! 
 //! ~~~~
 //!
+//!
 //! # Unsafety
 //!
 //! The HasAabb trait is marked as unsafe. See its description.
@@ -119,19 +120,21 @@ pub mod elem;
 ///A collection of different bounding box containers.
 pub mod bbox;
 
-///The dinotree data structure.
+///The dinotree data structure. The tree is made up of: `(Rect<N>,&mut T)`
 pub mod dinotree;
 
 
+///A version of dinotree where the tree is made up of `(Rect<N>,T)` 
+///
+///From benchmarks, this is slower than the main dinotree data structure provided.
 pub mod dinotree_direct;
 
-pub mod dinotree_indirect;
-/*
-///Like a dinotree, but with a more generic (and slower) interface.
+
+///A version of dinotree where the tree is made up of `&mut (Rect<N>,T)` 
 ///
-///Use this only to compare against the main one. 
-pub mod dinotree_generic;
-*/
+///From benchmarks, this is slower than the main dinotree data structure provided.
+pub mod dinotree_indirect;
+
 
 ///A version of a dinotree where the bots are not sorted.
 ///
