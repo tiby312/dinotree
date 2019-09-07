@@ -33,33 +33,65 @@
 //!
 //! ~~~~
 //!
+//! ## Data Structure
+//!
 //! Three flavors of the same fundamental data structure are provided. They each 
-//! have different characteristics that may make you want to use them.
+//! have different characteristics that may make you want to use them over the others.
 //!
-//! `DinoTree` is made up of `(Rect<N>,&mut T)`
+//! + `DinoTree` is made up of `(Rect<N>,&mut T)`
+//! + `DinoTreeDirect` is made up of `(Rect<N>,T)`
+//! + `DinoTreeIndirect` is made up of `&mut (Rect<N>,T)`
 //!
-//! `DinoTreeDirect` is made up of `(Rect<N>,T)`
+//! ## Data Structure Details
 //!
-//! `DinoTreeIndirect` is made up of `&mut (Rect<N>,T)`
-//!
-//! `DinoTree` is the most well rounded and most performant in most cases.
+//! + `DinoTree` is the most well rounded and most performant in most cases.
 //! The aabb's themselves don't have a level of indirection, and broad-phase
 //! algorithms need to look at these very often. It's only when these algorithms
 //! detect a intersection do they need to look further, which doesnt happen as often.
 //! so a level of indirection here is not so bad.
 //!
-//! `DinoTreeDirect` can perform better in cases where there are many, many overlapping
+//! + `DinoTreeDirect` can perform better in cases where there are many, many overlapping
 //! elements in the tree, but this comes at the cost of a more expensive base cost
-//! of constructing (and deconstructing) the tree.
+//! of constructing (and deconstructing) the tree. This also has the benefit of not having a lifetime
+//! as it owns the elements completely (no references).
 //!
-//! `DinoTreeIndirect` has fast tree construction given that we are just sorting and swapping
+//! + `DinoTreeIndirect` has fast tree construction given that we are just sorting and swapping
 //! pointers, but there is no cache-coherence during the query phase, so this can 
 //! cause real slow down to query algorithms if there are many overlapping elements.
-//! 
 //!
-//! If you insert aabb's with zero with and zero height, it is unspecified behavior.
+//! ## BBox Differences
+//!
+//! `DinoTree` and `DinoTreeDirect` both have the user provide a `&mut [T]` or `Vec<T>` and produce a 
+//! `(Rect<N>,&mut T)` or `(Rect<N>,T)` from that slice and a user provided aabb construction function.
+//! This was done to minimize total memory used. In most cases, an elements aabb doesnt mean anything
+//! unless it exists in a space partitioning tree. So if the tree doesnt exist, 
+//! the aabb is just taking up spacing in that object slowing down other algorithms that have to iterating 
+//! over all the bots for some other purpose. So this api encourages the user to only make the abb
+//! on creation of the tree. 
+//!
+//! In the case of `DinoTreeIndirect`, we can hardly avoid it, since the tree is made up solely of pointers
+//! so the user must provide a slice with the aabb for each object already.
+//!
+//! ## NotSorted
+//!
+//! For comparison, a normal kd-tree is provided by `NotSorted`. In this tree, the elements are not sorted
+//! along an axis at each level.
+//!
+//!
+//! ## User Protection
+//!
+//! A lot is done to forbid the user from violating the invariants of the tree once constructed
+//! while still allowing them to mutate elements of the tree. The user can mutably traverse down the tree
+//! with a `VistrMut` and `ElemSliceMut`, but the elements that are returned have already been destructured in such a way
+//! that the user only has read-only access to the `Rect<N>`, even if they do have write access to the inner `T`.
+//!
+//!
+//! ## Usage Guidlines
+//!
+//! If you insert aabb's with zero with or zero height, it is unspecified behavior.
 //! It is expected that all elements in the tree take up some area (just like in real life).
 //! 
+//!
 
 
 #![no_std]
