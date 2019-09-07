@@ -1,8 +1,4 @@
 //!
-//! # Overview
-//!
-//! Provides the dinotree data structure and ways to traverse it. No actual query algorithms are provided in this crate.
-//! Only the data structure and a way to construct and traverse it are provided in this crate.
 //! 
 //!
 //! ~~~~text
@@ -27,11 +23,16 @@
 //! Divider placement is placed at the median at each level.
 //! Objects that intersect a divider belong to that node.
 //! Every divider keeps track of how thick a line would have to be
-//! to cover all the bots it owns.
+//! to 'cover' all the bots it owns.
 //! All the objects in a node are sorted along that node's axis.
 //!
 //!
 //! ~~~~
+//! # Overview
+//!
+//! Provides the dinotree data structure and ways to traverse it. No actual query algorithms are provided in this crate.
+//! Only the data structure and a way to construct and traverse it are provided in this crate.
+//!
 //!
 //! ## Data Structure
 //!
