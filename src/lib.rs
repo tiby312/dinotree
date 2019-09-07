@@ -45,16 +45,18 @@
 //!
 //! ## Data Structure Details
 //!
-//! + `DinoTree` is the most well rounded and most performant in most cases.
-//! The aabb's themselves don't have a level of indirection, and broad-phase
+//! + `DinoTree` is the most well rounded and most performant in all cases.
+//! The aabb's themselves don't have a level of indirection. Broad-phase
 //! algorithms need to look at these very often. It's only when these algorithms
 //! detect a intersection do they need to look further, which doesnt happen as often.
-//! so a level of indirection here is not so bad.
+//! so a level of indirection here is not so bad. The fact that T is a pointer, also
+//! means that more aabb's will be in cache at once, further speeding up algorithms
+//! that need to look at the aabb's very often.
 //!
-//! + `DinoTreeDirect` can perform better in cases where there are many, many overlapping
+//! + `DinoTreeDirect` can be fairly fast in cases where there are many, many overlapping
 //! elements in the tree, but this comes at the cost of a more expensive base cost
-//! of constructing (and deconstructing) the tree. This also has the benefit of not having a lifetime
-//! as it owns the elements completely (no references).
+//! of constructing (and deconstructing) the tree. One benefit of using this tree, is
+//! that it owns the elements completely, so there are no lifetime references to worry about.
 //!
 //! + `DinoTreeIndirect` has fast tree construction given that we are just sorting and swapping
 //! pointers, but there is no cache-coherence during the query phase, so this can 
@@ -89,7 +91,7 @@
 //!
 //! ## Usage Guidlines
 //!
-//! If you insert aabb's with zero with or zero height, it is unspecified behavior.
+//! If you insert aabb's with zero width or zero height, it is unspecified behavior.
 //! It is expected that all elements in the tree take up some area (just like in real life).
 //! 
 //!
@@ -169,7 +171,6 @@ pub mod bbox;
 
 ///The dinotree data structure. The tree is made up of: `(Rect<N>,&mut T)`
 pub mod dinotree;
-
 
 ///A version of dinotree where the tree is made up of `(Rect<N>,T)` 
 ///

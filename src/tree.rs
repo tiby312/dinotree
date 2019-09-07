@@ -2,6 +2,15 @@
 use crate::inner_prelude::*;
 pub use assert_invariants::assert_invariants;
 
+
+pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
+    pub axis: A,
+    pub bots: Vec<T>,
+    pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
+}
+
+
+
 ///A trait that gives the user callbacks at events in a recursive algorithm on the tree.
 ///The main motivation behind this trait was to track the time spent taken at each level of the tree
 ///during construction.

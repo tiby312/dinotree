@@ -1,12 +1,6 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
 
-pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
-    pub axis: A,
-    pub bots: Vec<T>,
-    pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
-}
-
 
 #[repr(transparent)]
 pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
@@ -73,7 +67,6 @@ impl<'a,A:AxisTrait,N:NumTrait+'a,T:'a> DinoTreeRefMutTrait for DinoTree<'a,A,N,
 }
 
 
-///Builder for a DinoTree
 pub struct DinoTreeBuilder<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>> {
     pub(crate) axis: A,
     pub(crate) bots: &'a mut [T],
@@ -103,10 +96,6 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
 impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeBuilder<'a, A, T, Num, F>
 {
-    ///Create a dinotree builder.
-    ///The user picks the axis along which the first divider will partition.
-    ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
-    ///The user also passes a function to create the bounding box of each bot in the slice passed.
     pub fn new(axis: A, bots: &mut [T], aabb_create: F) -> DinoTreeBuilder<A, T, Num, F> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
@@ -122,14 +111,12 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
         }
     }
 
-    ///Choose a custom bin stratagy.
     #[inline(always)]
     pub fn with_bin_strat(&mut self, strat: BinStrat) -> &mut Self {
         self.rebal_strat = strat;
         self
     }
 
-    ///Choose a custom height for the tree.
     #[inline(always)]
     pub fn with_height(&mut self, height: usize) -> &mut Self {
         self.height = height;

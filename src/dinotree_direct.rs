@@ -4,8 +4,6 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
 
-use crate::dinotree::DinoTreeInner;
-
 
 pub struct DinoTreeDirect<A: AxisTrait, N:NumTrait,T> {
  	pub(crate) tree:DinoTreeInner<A,BBox<N,T>>,
@@ -40,7 +38,6 @@ impl<A:AxisTrait,N:NumTrait,T:Copy> DinoTreeDirect<A,N,T>{
 }
 
 
-///Builder for a DinoTree
 pub struct DinoTreeDirectBuilder<A: AxisTrait,N:NumTrait,T,F> {
     axis: A,
     bots: Vec<T>,

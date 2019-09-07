@@ -4,7 +4,6 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
 
-use crate::dinotree::DinoTreeInner;
 
 pub struct DinoTreeIndirect<'a,A: AxisTrait, N:NumTrait,T> {
     pub(crate) inner:DinoTreeInner<A,BBoxIndirect<'a,N,T>>,
@@ -13,7 +12,6 @@ pub struct DinoTreeIndirect<'a,A: AxisTrait, N:NumTrait,T> {
 
 
 
-///Builder for a DinoTree
 pub struct DinoTreeIndirectBuilder<'a, A: AxisTrait,N:NumTrait,T> {
     axis: A,
     bots: &'a mut [BBox<N,T>],
