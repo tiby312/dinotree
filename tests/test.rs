@@ -64,7 +64,7 @@ fn test_many() {
             }
         }
     }
-    assert_eq!(num_div, 1);
+    assert_eq!(num_div, 0);
 }
 
 #[test]

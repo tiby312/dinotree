@@ -444,19 +444,23 @@ mod cont_tree {
     impl<'a, T: HasAabbMut, K: Splitter , S: Sorter> Recurser<'a, T, K, S> {
 
         fn create_leaf<A:AxisTrait>(&self,axis:A,rest:&'a mut [T]) -> Node<T>{
-            let cont = if !rest.is_empty() {
-                self.sorter.sort(axis.next(), rest);
-                create_cont(axis, rest)
-            } else {
-                //We use unsafe here since we don't want to add more type contraints
-                //on NumTrait. If we add Default, then it becomes hard to implement
-                //some number types that count the number of comparisions made.
+            let cont = match create_cont(axis,rest){
+                Some(cont)=>{
+                    self.sorter.sort(axis.next(),rest);
+                    cont
+                },
+                None=>{
+                    //We use unsafe here since we don't want to add more type contraints
+                    //on NumTrait. If we add Default, then it becomes hard to implement
+                    //some number types that count the number of comparisions made.
 
-                //It is safe to do, since this cont will never be accessed.
-                //Before we return a NodeRef, or NodeRefMut, we check if there are
-                //any bots in the node, and only then return cont.
-                unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
+                    //It is safe to do, since this cont will never be accessed.
+                    //Before we return a NodeRef, or NodeRefMut, we check if there are
+                    //any bots in the node, and only then return cont.
+                    unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
+                }
             };
+
 
             Node {
                 range: tools::Unique::new(ElemSlice::from_slice_mut(rest) as *mut _).unwrap(),
@@ -702,8 +706,8 @@ fn bench_cont2(b: &mut test::Bencher) {
     });
 }
 
-fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
-    let (first, rest) = middle.split_first().unwrap();
+fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> Option<axgeom::Range<T::Num>> {
+    let (first, rest) = middle.split_first()?;
 
     let mut min = first.get().rect.get_range(axis).left;
     let mut max = first.get().rect.get_range(axis).right;
@@ -721,10 +725,10 @@ fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range
         }
     }
 
-    axgeom::Range {
+    Some(axgeom::Range {
         left: min,
         right: max,
-    }
+    })
 }
 
 ///Passed to the binning algorithm to determine
@@ -766,6 +770,8 @@ fn construct_non_leaf<T: HasAabb>(
         k.get().rect.get_range(div_axis).left
     };
 
+    //TODO. its possible that middle is empty is the ranges inserted had
+    //zero length.
     //It is very important that the median bot end up be binned into the middile bin.
     //We know this must be true because we chose the divider to be the medians left border,
     //and we binned so that all bots who intersect with the divider end up in the middle bin.
@@ -779,13 +785,26 @@ fn construct_non_leaf<T: HasAabb>(
         },
     };
 
-    debug_assert!(!binned.middle.is_empty());
+    //debug_assert!(!binned.middle.is_empty());
+    let cont = match create_cont(div_axis, binned.middle){
+        Some(cont)=>{
+            sorter.sort(div_axis.next(), binned.middle);
+            cont
+        },
+        None=>{
+            //We use unsafe here since we don't want to add more type contraints
+            //on NumTrait. If we add Default, then it becomes hard to implement
+            //some number types that count the number of comparisions made.
 
-    sorter.sort(div_axis.next(), binned.middle);
+            //It is safe to do, since this cont will never be accessed.
+            //Before we return a NodeRef, or NodeRefMut, we check if there are
+            //any bots in the node, and only then return cont.
+            unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
+        }
+    };
 
     //We already know that the middile is non zero in length.
-    let cont = create_cont(div_axis, binned.middle);
-
+    
     ConstructResult::NonEmpty {
         mid: binned.middle,
         cont,

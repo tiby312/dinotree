@@ -29,6 +29,10 @@
 //! Every divider keeps track of how thick a line would have to be
 //! to cover all the bots it owns.
 //! All the objects in a node are sorted along that node's axis.
+//!
+//!
+//!
+//! What happens if you insert aabbs of zero size.
 //! 
 //! ~~~~
 //!

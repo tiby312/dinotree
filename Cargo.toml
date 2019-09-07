@@ -14,5 +14,5 @@ is_sorted = "0.1.1"
 rayon = "1.1.0"
 pdqselect = "0.1.0"
 compt = "1.6.1"
-axgeom = "1.1.1"
+axgeom = "1.2.0"
 
