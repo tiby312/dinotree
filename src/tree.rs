@@ -152,7 +152,7 @@ unsafe impl<'a, T: HasAabbMut> compt::FixedDepthVisitor for Vistr<'a, T> {}
 impl<'a, T: HasAabbMut + 'a> Visitor for Vistr<'a, T> {
     type Item = NodeRef<'a, T>;
 
-    #[inline]
+    #[inline(always)]
     fn next(self) -> (Self::Item, Option<[Self; 2]>) {
         let (nn, rest) = self.inner.next();
 
@@ -162,12 +162,14 @@ impl<'a, T: HasAabbMut + 'a> Visitor for Vistr<'a, T> {
         };
         (nn.get(), k)
     }
-    #[inline]
+    
+    #[inline(always)]
     fn level_remaining_hint(&self) -> (usize, Option<usize>) {
         self.inner.level_remaining_hint()
     }
 
-    #[inline]
+    
+    #[inline(always)]
     fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
         self.inner.dfs_preorder(|a|{
             func(a.get())
@@ -184,14 +186,16 @@ pub struct VistrMut<'a, T:HasAabbMut> {
 impl<'a, T:HasAabbMut> VistrMut<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
-    #[inline]
+    
+    #[inline(always)]
     pub fn create_wrap_mut(&mut self) -> VistrMut<T> {
         VistrMut {
             inner: self.inner.create_wrap_mut(),
         }
     }
 
-    #[inline]
+    
+    #[inline(always)]
     pub fn height(&self) -> usize {
         //Safe since we know Vistr implements FixedDepthVisitor.
         self.inner.level_remaining_hint().0
@@ -204,7 +208,8 @@ impl<'a, T:HasAabbMut> VistrMut<'a, T> {
 
 impl<'a, T:HasAabbMut> core::ops::Deref for VistrMut<'a, T> {
     type Target = Vistr<'a, T>;
-    #[inline]
+    
+    #[inline(always)]
     fn deref(&self) -> &Vistr<'a, T> {
         unsafe { &*(self as *const VistrMut<T> as *const Vistr<T>) }
     }
@@ -217,7 +222,8 @@ unsafe impl<'a, T:HasAabbMut> compt::FixedDepthVisitor for VistrMut<'a, T> {}
 impl<'a, T:HasAabbMut> Visitor for VistrMut<'a, T> {
     type Item = NodeRefMut<'a, T>;
 
-    #[inline]
+    
+    #[inline(always)]
     fn next(self) -> (Self::Item, Option<[Self; 2]>) {
         let (nn, rest) = self.inner.next();
 
@@ -227,13 +233,15 @@ impl<'a, T:HasAabbMut> Visitor for VistrMut<'a, T> {
         };
         (nn.get_mut(), k)
     }
-    #[inline]
+    
+    #[inline(always)]
     fn level_remaining_hint(&self) -> (usize, Option<usize>) {
         self.inner.level_remaining_hint()
     }
 
 
-    #[inline]
+    
+    #[inline(always)]
     fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
         self.inner.dfs_preorder(|a|{
             func(a.get_mut())
@@ -444,22 +452,9 @@ mod cont_tree {
     impl<'a, T: HasAabbMut, K: Splitter , S: Sorter> Recurser<'a, T, K, S> {
 
         fn create_leaf<A:AxisTrait>(&self,axis:A,rest:&'a mut [T]) -> Node<T>{
-            let cont = match create_cont(axis,rest){
-                Some(cont)=>{
-                    self.sorter.sort(axis.next(),rest);
-                    cont
-                },
-                None=>{
-                    //We use unsafe here since we don't want to add more type contraints
-                    //on NumTrait. If we add Default, then it becomes hard to implement
-                    //some number types that count the number of comparisions made.
-
-                    //It is safe to do, since this cont will never be accessed.
-                    //Before we return a NodeRef, or NodeRefMut, we check if there are
-                    //any bots in the node, and only then return cont.
-                    unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
-                }
-            };
+            self.sorter.sort(axis.next(),rest);
+                    
+            let cont = create_cont(axis,rest);
 
 
             Node {
@@ -706,29 +701,43 @@ fn bench_cont2(b: &mut test::Bencher) {
     });
 }
 
-fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> Option<axgeom::Range<T::Num>> {
-    let (first, rest) = middle.split_first()?;
+fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
+    match middle.split_first(){
+        Some((first,rest))=>{
+            let mut min = first.get().rect.get_range(axis).left;
+            let mut max = first.get().rect.get_range(axis).right;
 
-    let mut min = first.get().rect.get_range(axis).left;
-    let mut max = first.get().rect.get_range(axis).right;
+            for a in rest.iter() {
+                let left = &a.get().rect.get_range(axis).left;
+                let right = &a.get().rect.get_range(axis).right;
 
-    for a in rest.iter() {
-        let left = &a.get().rect.get_range(axis).left;
-        let right = &a.get().rect.get_range(axis).right;
+                if *left < min {
+                    min = *left;
+                }
 
-        if *left < min {
-            min = *left;
-        }
+                if *right > max {
+                    max = *right;
+                }
+            }
 
-        if *right > max {
-            max = *right;
+            axgeom::Range {
+                left: min,
+                right: max,
+            }
+        },
+        None=>{
+            //We use unsafe here since we don't want to add more type contraints
+            //on NumTrait. If we add Default, then it becomes hard to implement
+            //some number types that count the number of comparisions made.
+
+            //It is safe to do, since this cont will never be accessed.
+            //Before we return a NodeRef, or NodeRefMut, we check if there are
+            //any bots in the node, and only then return cont.
+            unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
         }
     }
+    
 
-    Some(axgeom::Range {
-        left: min,
-        right: max,
-    })
 }
 
 ///Passed to the binning algorithm to determine
@@ -786,22 +795,9 @@ fn construct_non_leaf<T: HasAabb>(
     };
 
     //debug_assert!(!binned.middle.is_empty());
-    let cont = match create_cont(div_axis, binned.middle){
-        Some(cont)=>{
-            sorter.sort(div_axis.next(), binned.middle);
-            cont
-        },
-        None=>{
-            //We use unsafe here since we don't want to add more type contraints
-            //on NumTrait. If we add Default, then it becomes hard to implement
-            //some number types that count the number of comparisions made.
-
-            //It is safe to do, since this cont will never be accessed.
-            //Before we return a NodeRef, or NodeRefMut, we check if there are
-            //any bots in the node, and only then return cont.
-            unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
-        }
-    };
+    sorter.sort(div_axis.next(), binned.middle);
+            
+    let cont = create_cont(div_axis, binned.middle);
 
     //We already know that the middile is non zero in length.
     
