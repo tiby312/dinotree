@@ -50,15 +50,12 @@ pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
 
 
     ///Return the height of the dinotree.
-    #[inline]
     fn height(&self) -> usize;
 
     ///Return the number of nodes of the dinotree.
-    #[inline]
     fn num_nodes(&self) -> usize;
 
     ///Return the number of bots in the tree.
-    #[inline]
     fn num_bots(&self) -> usize;
 
 }
@@ -68,91 +65,6 @@ pub trait DinoTreeRefMutTrait:DinoTreeRefTrait{
     fn vistr_mut(&mut self)->VistrMut<Self::Item>;
 }
 
-
-
-/*
-
-impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &K{
-    type Item=K::Item;
-    type Axis=K::Axis;
-    type Num=K::Num;
-    type Inner=K::Inner;
-    
-    fn axis(&self)->Self::Axis{
-        K::axis(self)
-    }
-    fn vistr(&self)->Vistr<Self::Item>{
-        K::vistr(self)
-    }
-
-    ///Return the height of the dinotree.
-    #[inline]
-    fn height(&self) -> usize
-    {
-        K::height(self)
-    }
-
-    ///Return the number of nodes of the dinotree.
-    #[inline]
-    fn num_nodes(&self) -> usize
-    {
-        K::num_nodes(self)
-    }
-
-    ///Return the number of bots in the tree.
-    #[inline]
-    fn num_bots(&self) -> usize
-    {
-        K::num_bots(self)
-    }
-
-}
-
-
-impl<K:DinoTreeRefTrait> DinoTreeRefTrait for &mut K{
-    type Item=K::Item;
-    type Axis=K::Axis;
-    type Num=K::Num;
-    type Inner=K::Inner;
-    
-    fn axis(&self)->Self::Axis{
-        K::axis(self)
-    }
-    fn vistr(&self)->Vistr<Self::Item>{
-        K::vistr(self)
-    }
-
-    ///Return the height of the dinotree.
-    #[inline]
-    fn height(&self) -> usize
-    {
-        K::height(self)
-    }
-
-    ///Return the number of nodes of the dinotree.
-    #[inline]
-    fn num_nodes(&self) -> usize
-    {
-        K::num_nodes(self)
-    }
-
-    ///Return the number of bots in the tree.
-    #[inline]
-    fn num_bots(&self) -> usize
-    {
-        K::num_bots(self)
-    }
-
-}
-
-
-impl<K:DinoTreeRefMutTrait> DinoTreeRefMutTrait for &mut K{  
-
-    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
-        K::vistr_mut(self)
-    }
-}
-*/
 
 
 
@@ -380,7 +292,7 @@ impl<T: HasAabbMut> Node<T> {
 
     
     
-    #[inline]
+    #[inline(always)]
     pub fn get_mut(&mut self) -> NodeRefMut<T> {
         let bots = unsafe { &mut *self.range.as_ptr() };
         let cont = if bots.is_empty() {
@@ -396,7 +308,7 @@ impl<T: HasAabbMut> Node<T> {
         }
     }
     
-    #[inline]
+    #[inline(always)]
     pub fn get(&self) -> NodeRef<T> {
         let bots = unsafe { &*self.range.as_ptr() };
         let cont = if bots.is_empty() {

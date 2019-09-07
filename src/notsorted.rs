@@ -14,15 +14,12 @@ pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
 
 
     ///Return the height of the dinotree.
-    #[inline]
     fn height(&self) -> usize;
 
     ///Return the number of nodes of the dinotree.
-    #[inline]
     fn num_nodes(&self) -> usize;
 
     ///Return the number of bots in the tree.
-    #[inline]
     fn num_bots(&self) -> usize;
 
 }
@@ -34,87 +31,7 @@ pub trait NotSortedRefMutTrait:NotSortedRefTrait{
 
 
 
-
-impl<K:NotSortedRefTrait> NotSortedRefTrait for &K{
-    type Item=K::Item;
-    type Axis=K::Axis;
-    type Num=K::Num;
-    type Inner=K::Inner;
-    
-    fn axis(&self)->Self::Axis{
-        K::axis(self)
-    }
-    fn vistr(&self)->Vistr<Self::Item>{
-        K::vistr(self)
-    }
-
-    ///Return the height of the dinotree.
-    #[inline]
-    fn height(&self) -> usize
-    {
-        K::height(self)
-    }
-
-    ///Return the number of nodes of the dinotree.
-    #[inline]
-    fn num_nodes(&self) -> usize
-    {
-        K::num_nodes(self)
-    }
-
-    ///Return the number of bots in the tree.
-    #[inline]
-    fn num_bots(&self) -> usize
-    {
-        K::num_bots(self)
-    }
-
-}
-
-impl<K:NotSortedRefMutTrait> NotSortedRefTrait for &mut K{
-    type Item=K::Item;
-    type Axis=K::Axis;
-    type Num=K::Num;
-    type Inner=K::Inner;
-    
-    fn axis(&self)->Self::Axis{
-        K::axis(self)
-    }
-    fn vistr(&self)->Vistr<Self::Item>{
-        K::vistr(self)
-    }
-
-    ///Return the height of the dinotree.
-    #[inline]
-    fn height(&self) -> usize
-    {
-        K::height(self)
-    }
-
-    ///Return the number of nodes of the dinotree.
-    #[inline]
-    fn num_nodes(&self) -> usize
-    {
-        K::num_nodes(self)
-    }
-
-    ///Return the number of bots in the tree.
-    #[inline]
-    fn num_bots(&self) -> usize
-    {
-        K::num_bots(self)
-    }
-
-}
-
-impl<K:NotSortedRefMutTrait> NotSortedRefMutTrait for &mut K{    
-    fn vistr_mut(&mut self)->VistrMut<Self::Item>{
-        K::vistr_mut(self)
-    }
-}
-
-pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(pub DinoTree<'a,A,N,T>);
-
+pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(DinoTree<'a,A,N,T>);
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
@@ -123,9 +40,12 @@ impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
     type Num=N;
     type Inner=T;
     
+    #[inline(always)]
     fn axis(&self)->Self::Axis{
         self.0.axis()
     }
+
+    #[inline(always)]
     fn vistr(&self)->Vistr<Self::Item>{
         Vistr {
             inner: self.0.inner.tree.vistr(),
@@ -133,21 +53,21 @@ impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
     }
 
     ///Return the height of the dinotree.
-    #[inline]
+    #[inline(always)]
     fn height(&self) -> usize
     {
         self.0.height()
     }
 
     ///Return the number of nodes of the dinotree.
-    #[inline]
+    #[inline(always)]
     fn num_nodes(&self) -> usize
     {
         self.0.num_nodes()
     }
 
     ///Return the number of bots in the tree.
-    #[inline]
+    #[inline(always)]
     fn num_bots(&self) -> usize
     {
         self.0.num_bots()
@@ -157,6 +77,7 @@ impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefMutTrait for NotSorted<'a,A,N,T>{    
+    #[inline(always)]
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
             inner: self.0.inner.tree.vistr_mut(),

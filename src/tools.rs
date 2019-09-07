@@ -1,5 +1,6 @@
 pub use crate::oned::sweeper_update;
 
+#[inline(always)]
 pub(crate) fn duplicate_empty_slice<T>(arr: &mut [T]) -> (&mut [T],&mut [T]) {
     assert!(arr.is_empty());
     (unsafe { core::slice::from_raw_parts_mut(arr.as_mut_ptr(), 0) },

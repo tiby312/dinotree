@@ -29,7 +29,6 @@ pub struct DinoTreeIndirectBuilder<'a, A: AxisTrait,N:NumTrait,T> {
 impl<'a, A: AxisTrait, N:NumTrait,T:Send+Sync> DinoTreeIndirectBuilder<'a, A, N,T> {
     
     ///Build in parallel
-    #[inline(always)]
     pub fn build_par(self) -> DinoTreeIndirect<'a,A,N,T> {
 
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
@@ -45,7 +44,6 @@ impl<'a, A: AxisTrait, N:NumTrait,T:Send+Sync> DinoTreeIndirectBuilder<'a, A, N,
 
 impl<'a, A: AxisTrait, N:NumTrait,T> DinoTreeIndirectBuilder<'a, A, N,T> {
 
-    #[inline]
     pub fn new(axis: A, bots: &'a mut [BBox<N,T>]) -> DinoTreeIndirectBuilder<'a, A,N,T> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
@@ -60,7 +58,6 @@ impl<'a, A: AxisTrait, N:NumTrait,T> DinoTreeIndirectBuilder<'a, A, N,T> {
         }
     }
 
-    #[inline]
     pub fn build_seq(self) -> DinoTreeIndirect<'a, A,N, T> {
         
         let mut conts: Vec<_> = self.bots
@@ -91,9 +88,11 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTreeIndirect<'a,A,N,T
     type Num=N;
     type Inner=T;
     
+    #[inline(always)]
     fn axis(&self)->Self::Axis{
         self.inner.axis
     }
+    #[inline(always)]
     fn vistr(&self)->Vistr<Self::Item>{
         Vistr {
             inner: self.inner.tree.vistr(),
@@ -101,21 +100,21 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTreeIndirect<'a,A,N,T
     }
 
     ///Return the height of the dinotree.
-    #[inline]
+    #[inline(always)]
     fn height(&self) -> usize
     {
         self.inner.tree.get_height()
     }
 
     ///Return the number of nodes of the dinotree.
-    #[inline]
+    #[inline(always)]
     fn num_nodes(&self) -> usize
     {
         self.inner.tree.get_nodes().len()
     }
 
     ///Return the number of bots in the tree.
-    #[inline]
+    #[inline(always)]
     fn num_bots(&self) -> usize
     {
         self.inner.bots.len()
@@ -124,7 +123,8 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTreeIndirect<'a,A,N,T
 }
 
 
-impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefMutTrait for DinoTreeIndirect<'a,A,N,T>{    
+impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefMutTrait for DinoTreeIndirect<'a,A,N,T>{ 
+    #[inline(always)]   
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
             inner: self.inner.tree.vistr_mut(),

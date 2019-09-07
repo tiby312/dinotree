@@ -1,9 +1,4 @@
 use crate::inner_prelude::*;
-use axgeom::AxisTrait;
-use compt::Visitor;
-
-use crate::tree::Vistr;
-
 
 #[must_use]
 ///Returns false if the tree's invariants are not met.
@@ -46,7 +41,6 @@ fn inner<'a,A: AxisTrait, T: HasAabbMut>(
     {
         use is_sorted::IsSorted;
         assert2!(IsSorted::is_sorted_by(&mut nn.bots.iter(),f));
-        //assert2!(nn.bots.iter().is_sorted_by(f));
     }
 
     if let Some([left, right]) = rest {

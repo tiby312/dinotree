@@ -15,6 +15,7 @@ impl<'a,N: NumTrait, T> HasAabb for BBoxIndirect<'a,N, T> {
     }
 }
 impl<'a,N:NumTrait,T> HasAabbMut for BBoxIndirect<'a,N,T>{
+    #[inline(always)]
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         self.inner.get_mut()
     }
@@ -29,15 +30,11 @@ pub struct BBoxRef<'a,N:NumTrait,T> {
     pub inner: &'a T,
 }
 
-impl<'a,N:NumTrait,T> BBoxRef<'a, N,T> {
-    
-    ///Unsafe since user could create a new BBox with a different aabb
-    ///inside of a callback function and assign it to the mutable reference.
-    #[inline]
+impl<'a,N:NumTrait,T> BBoxRef<'a, N,T> {  
+    #[inline(always)]
     pub fn new(rect: &'a axgeom::Rect<N>, inner: &'a T) -> BBoxRef<'a,N,T> {
         BBoxRef{ rect, inner }
     }
-
 }
 
 
@@ -51,17 +48,17 @@ pub struct BBoxRefMut<'a,N:NumTrait,T> {
 
 impl<'a,N:NumTrait,T> BBoxRefMut<'a,N,T> {
     
-    ///Unsafe since user could create a new BBox with a different aabb
-    ///inside of a callback function and assign it to the mutable reference.
-    #[inline]
+    #[inline(always)]
     pub fn new(rect: &'a axgeom::Rect<N>, inner: &'a mut T) -> BBoxRefMut<'a,N,T> {
         BBoxRefMut { rect, inner }
     }
 
+    #[inline(always)]
     pub fn as_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut{rect:self.rect,inner:self.inner}
     }
 
+    #[inline(always)]
     pub fn as_ref(&self)->BBoxRef<N,T>{
         BBoxRef{rect:self.rect,inner:self.inner}
     }
@@ -87,10 +84,7 @@ pub struct BBoxMut<'a,N: NumTrait, T> {
 }
 
 impl<'a,N: NumTrait, T> BBoxMut<'a,N, T> {
-    
-    ///Unsafe since user could create a new BBox with a different aabb
-    ///inside of a callback function and assign it to the mutable reference.
-    #[inline]
+    #[inline(always)]
     pub fn new(rect: axgeom::Rect<N>, inner: &'a mut T) -> BBoxMut<'a,N, T> {
         BBoxMut { rect, inner}
     }
@@ -107,6 +101,7 @@ impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
 }
 
 impl<'a,N:NumTrait,T> HasAabbMut for BBoxMut<'a,N,T>{
+    #[inline(always)]
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut::new(&self.rect,self.inner)
     }
@@ -122,21 +117,9 @@ pub struct BBox<N: NumTrait, T> {
     pub inner: T,
 }
 
-use core::fmt::Debug;
-use core::fmt::Formatter;
-
-impl<N: NumTrait + Debug, T: Debug> Debug for BBox<N, T> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
-        self.rect.fmt(f)?;
-        self.inner.fmt(f)
-    }
-}
 
 impl<N: NumTrait, T> BBox<N, T> {
-    ///Unsafe since user could create a new BBox with a different aabb
-    ///inside of a callback function and assign it to the mutable reference.
-    #[inline]
+    #[inline(always)]
     pub fn new(rect: axgeom::Rect<N>, inner: T) -> BBox<N, T> {
         BBox { rect, inner }
     }
@@ -151,6 +134,7 @@ impl<N: NumTrait, T> HasAabb for BBox<N, T> {
     }
 }
 impl<N:NumTrait,T> HasAabbMut for BBox<N,T>{
+    #[inline(always)]
     fn get_mut(&mut self)->BBoxRefMut<N,T>{
         BBoxRefMut::new(&self.rect,unsafe{&mut *(&mut self.inner as *mut _)})
     }

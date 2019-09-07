@@ -1,11 +1,6 @@
 use crate::tree::*;
 use crate::inner_prelude::*;
 
-
-
-
-
-///Version of dinotree that makes a copy of all the elements.
 pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
     pub axis: A,
     pub bots: Vec<T>,
@@ -13,7 +8,6 @@ pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
 }
 
 
-///Version of dinotree that makes a copy of all the elements.
 #[repr(transparent)]
 pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
     pub(crate) inner:DinoTreeInner<A,BBoxMut<'a,N,T>>,
@@ -21,9 +15,11 @@ pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTree<'a,A,N,T>{
+    #[inline(always)]
     pub fn get_bots_mut(&mut self)->ElemSliceMut<BBoxMut<'a,N,T>>{
         ElemSliceMut::new(ElemSlice::from_slice_mut(&mut self.inner.bots))
     }
+    #[inline(always)]
     pub fn get_bots(&self)->&ElemSlice<BBoxMut<'a,N, T>>{
         ElemSlice::from_slice(&self.inner.bots)
     }
@@ -46,21 +42,18 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
         }
     }
 
-    ///Return the height of the dinotree.
     #[inline(always)]
     fn height(&self) -> usize
     {
         self.inner.tree.get_height()
     }
 
-    ///Return the number of nodes of the dinotree.
     #[inline(always)]
     fn num_nodes(&self) -> usize
     {
         self.inner.tree.get_nodes().len()
     }
 
-    ///Return the number of bots in the tree.
     #[inline(always)]
     fn num_bots(&self) -> usize
     {
@@ -95,8 +88,6 @@ impl<'a, A: AxisTrait, T: Send+Sync, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     DinoTreeBuilder<'a, A, T, Num, F>
 {
     
-    ///Build in parallel
-    #[inline(always)]
     pub fn build_par(&mut self) -> DinoTree<'a,A,Num,T> {
 
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
@@ -116,7 +107,6 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     ///The user picks the axis along which the first divider will partition.
     ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
     ///The user also passes a function to create the bounding box of each bot in the slice passed.
-    #[inline(always)]
     pub fn new(axis: A, bots: &mut [T], aabb_create: F) -> DinoTreeBuilder<A, T, Num, F> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
@@ -156,7 +146,6 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Build with a Splitter.
-    #[inline(always)]
     pub fn build_with_splitter_seq<S: Splitter>(
         &mut self,
         splitter: &mut S,
@@ -170,7 +159,6 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
     ///Build sequentially.
-    #[inline(always)]
     pub fn build_seq(&mut self) -> DinoTree<'a,A,Num,T> {
         let mut conts=self.tree_prep();
 
