@@ -138,7 +138,7 @@ pub struct Vistr<'a, T: HasAabb> {
     pub(crate) inner: compt::dfs_order::Vistr<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<'a, T: HasAabbMut> Vistr<'a, T> {
+impl<'a, T: HasAabb> Vistr<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
     #[inline]
@@ -156,9 +156,9 @@ impl<'a, T: HasAabbMut> Vistr<'a, T> {
 
 }
 
-unsafe impl<'a, T: HasAabbMut> compt::FixedDepthVisitor for Vistr<'a, T> {}
+unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for Vistr<'a, T> {}
 
-impl<'a, T: HasAabbMut + 'a> Visitor for Vistr<'a, T> {
+impl<'a, T: HasAabb> Visitor for Vistr<'a, T> {
     type Item = NodeRef<'a, T>;
 
     #[inline(always)]
@@ -305,6 +305,25 @@ pub struct NodeRef<'a, T:HasAabb> {
 
 
 
+impl<T:HasAabb> Node<T>{
+
+    #[inline(always)]
+    pub fn get(&self) -> NodeRef<T> {
+        let bots = unsafe { &*self.range.as_ptr() };
+        let cont = if bots.is_empty() {
+            None
+        } else {
+            Some(&self.cont)
+        };
+
+        NodeRef {
+            bots,
+            cont,
+            div: self.div.as_ref(),
+        }
+    }
+
+}
 impl<T: HasAabbMut> Node<T> {
 
     
@@ -325,21 +344,6 @@ impl<T: HasAabbMut> Node<T> {
         }
     }
     
-    #[inline(always)]
-    pub fn get(&self) -> NodeRef<T> {
-        let bots = unsafe { &*self.range.as_ptr() };
-        let cont = if bots.is_empty() {
-            None
-        } else {
-            Some(&self.cont)
-        };
-
-        NodeRef {
-            bots,
-            cont,
-            div: self.div.as_ref(),
-        }
-    }
 }
 
 
@@ -378,7 +382,7 @@ mod cont_tree {
     use super::*;
 
 
-    pub(crate) fn create_tree_seq<A:AxisTrait,T:HasAabbMut,K:Splitter>(
+    pub(crate) fn create_tree_seq<A:AxisTrait,T:HasAabb,K:Splitter>(
             div_axis: A,
             rest: &mut [T],
             sorter: impl Sorter,
@@ -413,7 +417,7 @@ mod cont_tree {
 
         tree
     }
-    pub(crate) fn create_tree_par<A:AxisTrait,JJ:par::Joiner,T:HasAabbMut+Send+Sync,K:Splitter+Send+Sync>(
+    pub(crate) fn create_tree_par<A:AxisTrait,JJ:par::Joiner,T:HasAabb+Send+Sync,K:Splitter+Send+Sync>(
             div_axis: A,
             dlevel: JJ,
             rest: &mut [T],
@@ -450,7 +454,7 @@ mod cont_tree {
         tree
     }
 
-    struct Recurser<'a, T: HasAabbMut, K: Splitter, S: Sorter> {
+    struct Recurser<'a, T: HasAabb, K: Splitter, S: Sorter> {
         height: usize,
         binstrat: BinStrat,
         sorter: S,
@@ -458,7 +462,7 @@ mod cont_tree {
     }
 
 
-    impl<'a, T: HasAabbMut, K: Splitter , S: Sorter> Recurser<'a, T, K, S> {
+    impl<'a, T: HasAabb, K: Splitter , S: Sorter> Recurser<'a, T, K, S> {
 
         fn create_leaf<A:AxisTrait>(&self,axis:A,rest:&'a mut [T]) -> Node<T>{
             self.sorter.sort(axis.next(),rest);
@@ -559,7 +563,7 @@ mod cont_tree {
             }
         }
     }
-    impl<'a, T: HasAabbMut + Send + Sync, K: Splitter + Send+ Sync , S: Sorter> Recurser<'a, T, K, S> {
+    impl<'a, T: HasAabb + Send + Sync, K: Splitter + Send+ Sync , S: Sorter> Recurser<'a, T, K, S> {
 
 
 

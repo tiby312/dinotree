@@ -78,14 +78,19 @@ pub struct ElemSlice<T:HasAabb>{
 impl<T:HasAabbMut> ElemSlice<T>{
 
     #[inline(always)]
-    pub fn split_first_mut(&mut self)->Option<(BBoxRefMut<T::Num,T::Inner>,&mut ElemSlice<T>)>{
-        self.inner.split_first_mut().map(|(first,inner)|(first.get_mut(),Self::from_slice_mut(inner)))
-    }
-
-    #[inline(always)]
     pub fn iter_mut(&mut self)->ElemIterMut<T>{
         ElemIterMut{ii:self.inner.iter_mut()}
     }
+
+    #[inline(always)]
+    pub fn split_first_mut(&mut self)->Option<(BBoxRefMut<T::Num,T::Inner>,&mut ElemSlice<T>)>{
+        self.inner.split_first_mut().map(|(first,inner)|(first.get_mut(),Self::from_slice_mut(inner)))
+    }
+}
+
+impl<T:HasAabb> ElemSlice<T>{
+
+
 
     #[inline(always)]
     pub fn from_slice_mut(arr:&mut [T])->&mut Self{
