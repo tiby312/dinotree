@@ -2,6 +2,14 @@ use crate::tree::*;
 use crate::inner_prelude::*;
 
 
+///TODO implement this
+pub struct DinoTreeOwned<A: AxisTrait, N:NumTrait,T> {
+    inner:DinoTreeInner<A,BBoxPtr<N,T>>,
+    bots:Vec<T>
+}
+
+
+
 #[repr(transparent)]
 pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
     pub(crate) inner:DinoTreeInner<A,BBoxPtr<N,T>>,

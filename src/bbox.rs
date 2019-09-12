@@ -126,15 +126,14 @@ unsafe impl<N:Sync,T:Sync> Sync for BBoxPtr<N,T>{}
 #[repr(C)]
 pub struct BBoxPtr<N, T> {
     pub rect: axgeom::Rect<N>,
-    inner: *mut T,
+    inner: tools::Unique<T>,
 }
 
 impl<'a,N, T> BBoxPtr<N, T> {
     #[inline(always)]
     pub fn new(rect: axgeom::Rect<N>, inner: &mut T) -> BBoxPtr<N, T> {
-        BBoxPtr { rect, inner:inner as *mut _}
+        BBoxPtr { rect, inner:unsafe{tools::Unique::new_unchecked(inner as *mut _)}}
     }
-
 }
 
 
@@ -150,12 +149,12 @@ impl<N:NumTrait,T> HasInner for BBoxPtr<N,T>{
 
     #[inline(always)]
     fn get_inner(&self)->BBoxRef<N,T>{
-        BBoxRef{rect:&self.rect,inner:unsafe{&mut *self.inner}}
+        BBoxRef{rect:&self.rect,inner:unsafe{self.inner.as_ref()}}
     }
 
     #[inline(always)]
     fn get_inner_mut(&mut self)->BBoxRefMut<N,T>{
-        BBoxRefMut{rect:&self.rect,inner:unsafe{&mut *self.inner}}
+        BBoxRefMut{rect:&self.rect,inner:unsafe{self.inner.as_mut()}}
     }
 }
 

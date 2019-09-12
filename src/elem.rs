@@ -8,6 +8,7 @@ pub struct ProtectedBBox<'a,T>{
 
 
 impl<'a,T> ProtectedBBox<'a,T>{
+    #[inline(always)]
     pub fn as_mut(&mut self)->ProtectedBBox<T>{
         ProtectedBBox{inner:self.inner}
     }
@@ -16,15 +17,19 @@ impl<'a,T> ProtectedBBox<'a,T>{
 
 impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
     type Num=T::Num;
+    #[inline(always)]
     fn get(&self)->&Rect<Self::Num>{
         self.inner.get()
     }
 }
 impl<'a,T:HasInner> HasInner for ProtectedBBox<'a,T>{
     type Inner=T::Inner;
+    #[inline(always)]
     fn get_inner(&self)->BBoxRef<Self::Num,Self::Inner>{
         self.inner.get_inner()
     }
+
+    #[inline(always)]
     fn get_inner_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>{
         self.inner.get_inner_mut()
     }
@@ -34,12 +39,14 @@ impl<'a,T:HasInner> HasInner for ProtectedBBox<'a,T>{
 
 
 impl<'a,T> core::borrow::Borrow<T> for ProtectedBBox<'a,T>{
+    #[inline(always)]
     fn borrow(&self)->&T{
         self.inner
     }
 }
 
 impl<'a,T> AsRef<T> for ProtectedBBox<'a,T>{
+    #[inline(always)]
     fn as_ref(&self)->&T{
         self.inner
     }
@@ -54,6 +61,7 @@ impl<'a,T> AsRef<T> for ProtectedBBox<'a,T>{
 
 
 impl<'a,T> core::borrow::Borrow<[T]> for ProtectedBBoxSlice<'a,T>{
+    #[inline(always)]
     fn borrow(&self)->&[T]{
         self.inner
     }
@@ -73,6 +81,7 @@ impl<'a, T> core::iter::IntoIterator for ProtectedBBoxSlice<'a,T> {
 }
 
 impl<'a,T> AsRef<[T]> for ProtectedBBoxSlice<'a,T>{
+    #[inline(always)]
     fn as_ref(&self)->&[T]{
         self.inner
     }
@@ -100,16 +109,21 @@ impl<'a,T> ProtectedBBoxSlice<'a,T>{
         ProtectedBBoxSlice{inner:&mut self.inner[start..]}
     }
 
+    #[inline(always)]
     pub fn as_mut(&mut self)->ProtectedBBoxSlice<T>{
         ProtectedBBoxSlice{inner:self.inner}
     }
+
+    #[inline(always)]
     pub fn new(inner:&'a mut [T])->Self{
         ProtectedBBoxSlice{inner}
     }
 
+    #[inline(always)]
     pub fn iter(self)->core::slice::Iter<'a,T>{
         self.inner.iter()
     }
+    #[inline(always)]
     pub fn iter_mut(self)->ProtectedBBoxIter<'a,T>{
         ProtectedBBoxIter{inner:self.inner.iter_mut()}
     }

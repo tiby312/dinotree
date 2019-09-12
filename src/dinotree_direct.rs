@@ -124,7 +124,7 @@ impl<A: AxisTrait, N:NumTrait,T:Copy,F: FnMut(&T) -> Rect<N>> DinoTreeDirectBuil
     		{
     			let (range,b) = kk.take().unwrap().split_at_mut(a.get().bots.len());
     			kk=Some(b);
-    			let range=tools::Unique::new(range as *mut _).unwrap();
+    			let range=unsafe{tools::Unique::new_unchecked(range as *mut _)};
     			Node{range,cont:a.cont,div:a.div}
     		}
     	).collect();

@@ -1,5 +1,7 @@
 pub use crate::oned::sweeper_update;
 
+
+
 #[inline(always)]
 pub(crate) fn duplicate_empty_slice<T>(arr: &mut [T]) -> (&mut [T],&mut [T]) {
     assert!(arr.is_empty());
@@ -22,20 +24,28 @@ pub(crate) struct Unique<T: ?Sized>(
 unsafe impl<T:?Sized+Send> Send for Unique<T>{}
 unsafe impl<T:?Sized+Sync> Sync for Unique<T>{}
 impl<T:?Sized> Unique<T>{
-    #[inline]
-    pub fn new(ptr:*mut T)->Option<Unique<T>>{
-        core::ptr::NonNull::new(ptr).map(|a|Unique(a,PhantomData))
+    #[inline(always)]
+    pub unsafe fn new_unchecked(ptr:*mut T)->Unique<T>{
+        Unique(core::ptr::NonNull::new_unchecked(ptr),PhantomData)
     }
-    #[inline]
+    #[inline(always)]
     pub fn as_ptr(&self)->*mut T{
         self.0.as_ptr()
     }
+
+    #[inline(always)]
+    pub unsafe fn as_ref(&self)->&T{
+        self.0.as_ref()
+    }
+
+    #[inline(always)]
+    pub unsafe fn as_mut(&mut self)->&mut T{
+        self.0.as_mut()
+    }       
 }
 
 
-use crate::NumTrait;
 use alloc::vec::Vec;
-use crate::bbox::BBoxRefMut;
 //They are always send and sync because the only time the vec is used
 //is when it is borrowed for the lifetime.
 unsafe impl<T> core::marker::Send for PreVecMut<T> {}

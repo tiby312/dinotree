@@ -470,7 +470,7 @@ mod cont_tree {
             let cont = create_cont(axis,rest);
 
             Node {
-                range: tools::Unique::new(rest as *mut _).unwrap(),
+                range: unsafe{tools::Unique::new_unchecked(rest as *mut _)},
                 cont,
                 div: None,
             }
@@ -486,7 +486,7 @@ mod cont_tree {
                     right,
                 } => (
                     Node {
-                        range: tools::Unique::new(mid as *mut _).unwrap(),
+                        range: unsafe{tools::Unique::new_unchecked(mid as *mut _)},
                         cont,
                         div: Some(div),
                     },
@@ -499,7 +499,7 @@ mod cont_tree {
                     let (b,c) = tools::duplicate_empty_slice(empty);
                         
                     let node = Node {
-                        range: tools::Unique::new(a as *mut _).unwrap(),
+                        range: unsafe{tools::Unique::new_unchecked(a as *mut _)},
                         cont:unsafe{core::mem::MaybeUninit::zeroed().assume_init()},
                         div: None,
                     };
