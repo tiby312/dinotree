@@ -25,12 +25,12 @@ impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
 impl<'a,T:HasInner> HasInner for ProtectedBBox<'a,T>{
     type Inner=T::Inner;
     #[inline(always)]
-    fn get_inner(&self)->BBoxRef<Self::Num,Self::Inner>{
+    fn get_inner(&self)->(&Rect<T::Num>,&Self::Inner){
         self.inner.get_inner()
     }
 
     #[inline(always)]
-    fn get_inner_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>{
+    fn get_inner_mut(&mut self)->(&Rect<T::Num>,&mut Self::Inner){
         self.inner.get_inner_mut()
     }
 }
@@ -100,13 +100,20 @@ impl<'a,T> ProtectedBBoxSlice<'a,T>{
         self.inner.split_first_mut().map(|(first,inner)|(ProtectedBBox{inner:first},ProtectedBBoxSlice::new(inner)))
     }
 
+
     #[inline(always)]
-    pub fn truncate(self,start:usize,end:usize)->Self{
-        ProtectedBBoxSlice{inner:&mut self.inner[start..end]}
+    pub fn truncate_to(self,a:core::ops::RangeTo<usize>)->Self{
+        ProtectedBBoxSlice{inner:&mut self.inner[a]}
     }
     #[inline(always)]
-    pub fn truncate_start(self,start:usize)->Self{
-        ProtectedBBoxSlice{inner:&mut self.inner[start..]}
+    pub fn truncate_from(self,a:core::ops::RangeFrom<usize>)->Self{
+        ProtectedBBoxSlice{inner:&mut self.inner[a]} 
+    }
+
+
+    #[inline(always)]
+    pub fn truncate(self,a:core::ops::Range<usize>)->Self{
+        ProtectedBBoxSlice{inner:&mut self.inner[a]}
     }
 
     #[inline(always)]

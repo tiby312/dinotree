@@ -202,27 +202,27 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync {}
 
 
 
-use crate::bbox::BBoxRef;
-use crate::bbox::BBoxRefMut;
-
+//use crate::bbox::BBoxRef;
+//use crate::bbox::BBoxRefMut;
+use axgeom::*;
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
 pub trait HasAabb{
     type Num: NumTrait;
-    fn get(&self) -> &axgeom::Rect<Self::Num>;
+    fn get(&self) -> &Rect<Self::Num>;
 }
 
 pub trait HasInner:HasAabb{
     type Inner;
     #[inline(always)]
     fn inner_mut(&mut self)->&mut Self::Inner{
-        self.get_inner_mut().inner
+        self.get_inner_mut().1
     }
     #[inline(always)]
     fn inner(&self)->&Self::Inner{
-        self.get_inner().inner
+        self.get_inner().1
     }
-    fn get_inner(&self)->BBoxRef<Self::Num,Self::Inner>;
-    fn get_inner_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>;
+    fn get_inner(&self)->(&Rect<Self::Num>,&Self::Inner);
+    fn get_inner_mut(&mut self)->(&Rect<Self::Num>,&mut Self::Inner);
 }
 

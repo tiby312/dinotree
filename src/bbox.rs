@@ -18,18 +18,18 @@ impl<'a,N:NumTrait,T> HasInner for BBoxIndirect<'a,N,T>{
     type Inner= T;
 
     #[inline(always)]
-    fn get_inner(&self)->BBoxRef<N,T>{
+    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
         self.inner.get_inner()
     }
 
     #[inline(always)]
-    fn get_inner_mut(&mut self)->BBoxRefMut<N,T>{
+    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
         self.inner.get_inner_mut()
     }
 }
 
 
-
+/*
 ///Equivalent to: `(&Rect<N>,&T)` 
 #[repr(C)]
 pub struct BBoxRef<'a,N,T> {
@@ -73,7 +73,7 @@ impl<'a,N,T> BBoxRefMut<'a,N,T> {
        
 }
 
-
+*/
 
 
 ///Equivalent to: `(Rect<N>,&mut T)` 
@@ -105,13 +105,13 @@ impl<'a,N:NumTrait,T> HasInner for BBoxMut<'a,N,T>{
     type Inner= T;
 
     #[inline(always)]
-    fn get_inner(&self)->BBoxRef<N,T>{
-        BBoxRef{rect:&self.rect,inner:self.inner}
+    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
+        (&self.rect,self.inner)
     }
 
     #[inline(always)]
-    fn get_inner_mut(&mut self)->BBoxRefMut<N,T>{
-        BBoxRefMut{rect:&self.rect,inner:self.inner}
+    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
+        (&self.rect,&mut self.inner)
     }
 }
 
@@ -148,13 +148,13 @@ impl<N:NumTrait,T> HasInner for BBoxPtr<N,T>{
     type Inner= T;
 
     #[inline(always)]
-    fn get_inner(&self)->BBoxRef<N,T>{
-        BBoxRef{rect:&self.rect,inner:unsafe{self.inner.as_ref()}}
+    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
+        (&self.rect,unsafe{self.inner.as_ref()})
     }
 
     #[inline(always)]
-    fn get_inner_mut(&mut self)->BBoxRefMut<N,T>{
-        BBoxRefMut{rect:&self.rect,inner:unsafe{self.inner.as_mut()}}
+    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
+        (&self.rect,unsafe{self.inner.as_mut()})
     }
 }
 
@@ -192,13 +192,13 @@ impl<N:NumTrait,T> HasInner for BBox<N,T>{
     type Inner= T;
 
     #[inline(always)]
-    fn get_inner(&self)->BBoxRef<N,T>{
-        BBoxRef{rect:&self.rect,inner:&self.inner}
+    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
+        (&self.rect,&self.inner)
     }
 
     #[inline(always)]
-    fn get_inner_mut(&mut self)->BBoxRefMut<N,T>{
-        BBoxRefMut{rect:&self.rect,inner:&mut self.inner}
+    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
+        (&self.rect,&mut self.inner)
     }
 }
 
