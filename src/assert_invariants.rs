@@ -14,7 +14,7 @@ fn a_bot_has_value<N: NumTrait>(it: impl Iterator<Item = N>, val: N) -> bool {
     false
 }
 
-fn inner<'a,A: AxisTrait, T: HasAabbMut>(
+fn inner<'a,A: AxisTrait, T: HasAabb>(
     axis: A,
     iter: compt::LevelIter<Vistr<T>>,
 ) -> Result<(), ()> {
@@ -30,11 +30,11 @@ fn inner<'a,A: AxisTrait, T: HasAabbMut>(
 
     let axis_next = axis.next();
 
-    let f = |a: &BBoxRef<T::Num,T::Inner>, b: &BBoxRef<T::Num,T::Inner>| -> Option<core::cmp::Ordering> {
-        let j=a.rect
+    let f = |a: &&T, b: &&T| -> Option<core::cmp::Ordering> {
+        let j=a.get()
             .get_range(axis_next)
             .left
-            .cmp(&b.rect.get_range(axis_next).left);
+            .cmp(&b.get().get_range(axis_next).left);
         Some(j)
     };
 
@@ -49,24 +49,24 @@ fn inner<'a,A: AxisTrait, T: HasAabbMut>(
                 match nn.cont {
                     Some(cont) => {
                         for bot in nn.bots.iter() {
-                            assert2!(bot.rect.get_range(axis).contains(*div));
+                            assert2!(bot.get().get_range(axis).contains(*div));
                         }
 
                         assert2!(a_bot_has_value(
-                            nn.bots.iter().map(|b| b.rect.get_range(axis).left),
+                            nn.bots.iter().map(|b| b.get().get_range(axis).left),
                             *div
                         ));
 
                         for bot in nn.bots.iter() {
-                            assert2!(cont.contains_range(bot.rect.get_range(axis)));
+                            assert2!(cont.contains_range(bot.get().get_range(axis)));
                         }
 
                         assert2!(a_bot_has_value(
-                            nn.bots.iter().map(|b| b.rect.get_range(axis).left),
+                            nn.bots.iter().map(|b| b.get().get_range(axis).left),
                             cont.left
                         ));
                         assert2!(a_bot_has_value(
-                            nn.bots.iter().map(|b| b.rect.get_range(axis).right),
+                            nn.bots.iter().map(|b| b.get().get_range(axis).right),
                             cont.right
                         ));
                     }

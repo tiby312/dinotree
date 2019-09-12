@@ -147,7 +147,7 @@ pub mod prelude{
     pub use crate::dinotree_direct::*;
     pub use crate::dinotree_indirect::*;
     pub use crate::HasAabb;
-    pub use crate::HasAabbMut;
+    pub use crate::HasInner;
     pub use crate::NumTrait;
     pub use crate::par;
 }
@@ -209,17 +209,20 @@ use crate::bbox::BBoxRefMut;
 ///Marker trait to signify that this object has an axis aligned bounding box.
 pub trait HasAabb{
     type Num: NumTrait;
+    fn get(&self) -> &axgeom::Rect<Self::Num>;
+}
+
+pub trait HasInner:HasAabb{
     type Inner;
-    fn get(&self) -> BBoxRef<Self::Num,Self::Inner>;
+    #[inline(always)]
+    fn inner_mut(&mut self)->&mut Self::Inner{
+        self.get_inner_mut().inner
+    }
+    #[inline(always)]
+    fn inner(&self)->&Self::Inner{
+        self.get_inner().inner
+    }
+    fn get_inner(&self)->BBoxRef<Self::Num,Self::Inner>;
+    fn get_inner_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>;
 }
-
-///This object can return an aabb and simultaneously return a inner object that can be mutated.
-pub trait HasAabbMut:HasAabb{
-    fn get_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>;
-}
-
-
-
-
-
 

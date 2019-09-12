@@ -84,7 +84,7 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTreeIndirect<'a,A,N,T
     type Item=BBoxIndirect<'a,N,T>;
     type Axis=A;
     type Num=N;
-    type Inner=T;
+    //type Inner=T;
     
     #[inline(always)]
     fn axis(&self)->Self::Axis{

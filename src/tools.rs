@@ -35,22 +35,23 @@ impl<T:?Sized> Unique<T>{
 
 use crate::NumTrait;
 use alloc::vec::Vec;
-use crate::bbox::BBoxRefPtr;
 use crate::bbox::BBoxRefMut;
 //They are always send and sync because the only time the vec is used
 //is when it is borrowed for the lifetime.
-unsafe impl<N:NumTrait,T> core::marker::Send for PreVecMut<N,T> {}
-unsafe impl<N:NumTrait,T> core::marker::Sync for PreVecMut<N,T> {}
+unsafe impl<T> core::marker::Send for PreVecMut<T> {}
+unsafe impl<T> core::marker::Sync for PreVecMut<T> {}
 
 
 
+use crate::elem::*;
 ///An vec api to avoid excessive dynamic allocation by reusing a Vec
-pub struct PreVecMut<N:NumTrait,T> {
-    vec:Vec<BBoxRefPtr<N,T>>
+pub struct PreVecMut<T> {
+    vec:Vec<*mut T>
 }
-impl<N:NumTrait,T> PreVecMut<N,T> {
+
+impl<T> PreVecMut<T> {
     #[inline(always)]
-    pub fn new() -> PreVecMut<N,T> {
+    pub fn new() -> PreVecMut<T> {
         PreVecMut {
             vec:Vec::new()
         }
@@ -58,10 +59,10 @@ impl<N:NumTrait,T> PreVecMut<N,T> {
 
     ///Clears the vec and returns a mutable reference to a vec.
     #[inline(always)]
-    pub fn get_empty_vec_mut<'a,'b:'a>(&'a mut self) -> &'a mut Vec<BBoxRefMut<'b,N,T>> {
+    pub fn get_empty_vec_mut<'a,'b:'a>(&'a mut self) -> &'a mut Vec<ProtectedBBox<T>> {
         self.vec.clear();
         let v: &mut Vec<_> = &mut self.vec;
-        unsafe{&mut *(v as *mut _ as *mut Vec<BBoxRefMut<'b,N,T>>)}
+        unsafe{&mut *(v as *mut _ as *mut Vec<_>)}
     }
 }
 

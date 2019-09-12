@@ -4,26 +4,26 @@ use crate::inner_prelude::*;
 
 #[repr(transparent)]
 pub struct DinoTree<'a,A: AxisTrait, N:NumTrait,T> {
-    pub(crate) inner:DinoTreeInner<A,BBoxMut<'a,N,T>>,
+    pub(crate) inner:DinoTreeInner<A,BBoxPtr<N,T>>,
+    _p:PhantomData<&'a mut T>
 }
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTree<'a,A,N,T>{
     #[inline(always)]
-    pub fn get_bots_mut(&mut self)->ElemSliceMut<BBoxMut<'a,N,T>>{
-        ElemSliceMut::new(ElemSlice::from_slice_mut(&mut self.inner.bots))
+    pub fn get_bots_mut(&mut self)->ProtectedBBoxSlice<BBoxPtr<N,T>>{
+        ProtectedBBoxSlice::new(&mut self.inner.bots)
     }
     #[inline(always)]
-    pub fn get_bots(&self)->&ElemSlice<BBoxMut<'a,N, T>>{
-        ElemSlice::from_slice(&self.inner.bots)
+    pub fn get_bots(&self)->&[BBoxPtr<N, T>]{
+        &self.inner.bots
     }
 }
 
 impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
-    type Item=BBoxMut<'a,N,T>;
+    type Item=BBoxPtr<N,T>;
     type Axis=A;
     type Num=N;
-    type Inner=T;
     
     #[inline(always)]
     fn axis(&self)->Self::Axis{
@@ -57,7 +57,7 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTree<'a,A,N,T>{
 }
 
 
-impl<'a,A:AxisTrait,N:NumTrait+'a,T:'a> DinoTreeRefMutTrait for DinoTree<'a,A,N,T>{  
+impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefMutTrait for DinoTree<'a,A,N,T>{  
     #[inline(always)]
     fn vistr_mut(&mut self)->VistrMut<Self::Item>{
         VistrMut {
@@ -155,28 +155,29 @@ impl<'a, A: AxisTrait, T, Num: NumTrait, F: FnMut(&T) -> Rect<Num>>
     }
 
 
-    pub(crate) fn tree_prep(&mut self)->Vec<BBoxMut<'a,Num,T>>{
+    pub(crate) fn tree_prep(&mut self)->Vec<BBoxPtr<Num,T>>{
 
         let bots:&mut [T]=core::mem::replace::<&mut [T]>(&mut self.bots,&mut []);
         let aabb_create = &mut self.aabb_create;
         
         bots
             .iter_mut()
-            .map(move |k| BBoxMut::new(aabb_create(k),k))
+            .map(move |k| BBoxPtr::new(aabb_create(k),k))
             .collect()
     }
     
     pub(crate) fn tree_finish(&self,
-        conts:Vec<BBoxMut<'a,Num,T>>,
-        cont_tree:compt::dfs_order::CompleteTreeContainer<Node<BBoxMut<'a,Num,T>>,
+        conts:Vec<BBoxPtr<Num,T>>,
+        cont_tree:compt::dfs_order::CompleteTreeContainer<Node<BBoxPtr<Num,T>>,
         compt::dfs_order::PreOrder>) -> DinoTree<'a,A,Num,T>{
 
         DinoTree{
             inner:DinoTreeInner{
                 axis:self.axis,
                 bots:conts,
-                tree:cont_tree
-            }
+                tree:cont_tree,
+            },
+            _p:PhantomData
         }
     }
 }

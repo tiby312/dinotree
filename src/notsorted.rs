@@ -3,8 +3,8 @@ use crate::inner_prelude::*;
 
 
 ///The trait through which algorithms can use the not sorted version of the dinotree
-pub trait NotSortedRefTrait where Self::Item:HasAabb<Num=Self::Num>{
-    type Item:HasAabbMut<Num=Self::Num,Inner=Self::Inner>;
+pub trait NotSortedRefTrait{
+    type Item:HasInner<Num=Self::Num,Inner=Self::Inner>;
     type Axis:AxisTrait;
     type Num:NumTrait;
     type Inner;
@@ -35,7 +35,7 @@ pub struct NotSorted<'a,A: AxisTrait,N:NumTrait, T>(DinoTree<'a,A,N,T>);
 
 
 impl<'a,A:AxisTrait,N:NumTrait,T> NotSortedRefTrait for NotSorted<'a,A,N,T>{
-    type Item=BBoxMut<'a,N,T>;
+    type Item=BBoxPtr<N,T>;
     type Axis=A;
     type Num=N;
     type Inner=T;

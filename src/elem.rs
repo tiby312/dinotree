@@ -1,6 +1,139 @@
-
 use crate::inner_prelude::*;
 
+
+#[repr(transparent)]
+pub struct ProtectedBBox<'a,T>{
+    inner:&'a mut T
+}
+
+
+impl<'a,T> ProtectedBBox<'a,T>{
+    pub fn as_mut(&mut self)->ProtectedBBox<T>{
+        ProtectedBBox{inner:self.inner}
+    }
+
+}
+
+impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
+    type Num=T::Num;
+    fn get(&self)->&Rect<Self::Num>{
+        self.inner.get()
+    }
+}
+impl<'a,T:HasInner> HasInner for ProtectedBBox<'a,T>{
+    type Inner=T::Inner;
+    fn get_inner(&self)->BBoxRef<Self::Num,Self::Inner>{
+        self.inner.get_inner()
+    }
+    fn get_inner_mut(&mut self)->BBoxRefMut<Self::Num,Self::Inner>{
+        self.inner.get_inner_mut()
+    }
+}
+
+
+
+
+impl<'a,T> core::borrow::Borrow<T> for ProtectedBBox<'a,T>{
+    fn borrow(&self)->&T{
+        self.inner
+    }
+}
+
+impl<'a,T> AsRef<T> for ProtectedBBox<'a,T>{
+    fn as_ref(&self)->&T{
+        self.inner
+    }
+}
+
+
+
+
+
+
+
+
+
+impl<'a,T> core::borrow::Borrow<[T]> for ProtectedBBoxSlice<'a,T>{
+    fn borrow(&self)->&[T]{
+        self.inner
+    }
+}
+
+
+
+
+impl<'a, T> core::iter::IntoIterator for ProtectedBBoxSlice<'a,T> {
+    type Item = ProtectedBBox<'a,T>;
+    type IntoIter = ProtectedBBoxIter<'a,T>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl<'a,T> AsRef<[T]> for ProtectedBBoxSlice<'a,T>{
+    fn as_ref(&self)->&[T]{
+        self.inner
+    }
+}
+
+
+
+pub struct ProtectedBBoxSlice<'a,T>{
+    inner:&'a mut [T]
+}
+
+impl<'a,T> ProtectedBBoxSlice<'a,T>{
+    
+    #[inline(always)]
+    pub fn split_first_mut(self)->Option<(ProtectedBBox<'a,T>,ProtectedBBoxSlice<'a,T>)>{
+        self.inner.split_first_mut().map(|(first,inner)|(ProtectedBBox{inner:first},ProtectedBBoxSlice::new(inner)))
+    }
+
+    #[inline(always)]
+    pub fn truncate(self,start:usize,end:usize)->Self{
+        ProtectedBBoxSlice{inner:&mut self.inner[start..end]}
+    }
+    #[inline(always)]
+    pub fn truncate_start(self,start:usize)->Self{
+        ProtectedBBoxSlice{inner:&mut self.inner[start..]}
+    }
+
+    pub fn as_mut(&mut self)->ProtectedBBoxSlice<T>{
+        ProtectedBBoxSlice{inner:self.inner}
+    }
+    pub fn new(inner:&'a mut [T])->Self{
+        ProtectedBBoxSlice{inner}
+    }
+
+    pub fn iter(self)->core::slice::Iter<'a,T>{
+        self.inner.iter()
+    }
+    pub fn iter_mut(self)->ProtectedBBoxIter<'a,T>{
+        ProtectedBBoxIter{inner:self.inner.iter_mut()}
+    }
+}
+
+pub struct ProtectedBBoxIter<'a,T>{
+    inner:core::slice::IterMut<'a,T>
+}
+impl<'a,T> Iterator for ProtectedBBoxIter<'a,T>{
+    type Item=ProtectedBBox<'a,T>;
+    fn next(&mut self)->Option<ProtectedBBox<'a,T>>{
+        self.inner.next().map(|inner|ProtectedBBox{inner})
+    }
+}
+
+
+
+
+
+
+
+
+
+/*
 pub struct ElemSliceMut<'a,T:HasAabb>{
     pub(crate) inner:&'a mut ElemSlice<T>
 }
@@ -239,3 +372,6 @@ impl<'a, T:HasAabb> IntoIterator for &'a ElemSlice<T> {
         self.iter()
     }
 }
+
+
+*/

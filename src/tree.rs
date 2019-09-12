@@ -3,7 +3,7 @@ use crate::inner_prelude::*;
 pub use assert_invariants::assert_invariants;
 
 
-pub(crate) struct DinoTreeInner<A: AxisTrait, T: HasAabbMut> {
+pub(crate) struct DinoTreeInner<A: AxisTrait, T:HasAabb> {
     pub axis: A,
     pub bots: Vec<T>,
     pub tree: compt::dfs_order::CompleteTreeContainer<Node<T>, compt::dfs_order::PreOrder>,
@@ -46,11 +46,11 @@ impl Splitter for SplitterEmpty {
 ///The trait through which dinotree algorithms may use the tree.
 ///We expose a trait so that both the copy and non copy version of the tree have
 ///the same interface.
-pub trait DinoTreeRefTrait where Self::Item:HasAabb<Num=Self::Num>{
-    type Item:HasAabbMut<Inner=Self::Inner,Num=Self::Num>;
+pub trait DinoTreeRefTrait{
+    type Item:HasAabb<Num=Self::Num>;
     type Axis:AxisTrait;
     type Num:NumTrait;
-    type Inner;
+    //type Inner;
 
     fn axis(&self)->Self::Axis;
     
@@ -134,11 +134,11 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 }
 
 /// Tree Iterator that returns a reference to each node.
-pub struct Vistr<'a, T: HasAabb> {
+pub struct Vistr<'a, T:HasAabb> {
     pub(crate) inner: compt::dfs_order::Vistr<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<'a, T: HasAabb> Vistr<'a, T> {
+impl<'a, T:HasAabb> Vistr<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
     #[inline]
@@ -156,9 +156,9 @@ impl<'a, T: HasAabb> Vistr<'a, T> {
 
 }
 
-unsafe impl<'a, T: HasAabb> compt::FixedDepthVisitor for Vistr<'a, T> {}
+unsafe impl<'a, T:HasAabb> compt::FixedDepthVisitor for Vistr<'a, T> {}
 
-impl<'a, T: HasAabb> Visitor for Vistr<'a, T> {
+impl<'a, T:HasAabb> Visitor for Vistr<'a, T> {
     type Item = NodeRef<'a, T>;
 
     #[inline(always)]
@@ -188,11 +188,11 @@ impl<'a, T: HasAabb> Visitor for Vistr<'a, T> {
 
 
 /// Tree Iterator that returns a mutable reference to each node.
-pub struct VistrMut<'a, T:HasAabbMut> {
+pub struct VistrMut<'a, T:HasAabb> {
     pub(crate) inner: compt::dfs_order::VistrMut<'a, Node<T>, compt::dfs_order::PreOrder>,
 }
 
-impl<'a, T:HasAabbMut> VistrMut<'a, T> {
+impl<'a, T:HasAabb> VistrMut<'a, T> {
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
     
@@ -215,7 +215,7 @@ impl<'a, T:HasAabbMut> VistrMut<'a, T> {
 }
 
 
-impl<'a, T:HasAabbMut> core::ops::Deref for VistrMut<'a, T> {
+impl<'a, T:HasAabb> core::ops::Deref for VistrMut<'a, T> {
     type Target = Vistr<'a, T>;
     
     #[inline(always)]
@@ -226,9 +226,9 @@ impl<'a, T:HasAabbMut> core::ops::Deref for VistrMut<'a, T> {
 
 
 
-unsafe impl<'a, T:HasAabbMut> compt::FixedDepthVisitor for VistrMut<'a, T> {}
+unsafe impl<'a, T:HasAabb> compt::FixedDepthVisitor for VistrMut<'a, T> {}
 
-impl<'a, T:HasAabbMut> Visitor for VistrMut<'a, T> {
+impl<'a, T:HasAabb> Visitor for VistrMut<'a, T> {
     type Item = NodeRefMut<'a, T>;
 
     
@@ -261,7 +261,7 @@ impl<'a, T:HasAabbMut> Visitor for VistrMut<'a, T> {
 
 ///A node in a dinotree.
 pub(crate) struct Node<T: HasAabb> {
-    pub(crate) range: tools::Unique<ElemSlice<T>>,
+    pub(crate) range: tools::Unique<[T]>,
 
     //range is empty iff cont is none.
     pub(crate) cont: axgeom::Range<T::Num>,
@@ -279,9 +279,9 @@ pub(crate) struct Node<T: HasAabb> {
 
 
 ///Mutable reference to a node in the dinotree.
-pub struct NodeRefMut<'a, T:HasAabbMut> {
+pub struct NodeRefMut<'a, T:HasAabb> {
     ///The bots that belong to this node.
-    pub bots: ElemSliceMut<'a,T>,//&'a mut ElemSlice<T>,
+    pub bots: ProtectedBBoxSlice<'a,T>,
 
     ///Is None iff bots is empty.
     pub cont: Option<&'a axgeom::Range<T::Num>>,
@@ -294,7 +294,7 @@ pub struct NodeRefMut<'a, T:HasAabbMut> {
 ///Reference to a node in the dinotree.
 pub struct NodeRef<'a, T:HasAabb> {
     ///The bots that belong to this node.
-    pub bots: &'a ElemSlice<T>,
+    pub bots: &'a [T],
 
     ///Is None iff bots is empty.
     pub cont: Option<&'a axgeom::Range<T::Num>>,
@@ -324,7 +324,7 @@ impl<T:HasAabb> Node<T>{
     }
 
 }
-impl<T: HasAabbMut> Node<T> {
+impl<T:HasAabb> Node<T> {
 
     
     
@@ -338,7 +338,7 @@ impl<T: HasAabbMut> Node<T> {
         };
 
         NodeRefMut {
-            bots:ElemSliceMut::new(bots),
+            bots:ProtectedBBoxSlice::new(bots),
             cont,
             div: self.div.as_ref(),
         }
@@ -469,9 +469,8 @@ mod cont_tree {
                     
             let cont = create_cont(axis,rest);
 
-
             Node {
-                range: tools::Unique::new(ElemSlice::from_slice_mut(rest) as *mut _).unwrap(),
+                range: tools::Unique::new(rest as *mut _).unwrap(),
                 cont,
                 div: None,
             }
@@ -487,7 +486,7 @@ mod cont_tree {
                     right,
                 } => (
                     Node {
-                        range: tools::Unique::new(ElemSlice::from_slice_mut(mid) as *mut _).unwrap(),
+                        range: tools::Unique::new(mid as *mut _).unwrap(),
                         cont,
                         div: Some(div),
                     },
@@ -500,7 +499,7 @@ mod cont_tree {
                     let (b,c) = tools::duplicate_empty_slice(empty);
                         
                     let node = Node {
-                        range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
+                        range: tools::Unique::new(a as *mut _).unwrap(),
                         cont:unsafe{core::mem::MaybeUninit::zeroed().assume_init()},
                         div: None,
                     };
@@ -717,12 +716,12 @@ fn bench_cont2(b: &mut test::Bencher) {
 fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> axgeom::Range<T::Num> {
     match middle.split_first(){
         Some((first,rest))=>{
-            let mut min = first.get().rect.get_range(axis).left;
-            let mut max = first.get().rect.get_range(axis).right;
+            let mut min = first.get().get_range(axis).left;
+            let mut max = first.get().get_range(axis).right;
 
             for a in rest.iter() {
-                let left = &a.get().rect.get_range(axis).left;
-                let right = &a.get().rect.get_range(axis).right;
+                let left = &a.get().get_range(axis).left;
+                let right = &a.get().get_range(axis).right;
 
                 if *left < min {
                     min = *left;
@@ -789,7 +788,7 @@ fn construct_non_leaf<T: HasAabb>(
             &bots[mm]
         };
 
-        k.get().rect.get_range(div_axis).left
+        k.get().get_range(div_axis).left
     };
 
     //TODO. its possible that middle is empty is the ranges inserted had

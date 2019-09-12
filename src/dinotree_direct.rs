@@ -110,19 +110,21 @@ impl<A: AxisTrait, N:NumTrait,T:Copy,F: FnMut(&T) -> Rect<N>> DinoTreeDirectBuil
         compt::dfs_order::PreOrder>) -> DinoTreeDirect<A,N,T>{
 
 
-    	let rev:Vec<u32>=tree.get_nodes_mut().iter_mut().flat_map(|a|a.get_mut().bots.inner.inner.iter_mut()).map(|a|a.inner).collect();
+    	let rev:Vec<u32>=tree.get_nodes().iter().flat_map(|a|a.get().bots.iter()).map(|a|a.inner).collect();
 
 
-    	let mut bots:Vec<BBox<N,T>>=tree.get_nodes_mut().iter_mut().flat_map(|a|a.get_mut().bots.inner.iter_mut()).map(|a|BBox::new(*a.rect,bots[*a.inner as usize])).collect();
+    	let mut bots:Vec<BBox<N,T>>=tree.get_nodes().iter().flat_map(|a|a.get().bots.iter()).map(|a|{
+                BBox::new(a.rect,bots[a.inner as usize])
+            }).collect();
 
 
 
     	let mut kk:Option<&mut [BBox<N,T>]>=Some(&mut bots);
     	let tree:Vec<Node<BBox<N,T>>>=tree.get_nodes_mut().iter_mut().map(|a|
     		{
-    			let (range,b) = kk.take().unwrap().split_at_mut(a.get_mut().bots.len());
+    			let (range,b) = kk.take().unwrap().split_at_mut(a.get().bots.len());
     			kk=Some(b);
-    			let range=tools::Unique::new(ElemSlice::from_slice_mut(range)).unwrap();
+    			let range=tools::Unique::new(range as *mut _).unwrap();
     			Node{range,cont:a.cont,div:a.div}
     		}
     	).collect();
@@ -146,7 +148,7 @@ impl<A:AxisTrait,N:NumTrait,T> DinoTreeRefTrait for DinoTreeDirect<A,N,T>{
     type Item=BBox<N,T>;
     type Axis=A;
     type Num=N;
-    type Inner=T;
+    //type Inner=T;
     
     #[inline(always)]
     fn axis(&self)->Self::Axis{
