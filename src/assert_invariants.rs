@@ -2,7 +2,7 @@ use crate::inner_prelude::*;
 
 #[must_use]
 ///Returns false if the tree's invariants are not met.
-pub fn assert_invariants<K:DinoTreeRefTrait>(tree:&K)->bool{
+pub fn assert_invariants<A:AxisTrait,N:NodeTrait>(tree:&DinoTree<A,N>)->bool{
     inner(tree.axis(), tree.vistr().with_depth(compt::Depth(0))).is_ok()
 }
 fn a_bot_has_value<N: NumTrait>(it: impl Iterator<Item = N>, val: N) -> bool {
@@ -14,9 +14,9 @@ fn a_bot_has_value<N: NumTrait>(it: impl Iterator<Item = N>, val: N) -> bool {
     false
 }
 
-fn inner<'a,A: AxisTrait, T: HasAabb>(
+fn inner<'a,A: AxisTrait, N: NodeTrait>(
     axis: A,
-    iter: compt::LevelIter<Vistr<T>>,
+    iter: compt::LevelIter<Vistr<N>>,
 ) -> Result<(), ()> {
     macro_rules! assert2 {
         ($bla:expr) => {
@@ -27,10 +27,10 @@ fn inner<'a,A: AxisTrait, T: HasAabb>(
     }
 
     let ((_depth, nn), rest) = iter.next();
-
+    let nn=nn.get();
     let axis_next = axis.next();
 
-    let f = |a: &&T, b: &&T| -> Option<core::cmp::Ordering> {
+    let f = |a: &&N::T, b: &&N::T| -> Option<core::cmp::Ordering> {
         let j=a.get()
             .get_range(axis_next)
             .left
@@ -78,6 +78,7 @@ fn inner<'a,A: AxisTrait, T: HasAabb>(
             }
             None => {
                 for (_depth, n) in left.dfs_preorder_iter().chain(right.dfs_preorder_iter()) {
+                    let n=n.get();
                     assert2!(n.bots.is_empty());
                     assert2!(n.cont.is_none());
                     assert2!(n.div.is_none());

@@ -1,14 +1,15 @@
 
 use crate::inner_prelude::*;
-//pub use assert_invariants::assert_invariants;
+pub use crate::assert_invariants::assert_invariants;
 
 
 
-
+/*
 pub mod dinotree_direct{
     use crate::inner_prelude::*;
     
 
+    
     pub struct DinoTreeDirect<A:AxisTrait,N:NumTrait,T:Copy>{
         inner:DinoTree<A,NodePtr<BBox<N,T>>>,
         bots:Vec<BBox<N,T>>,
@@ -80,17 +81,18 @@ pub mod dinotree_direct{
         }
         
     }
-
+    
 
     
 }
+*/
 
 
 pub mod dinotree_indirect{
     use crate::inner_prelude::*;
     pub fn create_bbox_indirect<'a,T:HasAabb>(bots:&'a mut [T])->Vec<BBoxIndirect<'a,T>>
     {
-        bots.iter_mut().map(|a|BBoxIndirect{inner:a}).collect()
+        bots.iter_mut().map(|a|BBoxIndirect::new(a)).collect()
     }    
 }
 
@@ -134,6 +136,10 @@ pub mod dinotree_owned{
         pub fn axis(&self)->A{
             self.inner.axis()
         }
+
+        pub fn into_inner(self)->Vec<T>{
+            self.bots
+        }
     }    
     
 
@@ -160,124 +166,36 @@ pub mod dinotree_owned{
     }
 }
 
-pub mod notsorted{
-    use crate::inner_prelude::*;    
+pub struct NotSorted<A: AxisTrait,N:NodeTrait>(DinoTree<A,N>);
 
-    pub struct NotSorted<A: AxisTrait,N:NodeTrait>(DinoTree<A,N>);
+impl<A:AxisTrait,N:NodeTrait> NotSorted<A,N>{
 
-    impl<A:AxisTrait,N:NodeTrait> NotSorted<A,N>{
-
-        #[inline(always)]
-        pub fn axis(&self)->A{
-            self.0.axis()
-        }
-
-        #[inline(always)]
-        pub fn get_height(&self)->usize{
-            self.0.get_height()
-        }
-
-        #[inline(always)]
-        pub fn vistr(&self)->Vistr<N>{
-            self.0.inner.vistr()
-        }
-
-        #[inline(always)]
-        pub fn vistr_mut(&mut self)->VistrMut<N>{
-            
-            VistrMut{
-                inner:self.0.inner.vistr_mut()
-            }
-            
-            //self.0.inner.vistr_mut()
-        }
-
+    #[inline(always)]
+    pub fn axis(&self)->A{
+        self.0.axis()
     }
 
-
-
-
-
-    pub struct NotSortedBuilder<'a, A: AxisTrait, T:HasAabb> (
-        DinoTreeBuilder<'a,A,T>
-    );
-
-
-    impl<'a, A: AxisTrait, T: HasAabb+Send+Sync>
-        NotSortedBuilder<'a, A, T>
-    {
-
-        ///Build not sorted in parallel
-        pub fn build_par(mut self) -> NotSorted<A,NodeMut<'a,T>> {
-            let dlevel = compute_default_level_switch_sequential(self.0.height_switch_seq, self.0.height);
-            let inner = create_tree_par(self.0.axis,dlevel, self.0.bots, NoSorter, &mut SplitterEmpty, self.0.height, self.0.rebal_strat);
-            NotSorted(DinoTree{axis:self.0.axis,inner})
-        }
+    #[inline(always)]
+    pub fn get_height(&self)->usize{
+        self.0.get_height()
     }
-    impl<'a, A: AxisTrait, T:HasAabb>
-        NotSortedBuilder<'a, A, T>
-    {
-        ///Create a dinotree builder.
-        ///The user picks the axis along which the first divider will partition.
-        ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
-        ///The user also passes a function to create the bounding box of each bot in the slice passed.
-        pub fn new(axis: A, bots: &'a mut [T]) -> NotSortedBuilder<'a,A, T> {
-            let rebal_strat = BinStrat::Checked;
-            let height = compute_tree_height_heuristic(bots.len());
-            let height_switch_seq = default_level_switch_sequential();
 
-            let inner=DinoTreeBuilder {
-                axis,
-                bots,
-                rebal_strat,
-                height,
-                height_switch_seq,
-            };
-            NotSortedBuilder(inner)
+    #[inline(always)]
+    pub fn vistr(&self)->Vistr<N>{
+        self.0.inner.vistr()
+    }
+
+    #[inline(always)]
+    pub fn vistr_mut(&mut self)->VistrMut<N>{
+        VistrMut{
+            inner:self.0.inner.vistr_mut()
         }
-
-        ///Choose a custom bin stratagy.
-        pub fn with_bin_strat(&mut self, strat: BinStrat) -> &mut Self {
-            self.0.rebal_strat = strat;
-            self
-        }
-
-        ///Choose a custom height for the tree.
-        pub fn with_height(&mut self, height: usize) -> &mut Self {
-            self.0.height = height;
-            self
-            //TODO test corner cases of this
-        }
-
-        ///Choose the height at which to switch from parallel to sequential.
-        ///If you end up building sequentially, this argument is ignored.
-        pub fn with_height_switch_seq(&mut self, height: usize) -> &mut Self {
-            self.0.height_switch_seq = height;
-            self
-        }
-
-        
-
-        ///Build a not sorted dinotree with a splitter.
-        pub fn build_with_splitter_seq<S: Splitter>(
-            mut self,
-            splitter: &mut S,
-        ) -> NotSorted<A,NodeMut<'a,T>> {
-            let inner = create_tree_seq(self.0.axis, self.0.bots, NoSorter, splitter, self.0.height, self.0.rebal_strat);
-            NotSorted(DinoTree{axis:self.0.axis,inner}) 
-        }
-
-
-        ///Build not sorted sequentially
-        pub fn build_seq(mut self) -> NotSorted<A,NodeMut<'a,T>> {
-            let inner = create_tree_seq(self.0.axis, self.0.bots, NoSorter, &mut SplitterEmpty, self.0.height, self.0.rebal_strat);
-            NotSorted(DinoTree{axis:self.0.axis,inner})
-        }
-
-
     }
 
 }
+
+
+
 pub struct DinoTree<A:AxisTrait,N:NodeTrait>{
     axis:A,
     inner: compt::dfs_order::CompleteTreeContainer<N, compt::dfs_order::PreOrder>,
@@ -315,6 +233,13 @@ pub struct DinoTreeBuilder<'a, A: AxisTrait, T> {
 impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
     DinoTreeBuilder<'a,A,  T>
 {
+    ///Build not sorted in parallel
+    pub fn build_not_sorted_par(self) -> NotSorted<A,NodeMut<'a,T>> {
+        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        let inner = create_tree_par(self.axis,dlevel, self.bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+        NotSorted(DinoTree{axis:self.axis,inner})
+    }
+
     pub fn build_par(self) -> DinoTree<A,NodeMut<'a,T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
         let inner = create_tree_par(self.axis,dlevel, self.bots, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
@@ -335,6 +260,13 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
             height,
             height_switch_seq,
         }
+    }
+
+
+    ///Build not sorted sequentially
+    pub fn build_not_sorted_seq(self) -> NotSorted<A,NodeMut<'a,T>> {
+        let inner = create_tree_seq(self.axis, self.bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+        NotSorted(DinoTree{axis:self.axis,inner})
     }
 
     pub fn build_seq(self)->DinoTree<A,NodeMut<'a,T>>{
@@ -366,7 +298,7 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
 
     ///Build with a Splitter.
     pub fn build_with_splitter_seq<S: Splitter>(
-        mut self,
+        self,
         splitter: &mut S,
     ) -> DinoTree<A,NodeMut<'a,T>> {
         let inner = create_tree_seq(self.axis, self.bots, DefaultSorter, splitter, self.height, self.rebal_strat);
@@ -472,12 +404,15 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 
 
-pub type Vistr<'a,N:NodeTrait> = compt::dfs_order::Vistr<'a,N,compt::dfs_order::PreOrder>;
+pub type Vistr<'a,N> = compt::dfs_order::Vistr<'a,N,compt::dfs_order::PreOrder>;
 
-//pub type VistrMut<'a,N:NodeTrait> = compt::dfs_order::VistrMut<'a,N,compt::dfs_order::PreOrder>;
+
+//type Binop<'a,N> = fn(&'a mut N) -> ProtectedNode<'a,N>;
+//pub type VistrMut<'a,N:NodeTrait> = compt::Map<compt::dfs_order::VistrMut<'a,N,compt::dfs_order::PreOrder>,Binop<'a,N>>;
 
 
 /// Tree Iterator that returns a mutable reference to each node.
+#[repr(transparent)]
 pub struct VistrMut<'a, N:NodeTrait> {
     pub(crate) inner: compt::dfs_order::VistrMut<'a, N, compt::dfs_order::PreOrder>,
 }
@@ -538,6 +473,7 @@ impl<'a, N:NodeTrait> Visitor for VistrMut<'a, N> {
         });
     }
 }
+
 
 
 

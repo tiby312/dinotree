@@ -128,7 +128,7 @@ pub use axgeom;
 pub use compt;
 pub use rayon;
 
-//mod assert_invariants;
+mod assert_invariants;
 
 ///Contains generic code using both all dinotree versions
 pub mod tree;
@@ -146,11 +146,8 @@ pub mod prelude{
     
     pub use crate::tree::dinotree_good::*;
     pub use crate::tree::dinotree_indirect::*;
-    pub use crate::tree::dinotree_direct::*;
-    pub use crate::tree::notsorted::*;
     pub use crate::tree::dinotree_owned::*;
-    //pub use crate::dinotree_owned::*;
-    //pub use crate::tree::dinotree_direct::*;
+    
     pub use crate::HasAabb;
     pub use crate::HasInner;
     pub use crate::NumTrait;

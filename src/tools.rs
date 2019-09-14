@@ -28,11 +28,7 @@ impl<T:?Sized> Unique<T>{
     pub unsafe fn new_unchecked(ptr:*mut T)->Unique<T>{
         Unique(core::ptr::NonNull::new_unchecked(ptr),PhantomData)
     }
-    #[inline(always)]
-    pub fn as_ptr(&self)->*mut T{
-        self.0.as_ptr()
-    }
-
+    
     #[inline(always)]
     pub unsafe fn as_ref(&self)->&T{
         self.0.as_ref()

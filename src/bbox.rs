@@ -5,6 +5,11 @@ use crate::inner_prelude::*;
 pub struct BBoxIndirect<'a,T>{
     pub inner: &'a mut T
 }
+impl<'a,T> BBoxIndirect<'a,T>{
+    pub fn new(inner:&'a mut T)->Self{
+        BBoxIndirect{inner}
+    }
+}
 
 
 impl<'a,T:HasAabb> HasAabb for BBoxIndirect<'a,T> {
