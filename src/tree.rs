@@ -4,90 +4,6 @@ pub use crate::assert_invariants::assert_invariants;
 
 
 
-/*
-pub mod dinotree_direct{
-    use crate::inner_prelude::*;
-    
-
-    
-    pub struct DinoTreeDirect<A:AxisTrait,N:NumTrait,T:Copy>{
-        inner:DinoTree<A,NodePtr<BBox<N,T>>>,
-        bots:Vec<BBox<N,T>>,
-        rev:Vec<u32>
-    }
-    impl<A:AxisTrait,N:NumTrait,T:Copy> DinoTreeDirect<A,N,T>{
-        pub fn get(&self)->&DinoTree<A,NodePtr<BBox<N,T>>>{
-            &self.inner
-        }
-        pub fn get_mut(&mut self)->&mut DinoTree<A,NodePtr<BBox<N,T>>>{
-            &mut self.inner
-        }
-        pub fn into_inner(self)->Vec<T>{
-            let mut inner2=Vec::new();
-
-            inner2.reserve(self.bots.len());
-            unsafe{
-                inner2.set_len(self.bots.len());
-            }
-            let DinoTreeDirect{inner,bots,mut rev}=self;      
-            
-            for (index,bot) in rev.drain(..).zip(bots.iter()){
-                inner2[index as usize]=*bot.inner();
-            }
-
-            inner2
-        }
-    }
-
-      
-    
-    pub fn create_bbox_direct<A:AxisTrait,Num:NumTrait,T:Copy>(
-        axis:A,
-        bots:&[T],
-        mut aabb_create:impl FnMut(&T)->Rect<Num>,
-        mut func: impl FnMut(A,&mut [BBox<Num,u32>])->DinoTree<A,NodeMut<BBox<Num,u32>>>)->DinoTreeDirect<A,Num,T>{
-    
-        let mut bots1:Vec<BBox<Num,u32>>=bots.iter().enumerate().map(|(index,a)|BBox::new(aabb_create(a),index as u32)).collect();
-
-        let tree=func(axis,&mut bots1);
-
-        let rev:Vec<u32>=tree.inner.get_nodes().iter().flat_map(|a|a.range.as_ref().iter()).map(|a|a.inner).collect();
-
-        let mut bots:Vec<BBox<Num,T>>=tree.inner.get_nodes().iter().flat_map(|a|a.range.as_ref().iter()).map(|a|{
-                BBox::new(a.rect,bots[a.inner as usize])
-            }).collect();
-
-
-        let mut nodes=Vec::new();
-
-        let mut k=Some(&mut bots as &mut [_]);
-        for NodeMut{range,cont,div} in tree.inner.into_nodes().drain(..){
-            
-            let (first,mut rest) = k.take().unwrap().split_at_mut(range.len());
-            nodes.push(NodePtr{range:unsafe{tools::Unique::new_unchecked(first)},cont,div});
-            k=Some(rest);
-        }
-
-        let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(nodes).unwrap();
-        
-        
-        DinoTreeDirect{
-            inner:DinoTree{
-                inner,
-                axis
-            },
-            bots,
-            rev
-        }
-        
-    }
-    
-
-    
-}
-*/
-
-
 pub mod dinotree_indirect{
     use crate::inner_prelude::*;
     pub fn create_bbox_indirect<'a,T:HasAabb>(bots:&'a mut [T])->Vec<BBoxIndirect<'a,T>>
@@ -727,19 +643,6 @@ mod cont_tree {
                     };
 
                     (node,b,c)
-                    /*
-                    for _ in 0..compt::compute_num_nodes(self.height - depth) {
-                        let a = tools::duplicate_empty_slice(empty);
-                        let cont = unsafe { core::mem::uninitialized() };
-                        let node = Node {
-                            range: tools::Unique::new(ElemSlice::from_slice_mut(a) as *mut _).unwrap(),
-                            cont,
-                            div: None,
-                        };
-                        nodes.push(node);
-                    }
-                    return;
-                    */
                 }
             }
         }
