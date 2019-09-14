@@ -128,7 +128,7 @@ pub use axgeom;
 pub use compt;
 pub use rayon;
 
-mod assert_invariants;
+//mod assert_invariants;
 
 ///Contains generic code using both all dinotree versions
 pub mod tree;
@@ -143,9 +143,13 @@ pub mod prelude{
     pub use crate::tree::*;
     pub use crate::elem::*;
     pub use crate::bbox::*;
-    pub use crate::dinotree::*;
-    pub use crate::dinotree_direct::*;
-    pub use crate::dinotree_indirect::*;
+    
+    pub use crate::tree::dinotree_good::*;
+    pub use crate::tree::dinotree_indirect::*;
+    pub use crate::tree::dinotree_direct::*;
+    pub use crate::tree::notsorted::*;
+    //pub use crate::dinotree_owned::*;
+    //pub use crate::tree::dinotree_direct::*;
     pub use crate::HasAabb;
     pub use crate::HasInner;
     pub use crate::NumTrait;
@@ -170,18 +174,20 @@ pub mod elem;
 pub mod bbox;
 
 ///The dinotree data structure. The tree is made up of: `(Rect<N>,&mut T)`
-pub mod dinotree;
+//pub mod dinotree;
+
+//pub mod dinotree_owned;
 
 ///A version of dinotree where the tree is made up of `(Rect<N>,T)` 
 ///
 ///From benchmarks, this is slower than the main dinotree data structure provided.
-pub mod dinotree_direct;
+//pub mod dinotree_direct;
 
 
 ///A version of dinotree where the tree is made up of `&mut (Rect<N>,T)` 
 ///
 ///From benchmarks, this is slower than the main dinotree data structure provided.
-pub mod dinotree_indirect;
+//pub mod dinotree_indirect;
 
 
 ///A version of a dinotree where the bots are not sorted.
@@ -189,6 +195,8 @@ pub mod dinotree_indirect;
 ///So this is really a regular kd-tree. The bots that belong to a node are not
 ///sorted along an axis. 
 pub mod notsorted;
+
+
 
 
 ///The underlying number type used for the dinotree.

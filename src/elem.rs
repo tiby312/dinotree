@@ -14,6 +14,15 @@ impl<'a,T> ProtectedBBox<'a,T>{
     }
 
 }
+impl<'a,T:HasAabb> ProtectedBBox<'a,T>{
+    ///TODO talk to this
+    #[inline(always)]
+    pub fn get_aabb_and_self(&mut self)->(&Rect<T::Num>,&mut ProtectedBBox<'a,T>){
+        let rect=unsafe{&*(self.get() as *const _)};
+        (rect,self)
+    }
+}
+
 
 impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
     type Num=T::Num;
@@ -95,6 +104,11 @@ pub struct ProtectedBBoxSlice<'a,T>{
 
 impl<'a,T> ProtectedBBoxSlice<'a,T>{
     
+    #[inline(always)]
+    pub fn len(&self)->usize{
+        self.inner.len()
+    }
+
     #[inline(always)]
     pub fn split_first_mut(self)->Option<(ProtectedBBox<'a,T>,ProtectedBBoxSlice<'a,T>)>{
         self.inner.split_first_mut().map(|(first,inner)|(ProtectedBBox{inner:first},ProtectedBBoxSlice::new(inner)))

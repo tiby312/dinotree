@@ -2,80 +2,33 @@ use crate::inner_prelude::*;
 
 
 ///Equivalent to: `&mut (Rect<N>,T)`
-pub struct BBoxIndirect<'a,N,T>{
-    pub inner: &'a mut BBox<N,T>
+pub struct BBoxIndirect<'a,T>{
+    pub inner: &'a mut T
 }
 
 
-impl<'a,N: NumTrait, T> HasAabb for BBoxIndirect<'a,N, T> {
-    type Num = N;
+impl<'a,T:HasAabb> HasAabb for BBoxIndirect<'a,T> {
+    type Num = T::Num;
     #[inline(always)]
     fn get(&self) -> &Rect<Self::Num>{
         self.inner.get()
     }
 }
-impl<'a,N:NumTrait,T> HasInner for BBoxIndirect<'a,N,T>{
-    type Inner= T;
+impl<'a,T:HasInner> HasInner for BBoxIndirect<'a,T>{
+    type Inner= T::Inner;
 
     #[inline(always)]
-    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
+    fn get_inner(&self)->(&Rect<T::Num>,&Self::Inner){
         self.inner.get_inner()
     }
 
     #[inline(always)]
-    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
+    fn get_inner_mut(&mut self)->(&Rect<T::Num>,&mut Self::Inner){
         self.inner.get_inner_mut()
     }
 }
 
-
 /*
-///Equivalent to: `(&Rect<N>,&T)` 
-#[repr(C)]
-pub struct BBoxRef<'a,N,T> {
-    pub rect: &'a axgeom::Rect<N>,
-    pub inner: &'a T,
-}
-
-impl<'a,N:NumTrait,T> BBoxRef<'a, N,T> {  
-    #[inline(always)]
-    pub fn new(rect: &'a axgeom::Rect<N>, inner: &'a T) -> BBoxRef<'a,N,T> {
-        BBoxRef{ rect, inner }
-    }
-}
-
-
-
-///Equivalent to: `(&Rect<N>,&mut T)` 
-#[repr(C)]
-pub struct BBoxRefMut<'a,N,T> {
-    pub rect: &'a axgeom::Rect<N>,
-    pub inner: &'a mut T,
-}
-
-
-impl<'a,N,T> BBoxRefMut<'a,N,T> {
-    
-    #[inline(always)]
-    pub fn new(rect: &'a axgeom::Rect<N>, inner: &'a mut T) -> BBoxRefMut<'a,N,T> {
-        BBoxRefMut { rect, inner }
-    }
-
-    #[inline(always)]
-    pub fn as_mut(&mut self)->BBoxRefMut<N,T>{
-        BBoxRefMut{rect:self.rect,inner:self.inner}
-    }
-
-    #[inline(always)]
-    pub fn as_ref(&self)->BBoxRef<N,T>{
-        BBoxRef{rect:self.rect,inner:self.inner}
-    }
-       
-}
-
-*/
-
-
 ///Equivalent to: `(Rect<N>,&mut T)` 
 ///
 ///If we were to use a `BBox<N,&mut T>`, then `HasAabb::get()` would return a `&mut &mut T`, which is cumbersome.
@@ -115,9 +68,7 @@ impl<'a,N:NumTrait,T> HasInner for BBoxMut<'a,N,T>{
     }
 }
 
-
-
-
+*/
 
 unsafe impl<N:Send,T:Send> Send for BBoxPtr<N,T>{}
 unsafe impl<N:Sync,T:Sync> Sync for BBoxPtr<N,T>{}
@@ -129,10 +80,10 @@ pub struct BBoxPtr<N, T> {
     inner: tools::Unique<T>,
 }
 
-impl<'a,N, T> BBoxPtr<N, T> {
+impl<N, T> BBoxPtr<N, T> {
     #[inline(always)]
-    pub fn new(rect: axgeom::Rect<N>, inner: &mut T) -> BBoxPtr<N, T> {
-        BBoxPtr { rect, inner:unsafe{tools::Unique::new_unchecked(inner as *mut _)}}
+    pub unsafe fn new(rect: axgeom::Rect<N>, inner: &mut T) -> BBoxPtr<N, T> {
+        BBoxPtr { rect, inner:tools::Unique::new_unchecked(inner) }
     }
 }
 
@@ -155,6 +106,48 @@ impl<N:NumTrait,T> HasInner for BBoxPtr<N,T>{
     #[inline(always)]
     fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
         (&self.rect,unsafe{self.inner.as_mut()})
+    }
+}
+
+
+
+
+//unsafe impl<'a,N:Send,T:Send> Send for BBoxMut<'a,N,T>{}
+//unsafe impl<'a,N:Sync,T:Sync> Sync for BBoxMut<'a,N,T>{}
+
+///Equivalent to: `(Rect<N>,*mut T)` 
+#[repr(C)]
+pub struct BBoxMut<'a,N, T> {
+    pub rect: axgeom::Rect<N>,
+    pub inner: &'a mut T,
+}
+
+impl<'a,N, T> BBoxMut<'a,N, T> {
+    #[inline(always)]
+    pub fn new(rect: axgeom::Rect<N>, inner: &'a mut T) -> BBoxMut<'a,N, T> {
+        BBoxMut { rect, inner }
+    }
+}
+
+
+impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
+    type Num = N;
+    #[inline(always)]
+    fn get(&self) -> &Rect<Self::Num>{
+        &self.rect
+    }
+}
+impl<'a,N:NumTrait,T> HasInner for BBoxMut<'a,N,T>{
+    type Inner= T;
+
+    #[inline(always)]
+    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
+        (&self.rect,self.inner)
+    }
+
+    #[inline(always)]
+    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
+        (&self.rect,self.inner)
     }
 }
 

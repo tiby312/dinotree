@@ -1,4 +1,4 @@
-
+/*
 
 
 use crate::tree::*;
@@ -6,7 +6,7 @@ use crate::inner_prelude::*;
 
 
 pub struct DinoTreeIndirect<'a,A: AxisTrait, N:NumTrait,T> {
-    pub(crate) inner:DinoTreeInner<A,BBoxIndirect<'a,N,T>>,
+    inner:DinoTreeInner<A,BBoxIndirect<'a,N,T>>,
 }
 
 
@@ -129,3 +129,5 @@ impl<'a,A:AxisTrait,N:NumTrait,T> DinoTreeRefMutTrait for DinoTreeIndirect<'a,A,
         }
     }
 }
+
+*/
