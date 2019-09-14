@@ -6,44 +6,83 @@ use crate::inner_prelude::*;
 
 
 pub mod dinotree_direct{
-/*
     use crate::inner_prelude::*;
-    pub struct DinotreeDirectBaggage<N,T>{
-        inner:Vec<BBox<N,T>>
+    
+
+    pub struct DinoTreeDirect<A:AxisTrait,N:NumTrait,T:Copy>{
+        inner:DinoTree<A,NodePtr<BBox<N,T>>>,
+        bots:Vec<BBox<N,T>>,
+        rev:Vec<u32>
+    }
+    impl<A:AxisTrait,N:NumTrait,T:Copy> DinoTreeDirect<A,N,T>{
+        pub fn get(&self)->&DinoTree<A,NodePtr<BBox<N,T>>>{
+            &self.inner
+        }
+        pub fn get_mut(&mut self)->&mut DinoTree<A,NodePtr<BBox<N,T>>>{
+            &mut self.inner
+        }
+        pub fn into_inner(self)->Vec<T>{
+            let mut inner2=Vec::new();
+
+            inner2.reserve(self.bots.len());
+            unsafe{
+                inner2.set_len(self.bots.len());
+            }
+            let DinoTreeDirect{inner,bots,mut rev}=self;      
+            
+            for (index,bot) in rev.drain(..).zip(bots.iter()){
+                inner2[index as usize]=*bot.inner();
+            }
+
+            inner2
+        }
     }
 
-    pub fn create_bbox_direct<Num:NumTrait,T>(bots:&[T],mut aabb_create:impl FnMut(&T)->Rect<Num>)->Vec<BBox<Num,u32>>{
-        bots.iter().enumerate().map(|(index,bot)|BBox::new(aabb_create(bot),index as u32)).collect()
-    }
+      
+    
+    pub fn create_bbox_direct<A:AxisTrait,Num:NumTrait,T:Copy>(
+        axis:A,
+        bots:&[T],
+        mut aabb_create:impl FnMut(&T)->Rect<Num>,
+        mut func: impl FnMut(A,&mut [BBox<Num,u32>])->DinoTree<A,NodeMut<BBox<Num,u32>>>)->DinoTreeDirect<A,Num,T>{
+    
+        let mut bots1:Vec<BBox<Num,u32>>=bots.iter().enumerate().map(|(index,a)|BBox::new(aabb_create(a),index as u32)).collect();
 
-    pub fn create_bbox_direct_tree<'a,A:AxisTrait,N:NumTrait,T:Copy>(bots:&'a mut [T],tree:&DinoTree<A,BBox<N,u32>>)->DinotreeDirectBaggage<N,T>
-    {
+        let tree=func(axis,&mut bots1);
 
         let rev:Vec<u32>=tree.inner.get_nodes().iter().flat_map(|a|a.range.as_ref().iter()).map(|a|a.inner).collect();
 
-
-        let mut bots:Vec<BBox<N,T>>=tree.inner.get_nodes().iter().flat_map(|a|a.range.as_ref().iter()).map(|a|{
+        let mut bots:Vec<BBox<Num,T>>=tree.inner.get_nodes().iter().flat_map(|a|a.range.as_ref().iter()).map(|a|{
                 BBox::new(a.rect,bots[a.inner as usize])
             }).collect();
 
-        DinotreeDirectBaggage{inner:bots}
-    }
-    pub fn create_bbox_direct_tree2<'a,A:AxisTrait,N:NumTrait,T>(
-        mut bots:&'a mut DinotreeDirectBaggage<N,T>,
-        tree:DinoTree<A,BBox<N,u32>>)->DinoTree<'a,A,BBox<N,T>>{
-        
+
         let mut nodes=Vec::new();
 
-        let mut k=Some(&mut bots.inner as &mut [_]);
+        let mut k=Some(&mut bots as &mut [_]);
         for NodeMut{range,cont,div} in tree.inner.into_nodes().drain(..){
             
             let (first,mut rest) = k.take().unwrap().split_at_mut(range.len());
-            nodes.push(NodeMut{range:ProtectedBBoxSlice::new(first),cont,div});
+            nodes.push(NodePtr{range:unsafe{tools::Unique::new_unchecked(first)},cont,div});
             k=Some(rest);
         }
-        DinoTree{axis:tree.axis,inner:compt::dfs_order::CompleteTreeContainer::from_preorder(nodes).unwrap()}
+
+        let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(nodes).unwrap();
+        
+        
+        DinoTreeDirect{
+            inner:DinoTree{
+                inner,
+                axis
+            },
+            bots,
+            rev
+        }
+        
     }
-*/
+
+
+    
 }
 
 
@@ -68,10 +107,57 @@ pub mod dinotree_good{
 
 pub mod dinotree_owned{
     use crate::inner_prelude::*;
+    pub struct DinoTreeOwned<A:AxisTrait,N:NumTrait,T>{
+        inner:DinoTree<A,NodePtr<BBoxPtr<N,T>>>,
+        bots_aabb:Vec<BBoxPtr<N,T>>,
+        bots:Vec<T>
+    }
 
-  
+    impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
+        pub fn get(&self)->&DinoTree<A,NodePtr<BBoxPtr<N,T>>>{
+            &self.inner
+        }
+        pub fn get_mut(&mut self)->&mut DinoTree<A,NodePtr<BBoxPtr<N,T>>>{
+            &mut self.inner
+        }
+
+        pub fn get_aabb_bots_mut(&mut self)->ProtectedBBoxSlice<BBoxPtr<N,T>>{
+            ProtectedBBoxSlice::new(&mut self.bots_aabb)
+        }
+        pub fn get_aabb_bots(&self)->&[BBoxPtr<N,T>]{
+            &self.bots_aabb
+        }
+        pub fn get_height(&self)->usize{
+            self.inner.get_height()
+        }
+
+        pub fn axis(&self)->A{
+            self.inner.axis()
+        }
+    }    
+    
 
 
+    pub fn create_owned<A:AxisTrait,N:NumTrait,T>(
+        axis:A,
+        mut bots:Vec<T>,
+        mut aabb_create:impl FnMut(&T)->Rect<N>,
+        mut func:impl FnMut(A,&mut [BBoxPtr<N,T>])->DinoTree<A,NodeMut<BBoxPtr<N,T>>>)->DinoTreeOwned<A,N,T>{
+        let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|unsafe{BBoxPtr::new(aabb_create(k),k)}).collect();
+
+        let inner = func(axis,&mut bots_aabb);
+        
+        let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:unsafe{tools::Unique::new_unchecked(node.range)},cont:node.cont,div:node.div}).collect(); 
+        let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(inner).unwrap();
+        DinoTreeOwned{
+            inner:DinoTree{
+                axis,
+                inner
+            },
+            bots_aabb,
+            bots
+        }
+    }
 }
 
 pub mod notsorted{
@@ -87,17 +173,18 @@ pub mod notsorted{
         }
 
         #[inline(always)]
+        pub fn get_height(&self)->usize{
+            self.0.get_height()
+        }
+
+        #[inline(always)]
         pub fn vistr(&self)->Vistr<N>{
-            Vistr {
-                inner: self.0.inner.vistr(),
-            }
+            self.0.inner.vistr()
         }
 
         #[inline(always)]
         pub fn vistr_mut(&mut self)->VistrMut<N>{
-            VistrMut {
-                inner: self.0.inner.vistr_mut(),
-            }
+            self.0.inner.vistr_mut()
         }
 
     }
@@ -106,13 +193,13 @@ pub mod notsorted{
 
 
 
-    pub struct NotSortedBuilder<'a, A: AxisTrait, T:HasAabb, F: FnMut(&T) -> Rect<T::Num>> (
-        DinoTreeBuilder<'a,A,T,F>
+    pub struct NotSortedBuilder<'a, A: AxisTrait, T:HasAabb> (
+        DinoTreeBuilder<'a,A,T>
     );
 
 
-    impl<'a, A: AxisTrait, T: HasAabb+Send+Sync, F: FnMut(&T) -> Rect<T::Num>>
-        NotSortedBuilder<'a, A, T, F>
+    impl<'a, A: AxisTrait, T: HasAabb+Send+Sync>
+        NotSortedBuilder<'a, A, T>
     {
 
         ///Build not sorted in parallel
@@ -122,14 +209,14 @@ pub mod notsorted{
             NotSorted(DinoTree{axis:self.0.axis,inner})
         }
     }
-    impl<'a, A: AxisTrait, T:HasAabb, F: FnMut(&T) -> Rect<T::Num>>
-        NotSortedBuilder<'a, A, T, F>
+    impl<'a, A: AxisTrait, T:HasAabb>
+        NotSortedBuilder<'a, A, T>
     {
         ///Create a dinotree builder.
         ///The user picks the axis along which the first divider will partition.
         ///If for example the user picks the x axis, then the first divider will be a line from top to bottom.
         ///The user also passes a function to create the bounding box of each bot in the slice passed.
-        pub fn new(axis: A, bots: &'a mut [T], aabb_create: F) -> NotSortedBuilder<'a,A, T, F> {
+        pub fn new(axis: A, bots: &'a mut [T]) -> NotSortedBuilder<'a,A, T> {
             let rebal_strat = BinStrat::Checked;
             let height = compute_tree_height_heuristic(bots.len());
             let height_switch_seq = default_level_switch_sequential();
@@ -137,7 +224,6 @@ pub mod notsorted{
             let inner=DinoTreeBuilder {
                 axis,
                 bots,
-                aabb_create,
                 rebal_strat,
                 height,
                 height_switch_seq,
@@ -196,10 +282,10 @@ impl<A:AxisTrait,N:NodeTrait> DinoTree<A,N>{
         self.axis
     }
     pub fn vistr_mut(&mut self)->VistrMut<N>{
-        VistrMut{inner:self.inner.vistr_mut()}
+        self.inner.vistr_mut()
     }
     pub fn vistr(&self)->Vistr<N>{
-        Vistr{inner:self.inner.vistr()}
+        self.inner.vistr()
     }
     pub fn get_height(&self)->usize{
         self.inner.get_height()
@@ -207,18 +293,17 @@ impl<A:AxisTrait,N:NodeTrait> DinoTree<A,N>{
 }
 
 
-pub struct DinoTreeBuilder<'a, A: AxisTrait, T, F> {
+pub struct DinoTreeBuilder<'a, A: AxisTrait, T> {
     pub(crate) axis: A,
     pub(crate) bots: &'a mut [T],
-    pub(crate) aabb_create: F,
     pub(crate) rebal_strat: BinStrat,
     pub(crate) height: usize,
     pub(crate) height_switch_seq: usize,
 }
 
 
-impl<'a,A: AxisTrait, T:HasAabb+Send+Sync, F: FnMut(&T) -> Rect<T::Num>>
-    DinoTreeBuilder<'a,A,  T, F>
+impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
+    DinoTreeBuilder<'a,A,  T>
 {
     pub fn build_par(self) -> DinoTree<A,NodeMut<'a,T>> {
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
@@ -227,8 +312,8 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync, F: FnMut(&T) -> Rect<T::Num>>
     }
 }
 
-impl<'a, A: AxisTrait, T:HasAabb,  F: FnMut(&T) -> Rect<T::Num>> DinoTreeBuilder<'a,A,T,F>{
-    pub fn new(axis: A, bots: &mut [T], aabb_create: F) -> DinoTreeBuilder<A, T, F> {
+impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
+    pub fn new(axis: A, bots: &mut [T]) -> DinoTreeBuilder<A, T> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();
@@ -236,7 +321,6 @@ impl<'a, A: AxisTrait, T:HasAabb,  F: FnMut(&T) -> Rect<T::Num>> DinoTreeBuilder
         DinoTreeBuilder {
             axis,
             bots,
-            aabb_create,
             rebal_strat,
             height,
             height_switch_seq,
@@ -283,13 +367,6 @@ impl<'a, A: AxisTrait, T:HasAabb,  F: FnMut(&T) -> Rect<T::Num>> DinoTreeBuilder
 }
 
 
-/*
-pub(crate) struct DinoTreeInner<A: AxisTrait, T:HasAabb> {
-    pub axis: A,
-    pub bots: Vec<T>,
-    pub tree: compt::dfs_order::CompleteTreeContainer<NodeMut<'aT>, compt::dfs_order::PreOrder>,
-}
-*/
 
 
 
@@ -324,40 +401,6 @@ impl Splitter for SplitterEmpty {
 }
 
 
-/*
-///The trait through which dinotree algorithms may use the tree.
-///We expose a trait so that both the copy and non copy version of the tree have
-///the same interface.
-pub trait DinoTreeRefTrait<'b>{
-    type Item:HasAabb<Num=Self::Num>;
-    type Axis:AxisTrait;
-    type Num:NumTrait;
-    //type Inner;
-
-    fn axis(&self)->Self::Axis;
-    
-
-    //fn vistr(&self)->Vistr<Self::Item>;
-    fn vistr<'a>(&'a self)->compt::dfs_order::Vistr<'a, NodeMut<'b,Self::Item>, compt::dfs_order::PreOrder>;
-
-    ///Return the height of the dinotree.
-    fn height(&self) -> usize;
-
-    ///Return the number of nodes of the dinotree.
-    fn num_nodes(&self) -> usize;
-
-    ///Return the number of bots in the tree.
-    fn num_bots(&self) -> usize;
-
-}
-
-///The mutable part of the tree accessing trait.
-pub trait DinoTreeRefMutTrait<'b>:DinoTreeRefTrait<'b>{
-//    fn vistr_mut(&mut self)->VistrMut<Self::Item>;
-      fn vistr_mut<'a>(&'a mut self)->compt::dfs_order::VistrMut<'a, NodeMut<'b,Self::Item>, compt::dfs_order::PreOrder>;
-
-}
-*/
 
 
 
@@ -419,133 +462,9 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 
 
-/// Tree Iterator that returns a reference to each node.
-pub struct Vistr<'a, N:NodeTrait> {
-    pub(crate) inner: compt::dfs_order::Vistr<'a, N, compt::dfs_order::PreOrder>,
-}
+pub type Vistr<'a,N:NodeTrait> = compt::dfs_order::Vistr<'a,N,compt::dfs_order::PreOrder>;
 
-impl<'a, N:NodeTrait> Vistr<'a, N> {
-    ///It is safe to borrow the iterator and then produce mutable references from that
-    ///as long as by the time the borrow ends, all the produced references also go away.
-    #[inline]
-    pub fn create_wrap(&self) -> Vistr<N> {
-        Vistr {
-            inner: self.inner.create_wrap(),
-        }
-    }
-
-    #[inline]
-    pub fn height(&self) -> usize {
-        //Safe since we know Vistr implements FixedDepthVisitor.
-        self.inner.level_remaining_hint().0
-    }
-
-}
-
-unsafe impl<'a, N:NodeTrait> compt::FixedDepthVisitor for Vistr<'a, N> {}
-
-impl<'a, N:NodeTrait> Visitor for Vistr<'a, N> {
-    type Item = &'a N;
-
-    #[inline(always)]
-    fn next(self) -> (Self::Item, Option<[Self; 2]>) {
-        let (nn, rest) = self.inner.next();
-
-        let k = match rest {
-            Some([left, right]) => Some([Vistr { inner: left }, Vistr { inner: right }]),
-            None => None,
-        };
-        (nn, k)
-    }
-    
-    #[inline(always)]
-    fn level_remaining_hint(&self) -> (usize, Option<usize>) {
-        self.inner.level_remaining_hint()
-    }
-
-    
-    #[inline(always)]
-    fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
-        self.inner.dfs_preorder(|a|{
-            func(a)
-        });
-    }
-}
-
-
-/// Tree Iterator that returns a mutable reference to each node.
-pub struct VistrMut<'a, N:NodeTrait> {
-    pub(crate) inner: compt::dfs_order::VistrMut<'a, N, compt::dfs_order::PreOrder>,
-}
-
-impl<'a,N:NodeTrait> VistrMut<'a, N> {
-    ///It is safe to borrow the iterator and then produce mutable references from that
-    ///as long as by the time the borrow ends, all the produced references also go away.
-    
-    #[inline(always)]
-    pub fn create_wrap_mut(&mut self) -> VistrMut<N> {
-        VistrMut {
-            inner: self.inner.create_wrap_mut(),
-        }
-    }
-
-    
-    #[inline(always)]
-    pub fn height(&self) -> usize {
-        //Safe since we know Vistr implements FixedDepthVisitor.
-        self.inner.level_remaining_hint().0
-    }
-
-
-
-}
-
-
-impl<'a,N:NodeTrait> core::ops::Deref for VistrMut<'a,N> {
-    type Target = Vistr<'a, N>;
-    
-    #[inline(always)]
-    fn deref(&self) -> &Vistr<'a, N> {
-        unsafe { &*(self as *const VistrMut<N> as *const Vistr<N>) }
-    }
-}
-
-
-
-unsafe impl<'a, N:NodeTrait> compt::FixedDepthVisitor for VistrMut<'a, N> {}
-
-impl<'a,N:NodeTrait> Visitor for VistrMut<'a, N> {
-    type Item = &'a mut N;
-
-    
-    #[inline(always)]
-    fn next(self) -> (Self::Item, Option<[Self; 2]>) {
-        let (nn, rest) = self.inner.next();
-
-        let k = match rest {
-            Some([left, right]) => Some([VistrMut { inner: left }, VistrMut { inner: right }]),
-            None => None,
-        };
-        (nn, k)
-    }
-    
-    #[inline(always)]
-    fn level_remaining_hint(&self) -> (usize, Option<usize>) {
-        self.inner.level_remaining_hint()
-    }
-
-
-    
-    #[inline(always)]
-    fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
-        self.inner.dfs_preorder(|a|{
-            func(a)
-        });
-    }
-}
-
-
-
+pub type VistrMut<'a,N:NodeTrait> = compt::dfs_order::VistrMut<'a,N,compt::dfs_order::PreOrder>;
 
 
 pub trait NodeTrait{
@@ -562,13 +481,14 @@ impl<'a,T:HasAabb> NodeTrait for NodeMut<'a,T>{
         NodeRef{bots:self.range.as_ref(),cont:&self.cont,div:&self.div}
     }
     fn get_mut(&mut self)->NodeRefMut<Self::T>{
-        NodeRefMut{bots:self.range.as_mut(),cont:&self.cont,div:&self.div}
+        NodeRefMut{bots:ProtectedBBoxSlice::new(self.range.as_mut()),cont:&self.cont,div:&self.div}
     }
 }
 
 ///A node in a dinotree.
 pub struct NodeMut<'a,T: HasAabb> {
-    pub range: ProtectedBBoxSlice<'a,T>,
+    //pub range: ProtectedBBoxSlice<'a,T>,
+    pub range:&'a mut [T],
 
     //range is empty iff cont is none.
     pub cont: Option<axgeom::Range<T::Num>>,
@@ -608,14 +528,14 @@ pub struct NodeRef<'a, T:HasAabb> {
 }
 
 
-/*
+
 
 ///A node in a dinotree.
-pub(crate) struct Node<T: HasAabb> {
+pub struct NodePtr<T: HasAabb> {
     pub(crate) range: tools::Unique<[T]>,
 
     //range is empty iff cont is none.
-    pub(crate) cont: axgeom::Range<T::Num>,
+    pub(crate) cont: Option<axgeom::Range<T::Num>>,
     //for non leafs:
     //  div is some iff mid is nonempty.
     //  div is none iff mid is empty.
@@ -625,50 +545,16 @@ pub(crate) struct Node<T: HasAabb> {
 }
 
 
-
-
-
-impl<T:HasAabb> Node<T>{
-
-    #[inline(always)]
-    pub fn get(&self) -> NodeRef<T> {
-        let bots = unsafe { &*self.range.as_ptr() };
-        let cont = if bots.is_empty() {
-            None
-        } else {
-            Some(&self.cont)
-        };
-
-        NodeRef {
-            bots,
-            cont,
-            div: self.div.as_ref(),
-        }
+impl<T:HasAabb> NodeTrait for NodePtr<T>{
+    type T=T;
+    type Num=T::Num;
+    fn get(&self)->NodeRef<Self::T>{
+        NodeRef{bots:unsafe{self.range.as_ref()},cont:&self.cont,div:&self.div}
     }
-
-}
-impl<T:HasAabb> Node<T> {
-
-    
-    
-    #[inline(always)]
-    pub fn get_mut(&mut self) -> NodeRefMut<T> {
-        let bots = unsafe { &mut *self.range.as_ptr() };
-        let cont = if bots.is_empty() {
-            None
-        } else {
-            Some(&self.cont)
-        };
-
-        NodeRefMut {
-            bots:ProtectedBBoxSlice::new(bots),
-            cont,
-            div: self.div.as_ref(),
-        }
+    fn get_mut(&mut self)->NodeRefMut<Self::T>{
+        NodeRefMut{bots:ProtectedBBoxSlice::new(unsafe{self.range.as_mut()}),cont:&self.cont,div:&self.div}
     }
-    
 }
-*/
 
 
 
@@ -794,8 +680,7 @@ mod cont_tree {
             let cont = create_cont(axis,rest);
 
             NodeMut {
-                //range: unsafe{tools::Unique::new_unchecked(rest as *mut _)},
-                range:ProtectedBBoxSlice::new(rest),
+                range:rest,
                 cont,
                 div: None,
             }
@@ -811,7 +696,7 @@ mod cont_tree {
                     right,
                 } => (
                     NodeMut {
-                        range: ProtectedBBoxSlice::new(mid),
+                        range: mid,
                         cont,
                         div: Some(div),
                     },
@@ -824,8 +709,8 @@ mod cont_tree {
                     let (b,c) = tools::duplicate_empty_slice(empty);
                         
                     let node = NodeMut {
-                        range: ProtectedBBoxSlice::new(a),
-                        cont:unsafe{core::mem::MaybeUninit::zeroed().assume_init()},
+                        range: a,
+                        cont:None,
                         div: None,
                     };
 

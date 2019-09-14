@@ -148,6 +148,7 @@ pub mod prelude{
     pub use crate::tree::dinotree_indirect::*;
     pub use crate::tree::dinotree_direct::*;
     pub use crate::tree::notsorted::*;
+    pub use crate::tree::dinotree_owned::*;
     //pub use crate::dinotree_owned::*;
     //pub use crate::tree::dinotree_direct::*;
     pub use crate::HasAabb;
@@ -173,28 +174,11 @@ pub mod elem;
 ///A collection of different bounding box containers.
 pub mod bbox;
 
-///The dinotree data structure. The tree is made up of: `(Rect<N>,&mut T)`
-//pub mod dinotree;
-
-//pub mod dinotree_owned;
-
-///A version of dinotree where the tree is made up of `(Rect<N>,T)` 
-///
-///From benchmarks, this is slower than the main dinotree data structure provided.
-//pub mod dinotree_direct;
-
-
-///A version of dinotree where the tree is made up of `&mut (Rect<N>,T)` 
-///
-///From benchmarks, this is slower than the main dinotree data structure provided.
-//pub mod dinotree_indirect;
-
-
 ///A version of a dinotree where the bots are not sorted.
 ///
 ///So this is really a regular kd-tree. The bots that belong to a node are not
 ///sorted along an axis. 
-pub mod notsorted;
+//pub mod notsorted;
 
 
 
@@ -210,8 +194,6 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync {}
 
 
 
-//use crate::bbox::BBoxRef;
-//use crate::bbox::BBoxRefMut;
 use axgeom::*;
 
 ///Marker trait to signify that this object has an axis aligned bounding box.
