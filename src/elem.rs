@@ -1,6 +1,42 @@
 use crate::inner_prelude::*;
 
 
+///Forbids the user from swapping two nodes around.
+pub struct ProtectedNode<'a,T>{
+    inner:&'a mut T
+}
+impl<'a,T:NodeTrait> ProtectedNode<'a,T>{
+    pub fn new(inner:&'a mut T)->Self{
+        ProtectedNode{inner}
+    }
+
+    pub fn get(self)->NodeRef<'a,T::T>{
+        self.inner.get()
+    }
+    pub fn get_mut(self)->NodeRefMut<'a,T::T>{
+        self.inner.get_mut()
+    }
+    pub fn as_ref(&mut self)->ProtectedNode<T>{
+        ProtectedNode{inner:self.inner}
+    }
+}
+/*
+impl<'a,T:NodeTrait> NodeTrait for ProtectedNode<'a,T>{
+    type T=T::T;
+    type Num=T::Num;
+    fn get(&self)->NodeRef<Self::T>{
+        self.inner.get()
+        //NodeRef{bots:self.inner.range.as_ref(),cont:&self.inner.cont,div:&self.inner.div}
+    }
+    fn get_mut(&mut self)->NodeRefMut<Self::T>{
+        //NodeRefMut{bots:ProtectedBBoxSlice::new(self.inner.range.as_mut()),cont:&self.inner.cont,div:&self.inner.div}
+        self.inner.get_mut()
+    }
+
+}
+*/
+
+///Forbids the user from swapping aabb's around.
 #[repr(transparent)]
 pub struct ProtectedBBox<'a,T>{
     inner:&'a mut T
@@ -97,7 +133,7 @@ impl<'a,T> AsRef<[T]> for ProtectedBBoxSlice<'a,T>{
 }
 
 
-
+///Forbids the user from swapping mutable slices in the nodes around.
 pub struct ProtectedBBoxSlice<'a,T>{
     inner:&'a mut [T]
 }

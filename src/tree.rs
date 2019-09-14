@@ -184,7 +184,12 @@ pub mod notsorted{
 
         #[inline(always)]
         pub fn vistr_mut(&mut self)->VistrMut<N>{
-            self.0.inner.vistr_mut()
+            
+            VistrMut{
+                inner:self.0.inner.vistr_mut()
+            }
+            
+            //self.0.inner.vistr_mut()
         }
 
     }
@@ -282,7 +287,12 @@ impl<A:AxisTrait,N:NodeTrait> DinoTree<A,N>{
         self.axis
     }
     pub fn vistr_mut(&mut self)->VistrMut<N>{
-        self.inner.vistr_mut()
+        
+        VistrMut{
+            inner:self.inner.vistr_mut()
+        }
+        
+        //self.inner.vistr_mut()
     }
     pub fn vistr(&self)->Vistr<N>{
         self.inner.vistr()
@@ -313,7 +323,7 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
 }
 
 impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
-    pub fn new(axis: A, bots: &mut [T]) -> DinoTreeBuilder<A, T> {
+    pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeBuilder<'a,A, T> {
         let rebal_strat = BinStrat::Checked;
         let height = compute_tree_height_heuristic(bots.len());
         let height_switch_seq = default_level_switch_sequential();
@@ -464,7 +474,73 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
 
 pub type Vistr<'a,N:NodeTrait> = compt::dfs_order::Vistr<'a,N,compt::dfs_order::PreOrder>;
 
-pub type VistrMut<'a,N:NodeTrait> = compt::dfs_order::VistrMut<'a,N,compt::dfs_order::PreOrder>;
+//pub type VistrMut<'a,N:NodeTrait> = compt::dfs_order::VistrMut<'a,N,compt::dfs_order::PreOrder>;
+
+
+/// Tree Iterator that returns a mutable reference to each node.
+pub struct VistrMut<'a, N:NodeTrait> {
+    pub(crate) inner: compt::dfs_order::VistrMut<'a, N, compt::dfs_order::PreOrder>,
+}
+
+impl<'a, N:NodeTrait> VistrMut<'a, N> {
+    ///It is safe to borrow the iterator and then produce mutable references from that
+    ///as long as by the time the borrow ends, all the produced references also go away.
+    
+    #[inline(always)]
+    pub fn create_wrap_mut(&mut self) -> VistrMut<N> {
+        VistrMut {
+            inner: self.inner.create_wrap_mut(),
+        }
+    }
+
+}
+
+
+impl<'a, N:NodeTrait> core::ops::Deref for VistrMut<'a, N> {
+    type Target = Vistr<'a, N>;
+    
+    #[inline(always)]
+    fn deref(&self) -> &Vistr<'a, N> {
+        unsafe { &*(self as *const VistrMut<_> as *const Vistr<_>) }
+    }
+}
+
+
+
+unsafe impl<'a, N:NodeTrait> compt::FixedDepthVisitor for VistrMut<'a, N> {}
+
+impl<'a, N:NodeTrait> Visitor for VistrMut<'a, N> {
+    type Item = ProtectedNode<'a, N>;
+
+    
+    #[inline(always)]
+    fn next(self) -> (Self::Item, Option<[Self; 2]>) {
+        let (nn, rest) = self.inner.next();
+
+        let k = match rest {
+            Some([left, right]) => Some([VistrMut { inner: left }, VistrMut { inner: right }]),
+            None => None,
+        };
+        (ProtectedNode::new(nn), k)
+    }
+    
+    #[inline(always)]
+    fn level_remaining_hint(&self) -> (usize, Option<usize>) {
+        self.inner.level_remaining_hint()
+    }
+
+
+    
+    #[inline(always)]
+    fn dfs_preorder(self,mut func:impl FnMut(Self::Item)){
+        self.inner.dfs_preorder(|a|{
+            func(ProtectedNode::new(a))
+        });
+    }
+}
+
+
+
 
 
 pub trait NodeTrait{
@@ -948,14 +1024,6 @@ fn create_cont<A: AxisTrait, T: HasAabb>(axis: A, middle: &[T]) -> Option<axgeom
             })
         },
         None=>{
-            //We use unsafe here since we don't want to add more type contraints
-            //on NumTrait. If we add Default, then it becomes hard to implement
-            //some number types that count the number of comparisions made.
-
-            //It is safe to do, since this cont will never be accessed.
-            //Before we return a NodeRef, or NodeRefMut, we check if there are
-            //any bots in the node, and only then return cont.
-            //unsafe{core::mem::MaybeUninit::zeroed().assume_init()}
             None
         }
     }
