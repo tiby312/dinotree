@@ -1,6 +1,6 @@
 
 use crate::inner_prelude::*;
-pub use crate::assert_invariants::assert_invariants;
+use crate::assert_invariants::assert_invariants;
 
 
 
@@ -121,18 +121,20 @@ impl<A:AxisTrait,N:NodeTrait> DinoTree<A,N>{
         self.axis
     }
     pub fn vistr_mut(&mut self)->VistrMut<N>{
-        
         VistrMut{
             inner:self.inner.vistr_mut()
         }
-        
-        //self.inner.vistr_mut()
     }
     pub fn vistr(&self)->Vistr<N>{
         self.inner.vistr()
     }
     pub fn get_height(&self)->usize{
         self.inner.get_height()
+    }
+
+    #[must_use]
+    pub fn assert_invariants(&self)->bool{
+        assert_invariants(self)
     }
 }
 
@@ -154,7 +156,7 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
         let mut bots:&mut [T]=&mut [];
         core::mem::swap(&mut bots,&mut self.bots);
         
-        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        let dlevel = par::compute_level_switch_sequential(self.height_switch_seq, self.height);
         let inner = create_tree_par(self.axis,dlevel, bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
         NotSorted(DinoTree{axis:self.axis,inner})
     }
@@ -163,7 +165,7 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
         let mut bots:&mut [T]=&mut [];
         core::mem::swap(&mut bots,&mut self.bots);
         
-        let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
+        let dlevel = par::compute_level_switch_sequential(self.height_switch_seq, self.height);
         let inner = create_tree_par(self.axis,dlevel, bots, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
         DinoTree{axis:self.axis,inner}
     }
@@ -172,8 +174,20 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
 impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
     pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeBuilder<'a,A, T> {
         let rebal_strat = BinStrat::Checked;
-        let height = compute_tree_height_heuristic(bots.len());
-        let height_switch_seq = default_level_switch_sequential();
+
+        //we want each node to have space for around num_per_node bots.
+        //there are 2^h nodes.
+        //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+
+        //Make this number too small, and the tree will have too many levels,
+        //and too much time will be spent recursing.
+        //Make this number too high, and you will lose the properties of a tree,
+        //and you will end up with just sweep and prune.
+        //This number was chosen emprically from running the dinotree_alg_data project,
+        //on two different machines.
+        let height = Self::compute_tree_height_heuristic(bots.len(),128);
+
+        let height_switch_seq = par::SWITCH_SEQUENTIAL_DEFAULT; //TODO document
 
         DinoTreeBuilder {
             axis,
@@ -236,6 +250,25 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
     }
 
 
+
+    ///Outputs the height given an desirned number of bots per node.
+    #[inline]
+    pub fn compute_tree_height_heuristic(num_bots: usize, num_per_node: usize) -> usize {
+        //we want each node to have space for around 300 bots.
+        //there are 2^h nodes.
+        //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+
+        if num_bots <= num_per_node {
+            1
+        } else {
+            let a=num_bots as f32 / num_per_node as f32;
+            let b=a.log2()/2.0;
+            let c=(b.ceil() as usize)*2+1;
+            c
+        }
+    }
+
+
 }
 
 
@@ -275,42 +308,7 @@ impl Splitter for SplitterEmpty {
 
 
 
-
-///Outputs the height given an desirned number of bots per node.
-#[inline]
-pub fn compute_tree_height_heuristic_debug(num_bots: usize, num_per_node: usize) -> usize {
-    //we want each node to have space for around 300 bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-
-    if num_bots <= num_per_node {
-        1
-    } else {
-        let a=num_bots as f32 / num_per_node as f32;
-        let b=a.log2()/2.0;
-        let c=(b.ceil() as usize)*2+1;
-        c
-    }
-}
-
-///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
-#[inline]
-pub fn default_level_switch_sequential() -> usize {
-    const DEPTH_SEQ: usize = 6;
-    DEPTH_SEQ
-}
-
-///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
-#[inline]
-pub fn compute_default_level_switch_sequential(depth: usize, height: usize) -> par::Parallel {
-    //const DEPTH_SEQ:usize=4;
-    let dd = depth;
-
-    let gg = if height <= dd { 0 } else { height - dd };
-
-    par::Parallel::new(Depth(gg))
-}
-
+/*
 ///Returns the height of a dyn tree for a given number of bots.
 ///The height is chosen such that the nodes will each have a small amount of bots.
 ///If we had a node per bot, the tree would be too big.
@@ -331,7 +329,7 @@ pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
     //on two different machines.
     compute_tree_height_heuristic_debug(num_bots,128)
 }
-
+*/
 
 
 pub type Vistr<'a,N> = compt::dfs_order::Vistr<'a,N,compt::dfs_order::PreOrder>;

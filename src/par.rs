@@ -2,6 +2,22 @@ use compt::Depth;
 
 
 
+
+pub const SWITCH_SEQUENTIAL_DEFAULT:usize = 6;
+
+///Returns the height at which the recursive construction algorithm turns to sequential from parallel.
+#[inline]
+pub fn compute_level_switch_sequential(depth: usize, height: usize) -> Parallel {
+    //const DEPTH_SEQ:usize=4;
+    let dd = depth;
+
+    let gg = if height <= dd { 0 } else { height - dd };
+
+    Parallel::new(Depth(gg))
+}
+
+
+
 pub enum ParResult<X,Y>{
     Parallel([X;2]),
     Sequential([Y;2])
