@@ -144,10 +144,6 @@ pub mod prelude{
     pub use crate::elem::*;
     pub use crate::bbox::*;
     
-    pub use crate::tree::dinotree_good::*;
-    pub use crate::tree::dinotree_indirect::*;
-    //pub use crate::tree::dinotree_owned::*;
-    
     pub use crate::HasAabb;
     pub use crate::HasInner;
     pub use crate::NumTrait;

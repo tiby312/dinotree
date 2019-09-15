@@ -3,38 +3,93 @@ use crate::inner_prelude::*;
 use crate::assert_invariants::assert_invariants;
 
 
-
-pub mod dinotree_indirect{
-    use crate::inner_prelude::*;
-    pub fn create_bbox_indirect<'a,T:HasAabb>(bots:&'a mut [T])->Vec<BBoxIndirect<'a,T>>
-    {
-        bots.iter_mut().map(|a|BBoxIndirect::new(a)).collect()
-    }    
+///Convenience function to create a `&mut (Rect<N>,T)` from a `(Rect<N>,T)` bounding box.
+pub fn create_bbox_indirect<'a,N:NumTrait,T>(bots:&'a mut [BBox<N,T>])->Vec<BBoxIndirect<'a,BBox<N,T>>>
+{
+    bots.iter_mut().map(|a|BBoxIndirect::new(a)).collect()
 }
 
-pub mod dinotree_good{
-    use crate::inner_prelude::*;
 
-    pub fn create_bbox_mut<'a,Num:NumTrait,T>(bots:&'a mut [T],mut aabb_create:impl FnMut(&T)->Rect<Num>)->Vec<BBoxMut<'a,Num,T>>{
-        bots
-            .iter_mut()
-            .map(move |k| BBoxMut::new(aabb_create(k),k))
-            .collect()
-    }    
-}
-/*
-pub fn convert_into_direct<A:AxisTrait,N:NumTrait,T:Copy>(tree:DinoTree<A,NodeMut<BBoxMut<N,T>>>)->DinoTree<A,NodePtr<BBox<N,T>>>{
-    //unimplemented!()
-    let mut v=Vec::with_capacity(self.tree.inner.len());
-    for node in self.tree.inner.drain(..){
+///Convenience function to create a `(Rect<N>,&mut T)` from a `T` and a Rect<N> generating function.
+pub fn create_bbox_mut<'a,Num:NumTrait,T>(bots:&'a mut [T],mut aabb_create:impl FnMut(&T)->Rect<Num>)->Vec<BBoxMut<'a,Num,T>>{
+    bots
+        .iter_mut()
+        .map(move |k| BBoxMut::new(aabb_create(k),k))
+        .collect()
+}    
 
-        v.push(Node)
-    }
-}
-*/
 
+///A version of dinotree that is not lifetimed and uses unsafe{} to own the elements
+///that are in its tree (as a self-referential struct).  
 pub mod dinotree_owned{
+
     use crate::inner_prelude::*;
+        
+    ///Equivalent to: `(Rect<N>,*mut T)` 
+    #[repr(C)]
+    pub struct BBoxPtr<N, T> {
+        rect: axgeom::Rect<N>,
+        inner: tools::Unique<T>,
+    }
+
+    impl<N, T> BBoxPtr<N, T> {
+        #[inline(always)]
+        pub unsafe fn new(rect: axgeom::Rect<N>, inner: &mut T) -> BBoxPtr<N, T> {
+            BBoxPtr { rect, inner:tools::Unique::new_unchecked(inner) }
+        }
+    }
+
+
+    impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
+        type Num = N;
+        #[inline(always)]
+        fn get(&self) -> &Rect<Self::Num>{
+            &self.rect
+        }
+    }
+    impl<N:NumTrait,T> HasInner for BBoxPtr<N,T>{
+        type Inner= T;
+
+        #[inline(always)]
+        fn get_inner(&self)->(&Rect<N>,&Self::Inner){
+            (&self.rect,unsafe{self.inner.as_ref()})
+        }
+
+        #[inline(always)]
+        fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
+            (&self.rect,unsafe{self.inner.as_mut()})
+        }
+    }
+
+
+    ///A Node in a dinotree.
+    pub struct NodePtr<T: HasAabb> {
+        range: tools::Unique<[T]>,
+
+        //range is empty iff cont is none.
+        cont: Option<axgeom::Range<T::Num>>,
+        //for non leafs:
+        //  div is some iff mid is nonempty.
+        //  div is none iff mid is empty.
+        //for leafs:
+        //  div is none
+        div: Option<T::Num>,
+    }
+
+
+    impl<T:HasAabb> NodeTrait for NodePtr<T>{
+        type T=T;
+        type Num=T::Num;
+        fn get(&self)->NodeRef<Self::T>{
+            NodeRef{bots:unsafe{self.range.as_ref()},cont:&self.cont,div:&self.div}
+        }
+        fn get_mut(&mut self)->NodeRefMut<Self::T>{
+            NodeRefMut{bots:ProtectedBBoxSlice::new(unsafe{self.range.as_mut()}),cont:&self.cont,div:&self.div}
+        }
+    }
+
+
+    ///An owned dinotree
     pub struct DinoTreeOwned<A:AxisTrait,N:NumTrait,T>{
         inner:DinoTree<A,NodePtr<BBoxPtr<N,T>>>,
         bots_aabb:Vec<BBoxPtr<N,T>>,
@@ -69,15 +124,35 @@ pub mod dinotree_owned{
     }    
     
 
-
-    pub fn create_owned<A:AxisTrait,N:NumTrait,T>(
+    ///Create an owned dinotree in one thread.
+    pub fn create_owned_par<A:AxisTrait,N:NumTrait,T:Send+Sync>(
         axis:A,
         mut bots:Vec<T>,
-        mut aabb_create:impl FnMut(&T)->Rect<N>,
-        mut func:impl FnMut(A,&mut [BBoxPtr<N,T>])->DinoTree<A,NodeMut<BBoxPtr<N,T>>>)->DinoTreeOwned<A,N,T>{
+        mut aabb_create:impl FnMut(&T)->Rect<N>)->DinoTreeOwned<A,N,T>{
         let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|unsafe{BBoxPtr::new(aabb_create(k),k)}).collect();
 
-        let inner = func(axis,&mut bots_aabb);
+        let inner = DinoTreeBuilder::new(axis,&mut bots_aabb).build_par();
+        
+        let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:unsafe{tools::Unique::new_unchecked(node.range)},cont:node.cont,div:node.div}).collect(); 
+        let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(inner).unwrap();
+        DinoTreeOwned{
+            inner:DinoTree{
+                axis,
+                inner
+            },
+            bots_aabb,
+            bots
+        }
+    }
+
+    ///Create an owned dinotree in parallel.
+    pub fn create_owned_seq<A:AxisTrait,N:NumTrait,T>(
+        axis:A,
+        mut bots:Vec<T>,
+        mut aabb_create:impl FnMut(&T)->Rect<N>)->DinoTreeOwned<A,N,T>{
+        let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|unsafe{BBoxPtr::new(aabb_create(k),k)}).collect();
+
+        let inner = DinoTreeBuilder::new(axis,&mut bots_aabb).build_seq();
         
         let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:unsafe{tools::Unique::new_unchecked(node.range)},cont:node.cont,div:node.div}).collect(); 
         let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(inner).unwrap();
@@ -93,6 +168,8 @@ pub mod dinotree_owned{
 }
 
 
+///A version of dinotree where the elements are not sorted along each axis.
+///So this is basically a KD Tree. Is consutrcted using `DinoTreeBuilder`.
 pub struct NotSorted<A: AxisTrait,N:NodeTrait>(DinoTree<A,N>);
 
 impl<A:AxisTrait,N:NodeTrait> NotSorted<A,N>{
@@ -122,11 +199,12 @@ impl<A:AxisTrait,N:NodeTrait> NotSorted<A,N>{
 }
 
 
-
+///The data structure this crate revoles around.
 pub struct DinoTree<A:AxisTrait,N:NodeTrait>{
     axis:A,
     inner: compt::dfs_order::CompleteTreeContainer<N, compt::dfs_order::PreOrder>,
 }
+
 impl<A:AxisTrait,N:NodeTrait> DinoTree<A,N>{
     pub fn axis(&self)->A{
         self.axis
@@ -150,6 +228,7 @@ impl<A:AxisTrait,N:NodeTrait> DinoTree<A,N>{
 }
 
 
+///Builder pattern for dinotree.
 pub struct DinoTreeBuilder<'a, A: AxisTrait, T> {
     pub(crate) axis: A,
     pub(crate) bots: &'a mut [T],
@@ -172,6 +251,7 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
         NotSorted(DinoTree{axis:self.axis,inner})
     }
 
+    ///Build in parallel
     pub fn build_par(&mut self) -> DinoTree<A,NodeMut<'a,T>> {
         let mut bots:&mut [T]=&mut [];
         core::mem::swap(&mut bots,&mut self.bots);
@@ -196,9 +276,9 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
         //and you will end up with just sweep and prune.
         //This number was chosen emprically from running the dinotree_alg_data project,
         //on two different machines.
-        let height = compute_tree_height_heuristic(bots.len(),128);
+        let height = compute_tree_height_heuristic(bots.len(),DEFAULT_NUMBER_ELEM_PER_NODE);
 
-        let height_switch_seq = par::SWITCH_SEQUENTIAL_DEFAULT; //TODO document
+        let height_switch_seq = par::SWITCH_SEQUENTIAL_DEFAULT;
 
         DinoTreeBuilder {
             axis,
@@ -477,34 +557,6 @@ pub struct NodeRef<'a, T:HasAabb> {
     pub div: &'a Option<T::Num>,
 }
 
-
-
-
-///A node in a dinotree.
-pub struct NodePtr<T: HasAabb> {
-    pub(crate) range: tools::Unique<[T]>,
-
-    //range is empty iff cont is none.
-    pub(crate) cont: Option<axgeom::Range<T::Num>>,
-    //for non leafs:
-    //  div is some iff mid is nonempty.
-    //  div is none iff mid is empty.
-    //for leafs:
-    //  div is none
-    pub(crate) div: Option<T::Num>,
-}
-
-
-impl<T:HasAabb> NodeTrait for NodePtr<T>{
-    type T=T;
-    type Num=T::Num;
-    fn get(&self)->NodeRef<Self::T>{
-        NodeRef{bots:unsafe{self.range.as_ref()},cont:&self.cont,div:&self.div}
-    }
-    fn get_mut(&mut self)->NodeRefMut<Self::T>{
-        NodeRefMut{bots:ProtectedBBoxSlice::new(unsafe{self.range.as_mut()}),cont:&self.cont,div:&self.div}
-    }
-}
 
 
 

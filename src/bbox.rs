@@ -35,45 +35,9 @@ impl<'a,T:HasInner> HasInner for BBoxIndirect<'a,T>{
 
 
 
-///Equivalent to: `(Rect<N>,*mut T)` 
-#[repr(C)]
-pub struct BBoxPtr<N, T> {
-    pub rect: axgeom::Rect<N>,
-    inner: tools::Unique<T>,
-}
-
-impl<N, T> BBoxPtr<N, T> {
-    #[inline(always)]
-    pub unsafe fn new(rect: axgeom::Rect<N>, inner: &mut T) -> BBoxPtr<N, T> {
-        BBoxPtr { rect, inner:tools::Unique::new_unchecked(inner) }
-    }
-}
 
 
-impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
-    type Num = N;
-    #[inline(always)]
-    fn get(&self) -> &Rect<Self::Num>{
-        &self.rect
-    }
-}
-impl<N:NumTrait,T> HasInner for BBoxPtr<N,T>{
-    type Inner= T;
-
-    #[inline(always)]
-    fn get_inner(&self)->(&Rect<N>,&Self::Inner){
-        (&self.rect,unsafe{self.inner.as_ref()})
-    }
-
-    #[inline(always)]
-    fn get_inner_mut(&mut self)->(&Rect<N>,&mut Self::Inner){
-        (&self.rect,unsafe{self.inner.as_mut()})
-    }
-}
-
-
-
-///Equivalent to: `(Rect<N>,*mut T)` 
+///Equivalent to: `(Rect<N>,&mut T)` 
 #[repr(C)]
 pub struct BBoxMut<'a,N, T> {
     pub rect: axgeom::Rect<N>,
