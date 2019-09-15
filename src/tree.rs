@@ -22,6 +22,16 @@ pub mod dinotree_good{
             .collect()
     }    
 }
+/*
+pub fn convert_into_direct<A:AxisTrait,N:NumTrait,T:Copy>(tree:DinoTree<A,NodeMut<BBoxMut<N,T>>>)->DinoTree<A,NodePtr<BBox<N,T>>>{
+    //unimplemented!()
+    let mut v=Vec::with_capacity(self.tree.inner.len());
+    for node in self.tree.inner.drain(..){
+
+        v.push(Node)
+    }
+}
+*/
 
 pub mod dinotree_owned{
     use crate::inner_prelude::*;
@@ -81,6 +91,7 @@ pub mod dinotree_owned{
         }
     }
 }
+
 
 pub struct NotSorted<A: AxisTrait,N:NodeTrait>(DinoTree<A,N>);
 
@@ -185,7 +196,7 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
         //and you will end up with just sweep and prune.
         //This number was chosen emprically from running the dinotree_alg_data project,
         //on two different machines.
-        let height = Self::compute_tree_height_heuristic(bots.len(),128);
+        let height = compute_tree_height_heuristic(bots.len(),128);
 
         let height_switch_seq = par::SWITCH_SEQUENTIAL_DEFAULT; //TODO document
 
@@ -248,27 +259,26 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
         let inner = create_tree_seq(self.axis, bots, DefaultSorter, splitter, self.height, self.rebal_strat);
         DinoTree{axis:self.axis,inner} 
     }
+}
 
 
+pub const DEFAULT_NUMBER_ELEM_PER_NODE:usize=128;
 
-    ///Outputs the height given an desirned number of bots per node.
-    #[inline]
-    pub fn compute_tree_height_heuristic(num_bots: usize, num_per_node: usize) -> usize {
-        //we want each node to have space for around 300 bots.
-        //there are 2^h nodes.
-        //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
+///Outputs the height given an desirned number of bots per node.
+#[inline]
+pub fn compute_tree_height_heuristic(num_bots: usize, num_per_node: usize) -> usize {
+    //we want each node to have space for around 300 bots.
+    //there are 2^h nodes.
+    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
 
-        if num_bots <= num_per_node {
-            1
-        } else {
-            let a=num_bots as f32 / num_per_node as f32;
-            let b=a.log2()/2.0;
-            let c=(b.ceil() as usize)*2+1;
-            c
-        }
+    if num_bots <= num_per_node {
+        1
+    } else {
+        let a=num_bots as f32 / num_per_node as f32;
+        let b=a.log2()/2.0;
+        let c=(b.ceil() as usize)*2+1;
+        c
     }
-
-
 }
 
 
