@@ -150,15 +150,21 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
     DinoTreeBuilder<'a,A,  T>
 {
     ///Build not sorted in parallel
-    pub fn build_not_sorted_par(self) -> NotSorted<A,NodeMut<'a,T>> {
+    pub fn build_not_sorted_par(&mut self) -> NotSorted<A,NodeMut<'a,T>> {
+        let mut bots:&mut [T]=&mut [];
+        core::mem::swap(&mut bots,&mut self.bots);
+        
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        let inner = create_tree_par(self.axis,dlevel, self.bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+        let inner = create_tree_par(self.axis,dlevel, bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
         NotSorted(DinoTree{axis:self.axis,inner})
     }
 
-    pub fn build_par(self) -> DinoTree<A,NodeMut<'a,T>> {
+    pub fn build_par(&mut self) -> DinoTree<A,NodeMut<'a,T>> {
+        let mut bots:&mut [T]=&mut [];
+        core::mem::swap(&mut bots,&mut self.bots);
+        
         let dlevel = compute_default_level_switch_sequential(self.height_switch_seq, self.height);
-        let inner = create_tree_par(self.axis,dlevel, self.bots, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+        let inner = create_tree_par(self.axis,dlevel, bots, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
         DinoTree{axis:self.axis,inner}
     }
 }
@@ -180,13 +186,18 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
 
 
     ///Build not sorted sequentially
-    pub fn build_not_sorted_seq(self) -> NotSorted<A,NodeMut<'a,T>> {
-        let inner = create_tree_seq(self.axis, self.bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+    pub fn build_not_sorted_seq(&mut self) -> NotSorted<A,NodeMut<'a,T>> {
+        let mut bots:&mut [T]=&mut [];
+        core::mem::swap(&mut bots,&mut self.bots);
+        
+        let inner = create_tree_seq(self.axis, bots, NoSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
         NotSorted(DinoTree{axis:self.axis,inner})
     }
 
-    pub fn build_seq(self)->DinoTree<A,NodeMut<'a,T>>{
-        let inner = create_tree_seq(self.axis, self.bots, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
+    pub fn build_seq(&mut self)->DinoTree<A,NodeMut<'a,T>>{
+        let mut bots:&mut [T]=&mut [];
+        core::mem::swap(&mut bots,&mut self.bots);
+        let inner = create_tree_seq(self.axis, bots, DefaultSorter, &mut SplitterEmpty, self.height, self.rebal_strat);
         DinoTree{axis:self.axis,inner}
     }
 
@@ -214,10 +225,13 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
 
     ///Build with a Splitter.
     pub fn build_with_splitter_seq<S: Splitter>(
-        self,
+        &mut self,
         splitter: &mut S,
     ) -> DinoTree<A,NodeMut<'a,T>> {
-        let inner = create_tree_seq(self.axis, self.bots, DefaultSorter, splitter, self.height, self.rebal_strat);
+        let mut bots:&mut [T]=&mut [];
+        core::mem::swap(&mut bots,&mut self.bots);
+        
+        let inner = create_tree_seq(self.axis, bots, DefaultSorter, splitter, self.height, self.rebal_strat);
         DinoTree{axis:self.axis,inner} 
     }
 
