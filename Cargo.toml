@@ -10,9 +10,9 @@ readme = "readme.md"
 edition = "2018"
 
 [dependencies]
-is_sorted = "0.1.1"
-rayon = "1.1.0"
-pdqselect = "0.1.0"
-compt = "1.6.1"
-axgeom = "1.2.1"
+is_sorted = "0.1"
+rayon = "1.2"
+pdqselect = "0.1"
+compt = "1.6"
+axgeom = "1.2"
 
