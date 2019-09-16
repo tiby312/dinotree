@@ -127,7 +127,6 @@ mod inner_prelude {
 
 pub use axgeom;
 pub use compt;
-pub use rayon;
 
 mod assert_invariants;
 

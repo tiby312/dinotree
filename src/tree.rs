@@ -394,7 +394,8 @@ pub trait Splitter: Sized {
 }
 
 ///For cases where you don't care about any of the callbacks that Splitter provides, this implements them all to do nothing.
-pub(crate) struct SplitterEmpty;
+///This struct is public incase query algorithms need it.
+pub struct SplitterEmpty;
 
 impl Splitter for SplitterEmpty {
     fn div(&mut self) -> Self {
