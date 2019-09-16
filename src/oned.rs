@@ -2,7 +2,6 @@ use crate::inner_prelude::*;
 use crate::HasAabb;
 
 ///The results of the binning process.
-
 pub struct Binned<'a, T: 'a> {
     pub middle: &'a mut [T],
     pub left: &'a mut [T],

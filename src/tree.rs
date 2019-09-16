@@ -19,8 +19,10 @@ pub fn create_bbox_mut<'a,Num:NumTrait,T>(bots:&'a mut [T],mut aabb_create:impl 
 }    
 
 
+
+
 ///A version of dinotree that is not lifetimed and uses unsafe{} to own the elements
-///that are in its tree (as a self-referential struct).  
+///that are in its tree (as a self-referential struct). Composed of `(Rect<N>,*mut T)`. 
 pub mod dinotree_owned{
 
     use crate::inner_prelude::*;
@@ -346,17 +348,10 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
 
 ///Returns the height of a dyn tree for a given number of bots.
 ///The height is chosen such that the nodes will each have a small amount of bots.
-///If we had a node per bot, the tree would be too big.
+///If we had a node per bot, the tree would have too many levels. Too much time would be spent recursing.
 ///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
-///This is provided so that users can allocate enough space for all the nodes
-///before the tree is constructed, perhaps for some graphics buffer.
-///
-//Make this number too small, and the tree will have too many levels,
-//and too much time will be spent recursing.
-//Make this number too high, and you will lose the properties of a tree,
-//and you will end up with just sweep and prune.
-//This number was chosen emprically from running the dinotree_alg_data project,
-//on two different machines.
+///Theory would tell you to just make a node per bot, but there is
+///a sweet spot inbetween determined by the real-word properties of your computer. 
 pub const DEFAULT_NUMBER_ELEM_PER_NODE:usize=128;
 
 ///Outputs the height given an desirned number of bots per node.
@@ -399,7 +394,7 @@ pub trait Splitter: Sized {
 }
 
 ///For cases where you don't care about any of the callbacks that Splitter provides, this implements them all to do nothing.
-pub struct SplitterEmpty;
+pub(crate) struct SplitterEmpty;
 
 impl Splitter for SplitterEmpty {
     fn div(&mut self) -> Self {

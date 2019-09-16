@@ -36,16 +36,12 @@
 //!
 //! ## Data Structure
 //!
-//! Three flavors of the same fundamental data structure are provided. They each 
-//! have different characteristics that may make you want to use them over the others.
+//! Using this crate, the user can create three flavors of the same fundamental data structure are provided. They each 
+//! have different characteristics that may make you want to use them over the others. You can make a dinotree
+//! composed of either:
 //!
-//! + `DinoTree` is made up of `(Rect<N>,&mut T)`
-//! + `DinoTreeDirect` is made up of `(Rect<N>,T)`
-//! + `DinoTreeIndirect` is made up of `&mut (Rect<N>,T)`
 //!
-//! ## Data Structure Details
-//!
-//! + `DinoTree` is the most well rounded and most performant in all cases.
+//! + `(Rect<N>,&mut T)` is the most well rounded and most performant in most cases.
 //! The aabb's themselves don't have a level of indirection. Broad-phase
 //! algorithms need to look at these very often. It's only when these algorithms
 //! detect a intersection do they need to look further, which doesnt happen as often.
@@ -53,32 +49,32 @@
 //! means that more aabb's will be in cache at once, further speeding up algorithms
 //! that need to look at the aabb's very often.
 //!
-//! + `DinoTreeDirect` can be fairly fast in cases where there are many, many overlapping
-//! elements in the tree, but this comes at the cost of a more expensive base cost
-//! of constructing (and deconstructing) the tree. One benefit of using this tree, is
-//! that it owns the elements completely, so there are no lifetime references to worry about.
 //!
-//! + `DinoTreeIndirect` has fast tree construction given that we are just sorting and swapping
+//! + `(Rect<N>,T)` performs slightly better during the querying phase, But suffers
+//! during the construction phase. There is also no easy way to return the elements back
+//! to their original positions on destructing of the tree (something you don't need to worry about with pointers).
+//! One benefit of using this tree, is that it owns the elements completely, so there are no lifetime references to worry about.
+//! The performance of this type of tree is also heavily influenced by the size of T.
+//!
+//! + `&mut (Rect<N>,T)` has comparable tree construction times to `(Rect<N>,&mut T)` given that we are just sorting and swapping
 //! pointers, but there is no cache-coherence during the query phase, so this can 
 //! cause real slow down to query algorithms if there are many overlapping elements.
 //!
-//! ## BBox Differences
 //!
-//! `DinoTree` and `DinoTreeDirect` both have the user provide a `&mut [T]` or `Vec<T>` and produce a 
-//! `(Rect<N>,&mut T)` or `(Rect<N>,T)` from that slice and a user provided aabb construction function.
-//! This was done to minimize total memory used. In most cases, an elements aabb doesnt mean anything
-//! unless it exists in a space partitioning tree. So if the tree doesnt exist, 
-//! the aabb is just taking up spacing in that object slowing down other algorithms that have to iterating 
-//! over all the bots for some other purpose. So this api encourages the user to only make the abb
-//! on creation of the tree. 
+//! ## DinoTreeOwned
 //!
-//! In the case of `DinoTreeIndirect`, we can hardly avoid it, since the tree is made up solely of pointers
-//! so the user must provide a slice with the aabb for each object already.
+//! A verion of the tree where the tree owns the elements in side of it.
+//! The user is encouraged to use the lifetimed version, though, as that does not use unsafe{}.
+//! But this might mean that the user has to re-construct the tree more often than it needs to be.
+//! It is composed internally of the equivalent to `(Rect<N>,&mut T)`, the most well-rounded data layout as
+//! described above. 
 //!
 //! ## NotSorted
 //!
 //! For comparison, a normal kd-tree is provided by `NotSorted`. In this tree, the elements are not sorted
-//! along an axis at each level.
+//! along an axis at each level. Construction of `NotSorted` is faster than `DinoTree` since it does not have to
+//! sort bots that belong to each node along an axis. But most query algorithms can usually take advantage of this
+//! extra property.
 //!
 //!
 //! ## User Protection
@@ -91,8 +87,13 @@
 //!
 //! ## Usage Guidlines
 //!
-//! If you insert aabb's with zero width or zero height, it is unspecified behavior.
-//! It is expected that all elements in the tree take up some area (just like in real life).
+//! If you insert aabb's with zero width or zero height, it is unspecified behavior (but still safe).
+//! It is expected that all elements in the tree take up some area. This is not inteded to be used
+//! as a "point" tree. Using this tree for a point tree would be inefficient since the data layout
+//! assumes there is a aabb, which is composed of 4 numbers when a point would be just 2.
+//!
+//! That said, an aabb is composed of half-open ranges [start,end). So one could simulate a "point",
+//! by putting in a very small epsilon value to ensure that end>start.
 //! 
 //!
 
@@ -130,20 +131,18 @@ pub use rayon;
 
 mod assert_invariants;
 
-///Contains generic code using both all dinotree versions
+///Contains generic code used in all dinotree versions
 pub mod tree;
 
-
-///Contains code to write generic code that can be run in parallel, or sequentially. Not intended to be used directly by the user.
-///Used by algorithms that operate on the tree.
+///Contains code to write generic code that can be run in parallel, or sequentially. The api is exposed
+///in case users find it useful when writing parallel query code to operate on the tree.
 pub mod par;
 
 ///Prelude to include by using: pub use dinotree::prelude::*
 pub mod prelude{
     pub use crate::tree::*;
     pub use crate::elem::*;
-    pub use crate::bbox::*;
-    
+    pub use crate::bbox::*;    
     pub use crate::HasAabb;
     pub use crate::HasInner;
     pub use crate::NumTrait;
@@ -157,23 +156,12 @@ pub mod tools;
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
 
-///Provies a slice that produces destructured bounding boxes as the elements.
-///
-/// Return destructured bbox's so as not to give the user mutable references to the elements themselves.
-/// If the user were to get these, they could swap elements in the tree and violate
-/// the invariants of the tree.
+///Provies a slice that produces BBox's where users can only interact
+///with through the HasInner trait so as to protect the invariants of the tree.
 pub mod elem;
 
 ///A collection of different bounding box containers.
 pub mod bbox;
-
-///A version of a dinotree where the bots are not sorted.
-///
-///So this is really a regular kd-tree. The bots that belong to a node are not
-///sorted along an axis. 
-//pub mod notsorted;
-
-
 
 
 ///The underlying number type used for the dinotree.
@@ -181,7 +169,6 @@ pub mod bbox;
 ///Notice that no arithmatic is possible. The tree is constructed
 ///using only comparisons and copying.
 pub trait NumTrait: Ord + Copy + Send + Sync {}
-
 impl<T> NumTrait for T where T: Ord + Copy + Send + Sync {}
 
 
@@ -189,12 +176,14 @@ impl<T> NumTrait for T where T: Ord + Copy + Send + Sync {}
 
 use axgeom::*;
 
-///Marker trait to signify that this object has an axis aligned bounding box.
+///Trait to signify that this object has an axis aligned bounding box.
 pub trait HasAabb{
     type Num: NumTrait;
     fn get(&self) -> &Rect<Self::Num>;
 }
 
+///Trait exposes an api where you can return a read-only reference to the axis-aligned bounding box
+///and at the same time return a mutable reference to a seperate inner section.
 pub trait HasInner:HasAabb{
     type Inner;
     #[inline(always)]
