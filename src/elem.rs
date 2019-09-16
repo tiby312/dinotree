@@ -20,21 +20,7 @@ impl<'a,T:NodeTrait> ProtectedNode<'a,T>{
         ProtectedNode{inner:self.inner}
     }
 }
-/*
-impl<'a,T:NodeTrait> NodeTrait for ProtectedNode<'a,T>{
-    type T=T::T;
-    type Num=T::Num;
-    fn get(&self)->NodeRef<Self::T>{
-        self.inner.get()
-        //NodeRef{bots:self.inner.range.as_ref(),cont:&self.inner.cont,div:&self.inner.div}
-    }
-    fn get_mut(&mut self)->NodeRefMut<Self::T>{
-        //NodeRefMut{bots:ProtectedBBoxSlice::new(self.inner.range.as_mut()),cont:&self.inner.cont,div:&self.inner.div}
-        self.inner.get_mut()
-    }
 
-}
-*/
 
 ///Forbids the user from swapping aabb's around.
 #[repr(transparent)]
@@ -51,7 +37,10 @@ impl<'a,T> ProtectedBBox<'a,T>{
 
 }
 impl<'a,T:HasAabb> ProtectedBBox<'a,T>{
-    ///TODO talk to this
+    ///Since ProtectedBBox hides its contents only lets the user mutate itself
+    ///through the HasInner trait, it is safe to have &Rect<N>,
+    ///and also &mut ProtectedBBox<T>, since we are guarenteed that they cannot
+    ///mutate the Rect<N> even with a &mut ProtectedBBox<T>.
     #[inline(always)]
     pub fn get_aabb_and_self(&mut self)->(&Rect<T::Num>,&mut ProtectedBBox<'a,T>){
         let rect=unsafe{&*(self.get() as *const _)};

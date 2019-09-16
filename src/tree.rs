@@ -263,6 +263,8 @@ impl<'a,A: AxisTrait, T:HasAabb+Send+Sync>
 }
 
 impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
+
+    ///Create a new builder with a slice of elements that implement `HasAabb`.
     pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeBuilder<'a,A, T> {
         let rebal_strat = BinStrat::Checked;
 
@@ -299,6 +301,7 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
         NotSorted(DinoTree{axis:self.axis,inner})
     }
 
+    ///Build sequentially
     pub fn build_seq(&mut self)->DinoTree<A,NodeMut<'a,T>>{
         let mut bots:&mut [T]=&mut [];
         core::mem::swap(&mut bots,&mut self.bots);
@@ -341,7 +344,19 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
     }
 }
 
-
+///Returns the height of a dyn tree for a given number of bots.
+///The height is chosen such that the nodes will each have a small amount of bots.
+///If we had a node per bot, the tree would be too big.
+///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
+///This is provided so that users can allocate enough space for all the nodes
+///before the tree is constructed, perhaps for some graphics buffer.
+///
+//Make this number too small, and the tree will have too many levels,
+//and too much time will be spent recursing.
+//Make this number too high, and you will lose the properties of a tree,
+//and you will end up with just sweep and prune.
+//This number was chosen emprically from running the dinotree_alg_data project,
+//on two different machines.
 pub const DEFAULT_NUMBER_ELEM_PER_NODE:usize=128;
 
 ///Outputs the height given an desirned number of bots per node.
@@ -396,49 +411,21 @@ impl Splitter for SplitterEmpty {
 }
 
 
-
-
-/*
-///Returns the height of a dyn tree for a given number of bots.
-///The height is chosen such that the nodes will each have a small amount of bots.
-///If we had a node per bot, the tree would be too big.
-///If we had too many bots per node, you would lose the properties of a tree, and end up with plain sweep and prune.
-///This is provided so that users can allocate enough space for all the nodes
-///before the tree is constructed, perhaps for some graphics buffer.
-#[inline]
-pub fn compute_tree_height_heuristic(num_bots: usize) -> usize {
-    //we want each node to have space for around num_per_node bots.
-    //there are 2^h nodes.
-    //2^h*200>=num_bots.  Solve for h s.t. h is an integer.
-
-    //Make this number too small, and the tree will have too many levels,
-    //and too much time will be spent recursing.
-    //Make this number too high, and you will lose the properties of a tree,
-    //and you will end up with just sweep and prune.
-    //This number was chosen emprically from running the dinotree_alg_data project,
-    //on two different machines.
-    compute_tree_height_heuristic_debug(num_bots,128)
-}
-*/
-
-
+///When we travaerse the tree in read-only mode, we can simply return a reference to each node.
+///We don't need to protect the user from only mutating parts of the BBox's since they can't
+///change anything.
 pub type Vistr<'a,N> = compt::dfs_order::Vistr<'a,N,compt::dfs_order::PreOrder>;
 
-
-//type Binop<'a,N> = fn(&'a mut N) -> ProtectedNode<'a,N>;
-//pub type VistrMut<'a,N:NodeTrait> = compt::Map<compt::dfs_order::VistrMut<'a,N,compt::dfs_order::PreOrder>,Binop<'a,N>>;
-
-
-/// Tree Iterator that returns a mutable reference to each node.
+/// Tree Iterator that returns a protected mutable reference to each node.
 #[repr(transparent)]
 pub struct VistrMut<'a, N:NodeTrait> {
     pub(crate) inner: compt::dfs_order::VistrMut<'a, N, compt::dfs_order::PreOrder>,
 }
 
 impl<'a, N:NodeTrait> VistrMut<'a, N> {
+
     ///It is safe to borrow the iterator and then produce mutable references from that
     ///as long as by the time the borrow ends, all the produced references also go away.
-    
     #[inline(always)]
     pub fn create_wrap_mut(&mut self) -> VistrMut<N> {
         VistrMut {
@@ -493,10 +480,10 @@ impl<'a, N:NodeTrait> Visitor for VistrMut<'a, N> {
 }
 
 
-
-
-
-
+///Expose a node trait api so that we can have nodes made up of both
+///&mut [T] and *mut [T].
+///We ideally want to use the lifetimed version of `NodeMut`, but 
+///but for `DinoTreeOwned` we must use `NodePtr`.
 pub trait NodeTrait{
     type T:HasAabb<Num=Self::Num>;
     type Num:NumTrait;
@@ -515,9 +502,8 @@ impl<'a,T:HasAabb> NodeTrait for NodeMut<'a,T>{
     }
 }
 
-///A node in a dinotree.
+///A lifetimed node in a dinotree.
 pub struct NodeMut<'a,T: HasAabb> {
-    //pub range: ProtectedBBoxSlice<'a,T>,
     pub range:&'a mut [T],
 
     //range is empty iff cont is none.
@@ -559,7 +545,9 @@ pub struct NodeRef<'a, T:HasAabb> {
 
 
 
-
+///Expose a common Sorter trait so that we may have two version of the tree
+///where one implementation actually does sort the tree, while the other one
+///does nothing when sort() is called.
 pub(crate) trait Sorter: Copy + Clone + Send + Sync {
     fn sort(&self, axis: impl AxisTrait, bots: &mut [impl HasAabb]);
 }
