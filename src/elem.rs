@@ -2,6 +2,7 @@ use crate::inner_prelude::*;
 
 
 ///Forbids the user from swapping two nodes around.
+#[repr(transparent)]
 pub struct ProtectedNode<'a,T>{
     inner:&'a mut T
 }
@@ -36,17 +37,9 @@ impl<'a,T> ProtectedBBox<'a,T>{
     }
 
 }
-impl<'a,T:HasAabb> ProtectedBBox<'a,T>{
-    ///Since ProtectedBBox hides its contents only lets the user mutate itself
-    ///through the HasInner trait, it is safe to have &Rect<N>,
-    ///and also &mut ProtectedBBox<T>, since we are guarenteed that they cannot
-    ///mutate the Rect<N> even with a &mut ProtectedBBox<T>.
-    #[inline(always)]
-    pub fn get_aabb_and_self(&mut self)->(&Rect<T::Num>,&mut ProtectedBBox<'a,T>){
-        let rect=unsafe{&*(self.get() as *const _)};
-        (rect,self)
-    }
-}
+
+
+
 
 
 impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
@@ -123,6 +116,7 @@ impl<'a,T> AsRef<[T]> for ProtectedBBoxSlice<'a,T>{
 
 
 ///Forbids the user from swapping mutable slices in the nodes around.
+#[repr(transparent)]
 pub struct ProtectedBBoxSlice<'a,T>{
     inner:&'a mut [T]
 }

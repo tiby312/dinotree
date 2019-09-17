@@ -2,6 +2,7 @@ use crate::inner_prelude::*;
 
 
 ///Equivalent to: `&mut (Rect<N>,T)`
+#[repr(transparent)]
 pub struct BBoxIndirect<'a,T>{
     pub inner: &'a mut T
 }

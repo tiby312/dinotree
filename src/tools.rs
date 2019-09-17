@@ -15,47 +15,21 @@ pub fn duplicate_empty_slice<T>(arr: &mut [T]) -> (&mut [T],&mut [T]) {
 
 
 
-use core::marker::PhantomData;
-///A Unique that doesnt require rust nightly.
-///See https://doc.rust-lang.org/1.26.2/core/ptr/struct.Unique.html
-#[derive(Copy,Clone,Debug)]
-pub(crate) struct Unique<T: ?Sized>(
-    pub core::ptr::NonNull<T>,
-    PhantomData<T>
-);
-
-unsafe impl<T:?Sized+Send> Send for Unique<T>{}
-unsafe impl<T:?Sized+Sync> Sync for Unique<T>{}
-impl<T:?Sized> Unique<T>{
-    #[inline(always)]
-    pub unsafe fn new_unchecked(ptr:*mut T)->Unique<T>{
-        Unique(core::ptr::NonNull::new_unchecked(ptr),PhantomData)
-    }
-    
-    #[inline(always)]
-    pub unsafe fn as_ref(&self)->&T{
-        self.0.as_ref()
-    }
-
-    #[inline(always)]
-    pub unsafe fn as_mut(&mut self)->&mut T{
-        self.0.as_mut()
-    }       
-}
-
 
 use alloc::vec::Vec;
+
+
+
+use crate::elem::*;
+
 //They are always send and sync because the only time the vec is used
 //is when it is borrowed for the lifetime.
 unsafe impl<T> core::marker::Send for PreVecMut<T> {}
 unsafe impl<T> core::marker::Sync for PreVecMut<T> {}
 
-
-
-use crate::elem::*;
 ///An vec api to avoid excessive dynamic allocation by reusing a Vec
 pub struct PreVecMut<T> {
-    vec:Vec<*mut T>
+    vec:Vec<core::ptr::NonNull<T>>
 }
 
 impl<T> PreVecMut<T> {
@@ -68,14 +42,11 @@ impl<T> PreVecMut<T> {
 
     ///Clears the vec and returns a mutable reference to a vec.
     #[inline(always)]
-    pub fn get_empty_vec_mut<'a,'b:'a>(&'a mut self) -> &'a mut Vec<ProtectedBBox<T>> {
+    pub fn get_empty_vec_mut<'a,'b:'a>(&'a mut self) -> &'a mut Vec<ProtectedBBox<'b,T>> {
         self.vec.clear();
         let v: &mut Vec<_> = &mut self.vec;
         unsafe{&mut *(v as *mut _ as *mut Vec<_>)}
-    }
+    }    
 }
-
-
-
 
 

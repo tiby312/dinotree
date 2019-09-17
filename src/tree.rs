@@ -31,15 +31,18 @@ pub mod dinotree_owned{
     #[repr(C)]
     pub struct BBoxPtr<N, T> {
         rect: axgeom::Rect<N>,
-        inner: tools::Unique<T>,
+        inner: core::ptr::NonNull<T>,
     }
 
     impl<N, T> BBoxPtr<N, T> {
         #[inline(always)]
-        pub unsafe fn new(rect: axgeom::Rect<N>, inner: &mut T) -> BBoxPtr<N, T> {
-            BBoxPtr { rect, inner:tools::Unique::new_unchecked(inner) }
+        pub fn new(rect: axgeom::Rect<N>, inner: core::ptr::NonNull<T>) -> BBoxPtr<N, T> {
+            BBoxPtr { rect, inner}
         }
     }
+
+    unsafe impl<N,T> Send for BBoxPtr<N,T>{}
+    unsafe impl<N,T> Sync for BBoxPtr<N,T>{}
 
 
     impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
@@ -66,7 +69,7 @@ pub mod dinotree_owned{
 
     ///A Node in a dinotree.
     pub struct NodePtr<T: HasAabb> {
-        range: tools::Unique<[T]>,
+        range: core::ptr::NonNull<[T]>,
 
         //range is empty iff cont is none.
         cont: Option<axgeom::Range<T::Num>>,
@@ -131,11 +134,11 @@ pub mod dinotree_owned{
         axis:A,
         mut bots:Vec<T>,
         mut aabb_create:impl FnMut(&T)->Rect<N>)->DinoTreeOwned<A,N,T>{
-        let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|unsafe{BBoxPtr::new(aabb_create(k),k)}).collect();
+        let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|BBoxPtr::new(aabb_create(k),core::ptr::NonNull::new(k).unwrap())).collect();
 
         let inner = DinoTreeBuilder::new(axis,&mut bots_aabb).build_par();
         
-        let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:unsafe{tools::Unique::new_unchecked(node.range)},cont:node.cont,div:node.div}).collect(); 
+        let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:core::ptr::NonNull::new(node.range).unwrap(),cont:node.cont,div:node.div}).collect(); 
         let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(inner).unwrap();
         DinoTreeOwned{
             inner:DinoTree{
@@ -152,11 +155,11 @@ pub mod dinotree_owned{
         axis:A,
         mut bots:Vec<T>,
         mut aabb_create:impl FnMut(&T)->Rect<N>)->DinoTreeOwned<A,N,T>{
-        let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|unsafe{BBoxPtr::new(aabb_create(k),k)}).collect();
+        let mut bots_aabb:Vec<BBoxPtr<N,T>>=bots.iter_mut().map(|k|BBoxPtr::new(aabb_create(k),core::ptr::NonNull::new(k).unwrap())).collect();
 
         let inner = DinoTreeBuilder::new(axis,&mut bots_aabb).build_seq();
         
-        let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:unsafe{tools::Unique::new_unchecked(node.range)},cont:node.cont,div:node.div}).collect(); 
+        let inner:Vec<_>=inner.inner.into_nodes().drain(..).map(|node|NodePtr{range:core::ptr::NonNull::new(node.range).unwrap(),cont:node.cont,div:node.div}).collect(); 
         let inner=compt::dfs_order::CompleteTreeContainer::from_preorder(inner).unwrap();
         DinoTreeOwned{
             inner:DinoTree{
