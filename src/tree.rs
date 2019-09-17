@@ -271,7 +271,7 @@ impl<'a, A: AxisTrait, T:HasAabb> DinoTreeBuilder<'a,A,T>{
 
     ///Create a new builder with a slice of elements that implement `HasAabb`.
     pub fn new(axis: A, bots: &'a mut [T]) -> DinoTreeBuilder<'a,A, T> {
-        let rebal_strat = BinStrat::Checked;
+        let rebal_strat = BinStrat::NotChecked;
 
         //we want each node to have space for around num_per_node bots.
         //there are 2^h nodes.
