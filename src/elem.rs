@@ -214,6 +214,9 @@ pub struct PreVecMut<T> {
 impl<T> PreVecMut<T> {
     #[inline(always)]
     pub fn new() -> PreVecMut<T> {
+
+        debug_assert_eq!(core::mem::size_of::<core::ptr::NonNull<T>>() ,core::mem::size_of::<&mut T>() );
+
         PreVecMut {
             vec:Vec::new()
         }

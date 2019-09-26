@@ -150,7 +150,7 @@ pub mod prelude{
 
 
 ///Provies some debugging and misc functions.
-pub mod tools;
+mod tools;
 
 ///A collection of 1d functions that operate on lists of 2d objects.
 mod oned;
