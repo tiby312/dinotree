@@ -13,7 +13,7 @@ impl<'a,T> BBoxIndirect<'a,T>{
 }
 
 
-impl<'a,T:HasAabb> HasAabb for BBoxIndirect<'a,T> {
+unsafe impl<'a,T:HasAabb> HasAabb for BBoxIndirect<'a,T> {
     type Num = T::Num;
     #[inline(always)]
     fn get(&self) -> &Rect<Self::Num>{
@@ -53,7 +53,7 @@ impl<'a,N, T> BBoxMut<'a,N, T> {
 }
 
 
-impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
+unsafe impl<'a,N: NumTrait, T> HasAabb for BBoxMut<'a,N, T> {
     type Num = N;
     #[inline(always)]
     fn get(&self) -> &Rect<Self::Num>{
@@ -97,7 +97,7 @@ impl<N, T> BBox<N, T> {
 
 
 
-impl<N: NumTrait, T> HasAabb for BBox<N, T> {
+unsafe impl<N: NumTrait, T> HasAabb for BBox<N, T> {
     type Num = N;
     #[inline(always)]
     fn get(&self) -> &Rect<Self::Num>{

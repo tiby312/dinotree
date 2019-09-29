@@ -19,13 +19,14 @@ unsafe impl<N,T> Send for BBoxPtr<N,T>{}
 unsafe impl<N,T> Sync for BBoxPtr<N,T>{}
 
 
-impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
+unsafe impl<N: NumTrait, T> HasAabb for BBoxPtr<N, T> {
     type Num = N;
     #[inline(always)]
     fn get(&self) -> &Rect<Self::Num>{
         &self.rect
     }
 }
+
 impl<N:NumTrait,T> HasInner for BBoxPtr<N,T>{
     type Inner= T;
 

@@ -6,7 +6,6 @@ extern crate compt;
 use dinotree::prelude::*;
 use compt::*;
 
-//TODO add tests that use the dists crate.
 
 fn assert_length<I: std::iter::ExactSizeIterator>(it: I) {
     let len = it.size_hint().0;
@@ -40,10 +39,25 @@ fn test_one() {
 
     let (n, _) = tree.vistr().next();
     let n=n.get();
-    assert_eq!(n.div.is_none(), true);
+    assert!(n.div.is_none());
     assert_eq!(n.bots.len(), 1);
     assert!(n.cont.is_some())
 }
+
+#[test]
+fn test_empty() {
+    let mut bots: Vec<()> = Vec::new();
+    let mut bots = create_bbox_mut(&mut bots,|_b|{axgeom::Rect::new(0isize,0,0,0)});
+    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &mut bots)
+    .build_seq();
+
+    let (n, _) = tree.vistr().next();
+    let n=n.get();
+    assert_eq!(n.bots.len(), 0);
+    assert!(n.div.is_none());
+    assert!(n.cont.is_none());
+}
+
 
 #[test]
 fn test_many() {
@@ -73,42 +87,24 @@ fn test_many() {
 }
 
 #[test]
-fn test_empty() {
-    let mut bots: Vec<()> = Vec::new();
+fn test_send_sync_dinotree(){
+    let mut bots1:Vec<()>=Vec::new();
+    let mut bots2:Vec<()>=Vec::new();
 
-    let mut bots = create_bbox_mut(&mut bots,|_b|{axgeom::Rect::new(0isize,0,0,0)});
+    let mut bots1=create_bbox_mut(&mut bots1,|_|axgeom::Rect::new(0,0,0,0));
+    let mut bots2=create_bbox_mut(&mut bots2,|_|axgeom::Rect::new(0,0,0,0));
 
-    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &mut bots)
-    .build_seq();
+    //Check that its send
+    let (t1,t2)=rayon::join(
+            ||DinoTreeBuilder::new(axgeom::XAXISS,&mut bots1).build_seq(),
+            ||DinoTreeBuilder::new(axgeom::YAXISS,&mut bots2).build_seq());
 
-    let (n, _) = tree.vistr().next();
-    let n=n.get();
-    assert_eq!(n.bots.len(), 0);
+    //Check that its sync
+    let (p1,p2)=(&t1,&t2);
+    rayon::join(||{p1},||{p2});
 }
 
-/*
-#[test]
-fn test_iter() {
-    let mut bots = vec![0usize; 1234];
 
-    let tree = DinoTreeBuilder::new(axgeom::YAXISS, &mut bots, |_b| {
-        axgeom::Rect::new(0isize, 0, 0, 0)
-    })
-    .build_seq();
-
-    let mut last = None;
-    for b in tree.get_bots().iter() {
-        match last {
-            None => last = Some(b as *const BBox<isize, usize>),
-            Some(ll) => {
-                let bb = b as *const BBox<isize, usize>;
-                assert!((ll as usize) < (bb as usize));
-                last = Some(bb)
-            }
-        }
-    }
-}
-*/
 
 #[test]
 fn test() {

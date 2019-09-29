@@ -42,7 +42,7 @@ impl<'a,T> ProtectedBBox<'a,T>{
 
 
 
-impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
+unsafe impl<'a,T:HasAabb> HasAabb for ProtectedBBox<'a,T>{
     type Num=T::Num;
     #[inline(always)]
     fn get(&self)->&Rect<Self::Num>{
