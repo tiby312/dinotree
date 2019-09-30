@@ -87,6 +87,12 @@ impl<A:AxisTrait,N:NumTrait,T> DinoTreeOwned<A,N,T>{
     pub fn get_aabb_bots_mut(&mut self)->ProtectedBBoxSlice<BBoxPtr<N,T>>{
         ProtectedBBoxSlice::new(&mut self.bots_aabb)
     }
+
+    pub unsafe fn get_aabb_bots_mut_not_protected(&mut self)->&mut [BBoxPtr<N,T>]{
+        &mut self.bots_aabb
+    }
+
+
     pub fn get_aabb_bots(&self)->&[BBoxPtr<N,T>]{
         &self.bots_aabb
     }
