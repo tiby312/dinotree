@@ -583,10 +583,12 @@ impl<'a, T: HasAabb + Send + Sync, K: Splitter + Send+ Sync , S: Sorter> Recurse
 
             let mut splitter2 = splitter.div();
 
-            let splitter = match dlevel.next(Depth(depth)){
+            let splitter = match dlevel.next(){
                 par::ParResult::Parallel([dleft,dright])=>{
                     let splitter2 = &mut splitter2;
 
+                    //dbg!("PAR SPLIT");
+                    
                     let ((splitter, nodes), mut nodes2) = rayon::join(
                         move || {
                             self.recurse_preorder(
@@ -618,6 +620,9 @@ impl<'a, T: HasAabb + Send + Sync, K: Splitter + Send+ Sync , S: Sorter> Recurse
                     splitter
                 },
                 par::ParResult::Sequential(_)=>{
+                    
+                    //dbg!("SEQ SPLIT");
+                    
                     self.recurse_preorder_seq(
                         axis.next(),
                         left,

@@ -7,6 +7,29 @@ use dinotree::prelude::*;
 use compt::*;
 
 
+
+#[test]
+fn test_par_heur(){
+    use dinotree::par::*;
+    let p = compute_level_switch_sequential(6,6);
+    assert_eq!(p.get_depth_to_switch_at(),0);
+}
+#[test]
+fn test_parallel(){
+    use dinotree::par::*;
+    let k=Parallel::new(0);
+    match k.next(){
+        ParResult::Parallel([a,b])=>{
+            panic!("fail");
+        },
+        ParResult::Sequential([a,b])=>{
+            
+        }
+    }
+
+
+}
+
 fn assert_length<I: std::iter::ExactSizeIterator>(it: I) {
     let len = it.size_hint().0;
     assert_eq!(it.count(), len);

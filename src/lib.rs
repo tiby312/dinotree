@@ -98,7 +98,8 @@
 //!
 
 
-#![no_std]
+//#![no_std]
+
 #[cfg(all(feature = "unstable", test))]
 extern crate test;
 
