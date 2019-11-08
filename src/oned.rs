@@ -71,7 +71,7 @@ pub fn bin_middle_left_right<'b, A: AxisTrait, X: HasAabb>(
 
 /// Sorts the bots into three bins. Those to the left of the divider, those that intersect with the divider, and those to the right.
 /// They will be laid out in memory s.t.  middile<left<right
-pub unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
+pub(crate) unsafe fn bin_middle_left_right_unchecked<'b, A: AxisTrait, X: HasAabb>(
     axis: A,
     med: &X::Num,
     bots: &'b mut [X],

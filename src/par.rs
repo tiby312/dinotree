@@ -1,7 +1,3 @@
-use compt::Depth;
-
-
-
 ///A suggested height at which to switch from parallel
 ///to sequential. Once the tree construction reaches
 ///this height, it will no longer call rayon::join(),
@@ -45,7 +41,7 @@ pub struct Parallel{
 impl Parallel {
     ///The depth at which to switch to sequential.
     pub fn new(depth_to_switch_at: usize) -> Self {
-        Parallel{depth_to_switch_at:depth_to_switch_at,current_depth:0}
+        Parallel{depth_to_switch_at,current_depth:0}
     }
 
     pub fn get_depth_to_switch_at(&self)->usize{

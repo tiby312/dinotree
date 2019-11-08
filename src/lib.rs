@@ -116,7 +116,6 @@ mod inner_prelude {
     pub use alloc::vec::Vec;
 
     pub(crate) use super::*;
-    pub(crate) use crate::compt::Depth;
     pub(crate) use crate::compt::Visitor;
     pub(crate) use crate::tree;
     pub(crate) use crate::tree::*;

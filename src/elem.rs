@@ -129,6 +129,11 @@ impl<'a,T> ProtectedBBoxSlice<'a,T>{
     }
 
     #[inline(always)]
+    pub fn is_empty(&self)->bool{
+        self.inner.is_empty()
+    }
+
+    #[inline(always)]
     pub fn split_first_mut(self)->Option<(ProtectedBBox<'a,T>,ProtectedBBoxSlice<'a,T>)>{
         self.inner.split_first_mut().map(|(first,inner)|(ProtectedBBox{inner:first},ProtectedBBoxSlice::new(inner)))
     }
@@ -207,11 +212,13 @@ unsafe impl<T> core::marker::Send for PreVecMut<T> {}
 unsafe impl<T> core::marker::Sync for PreVecMut<T> {}
 
 ///An vec api to avoid excessive dynamic allocation by reusing a Vec
+#[derive(Default)]
 pub struct PreVecMut<T> {
     vec:Vec<core::ptr::NonNull<T>>
 }
 
 impl<T> PreVecMut<T> {
+    
     #[inline(always)]
     pub fn new() -> PreVecMut<T> {
 
@@ -221,6 +228,7 @@ impl<T> PreVecMut<T> {
             vec:Vec::new()
         }
     }
+
 
     ///Clears the vec and returns a mutable reference to a vec.
     #[inline(always)]

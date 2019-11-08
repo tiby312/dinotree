@@ -14,7 +14,7 @@ fn a_bot_has_value<N: NumTrait>(it: impl Iterator<Item = N>, val: N) -> bool {
     false
 }
 
-fn inner<'a,A: AxisTrait, N: NodeTrait>(
+fn inner<A: AxisTrait, N: NodeTrait>(
     axis: A,
     iter: compt::LevelIter<Vistr<N>>,
 ) -> Result<(), ()> {

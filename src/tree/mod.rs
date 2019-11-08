@@ -22,7 +22,7 @@ pub fn create_bbox_mut<'a,Num:NumTrait,T>(bots:&'a mut [T],mut aabb_create:impl 
 pub struct IntoDirectHelper<N,T>(Vec<BBox<N,T>>);
 
 ///Convenience function to create a list of `(Rect<N>,T)` from a `(Rect<N>,&mut T)`. `T` must implement Copy.
-pub fn generate_direct<'a,A:AxisTrait,N:NumTrait,T:Copy>(tree:&DinoTree<A,NodeMut<BBoxMut<N,T>>>)->IntoDirectHelper<N,T>{
+pub fn generate_direct<A:AxisTrait,N:NumTrait,T:Copy>(tree:&DinoTree<A,NodeMut<BBoxMut<N,T>>>)->IntoDirectHelper<N,T>{
     IntoDirectHelper(tree.inner.get_nodes().iter().flat_map(|a|a.range.iter()).map(|a|BBox::new(a.rect,*a.inner)).collect())
 }
 
@@ -248,8 +248,7 @@ pub fn compute_tree_height_heuristic(num_bots: usize, num_per_node: usize) -> us
     } else {
         let a=num_bots as f32 / num_per_node as f32;
         let b=a.log2()/2.0;
-        let c=(b.ceil() as usize)*2+1;
-        c
+        (b.ceil() as usize)*2+1
     }
 }
 
@@ -314,10 +313,10 @@ impl<'a,T:HasAabb> NodeTrait for NodeMut<'a,T>{
     type T=T;
     type Num=T::Num;
     fn get(&self)->NodeRef<Self::T>{
-        NodeRef{bots:self.range.as_ref(),cont:&self.cont,div:&self.div}
+        NodeRef{bots:self.range,cont:&self.cont,div:&self.div}
     }
     fn get_mut(&mut self)->NodeRefMut<Self::T>{
-        NodeRefMut{bots:ProtectedBBoxSlice::new(self.range.as_mut()),cont:&self.cont,div:&self.div}
+        NodeRefMut{bots:ProtectedBBoxSlice::new(self.range),cont:&self.cont,div:&self.div}
     }
 }
 
