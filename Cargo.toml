@@ -1,11 +1,11 @@
 [package]
 name = "dinotree"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["Ken Reed <kenakioreed@gmail.com>"]
 description = "An aabb space partitioning 2d tree data structure"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/tiby312/dinotree"
-keywords = ["tree", "kdtree","dinotree","space-partitioning"]
+keywords = []
 readme = "readme.md"
 edition = "2018"
 
